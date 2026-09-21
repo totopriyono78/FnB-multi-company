@@ -10,7 +10,10 @@
     ],
     "license": "proprietary",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
+        "ext-intl": "*",
+        "ext-pdo_pgsql": "*",
+        "ext-zip": "*",
         "barryvdh/laravel-dompdf": "^3.1",
         "filament/filament": "^3.3",
         "laravel/framework": "^12.0",
@@ -92,6 +95,9 @@
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
+        "platform": {
+            "php": "8.4.1"
+        },
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,

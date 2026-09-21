@@ -33,6 +33,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        /*
+         * Di PaaS (Railway, Fly, Heroku) TLS diterminasi di proxy tepi dan kontainer
+         * hanya bisa dihubungi lewat proxy itu, sehingga X-Forwarded-* dapat dipercaya.
+         * Tanpa ini Laravel menganggap request http:// dan Filament/Livewire memuat aset
+         * dengan skema salah (mixed content) serta IP klien tercatat sebagai IP proxy.
+         * Di lokal tidak berpengaruh karena request tidak membawa header X-Forwarded-*.
+         */
+        $middleware->trustProxies(at: '*');
+
         $middleware->prepend(AssignRequestId::class);
         $middleware->prependToGroup('api', TenantBoundary::class);
         $middleware->alias([

@@ -15,6 +15,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -70,6 +71,15 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Pengguna & Akses'),
                 NavigationGroup::make('Keamanan'),
             ])
+            // Pintasan ke aplikasi kasir (POS web); dibuka di tab baru agar layar kasir tetap utuh.
+            ->navigationItems([
+                NavigationItem::make('Aplikasi Kasir (POS)')
+                    ->url(fn (): string => url('/pos'), shouldOpenInNewTab: true)
+                    ->icon('heroicon-o-computer-desktop')
+                    ->group('Penjualan')
+                    ->sort(99)
+                    ->visible(fn (): bool => (bool) config('fnb.pos_web', true)),
+            ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
@@ -85,6 +95,13 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            // Pintasan ke aplikasi kasir (POS web) dari halaman login; ditempatkan tepat di
+            // bawah tombol Masuk agar tidak tenggelam di bawah daftar akun demo.
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): View => view('filament.auth.pos-link'),
+                scopes: Login::class,
+            )
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (): View => view('filament.auth.demo-accounts'),
