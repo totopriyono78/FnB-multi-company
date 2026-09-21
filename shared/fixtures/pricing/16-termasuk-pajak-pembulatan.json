@@ -1,0 +1,30 @@
+{
+  "name": "16-termasuk-pajak-pembulatan",
+  "description": "Harga termasuk pajak 11% dengan pembulatan",
+  "input": {
+    "config": {
+      "tax_rate": "11",
+      "tax_inclusive": true,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18550",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "service_charge_base": "16711.71",
+      "tax": "1838.29",
+      "total_before_rounding": "18550.00",
+      "rounding": "50.00",
+      "total": "18600.00"
+    }
+  }
+}

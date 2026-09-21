@@ -1,0 +1,27 @@
+{
+  "name": "06-pembulatan-ke-bawah",
+  "description": "Pembulatan ke bawah",
+  "input": {
+    "config": {
+      "tax_rate": "11",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "down"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18555",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "rounding": "-96.05",
+      "total": "20500.00"
+    }
+  }
+}

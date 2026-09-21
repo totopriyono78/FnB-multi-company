@@ -1,0 +1,119 @@
+{
+  "name": "06-pilih-promo-terbaik",
+  "description": "BR-18: dua promo tidak bisa ditumpuk, dipilih yang paling menguntungkan",
+  "input": {
+    "cart": {
+      "lines": [
+        {
+          "id": "L1",
+          "item_id": "latte",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "25000",
+          "qty": "2"
+        },
+        {
+          "id": "L2",
+          "item_id": "kopi-susu",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "18000",
+          "qty": "1"
+        },
+        {
+          "id": "L3",
+          "item_id": "roti-bakar",
+          "category_id": "makanan",
+          "brand_id": "rb88",
+          "unit_price": "22000",
+          "qty": "1"
+        }
+      ]
+    },
+    "context": {
+      "outlet_id": "kemang",
+      "channel_code": "dine_in",
+      "local_time": "2026-09-16 15:30",
+      "timezone": "Asia/Jakarta",
+      "payment_method": null,
+      "codes": []
+    },
+    "promotions": [
+      {
+        "id": "p10",
+        "name": "p10",
+        "code": null,
+        "brand_id": null,
+        "type": "percent",
+        "scope": "order",
+        "value": "10",
+        "min_purchase": null,
+        "max_discount": null,
+        "buy_qty": null,
+        "get_qty": null,
+        "item_ids": [],
+        "category_ids": [],
+        "outlet_ids": [],
+        "channel_codes": null,
+        "payment_methods": null,
+        "days_of_week": null,
+        "time_start": null,
+        "time_end": null,
+        "starts_at": "2026-01-01T00:00:00+07:00",
+        "ends_at": null,
+        "quota_remaining": null,
+        "stackable": false,
+        "auto_apply": true,
+        "priority": 0
+      },
+      {
+        "id": "hh",
+        "name": "hh",
+        "code": null,
+        "brand_id": null,
+        "type": "special_price",
+        "scope": "items",
+        "value": "20000",
+        "min_purchase": null,
+        "max_discount": null,
+        "buy_qty": null,
+        "get_qty": null,
+        "item_ids": [
+          "latte"
+        ],
+        "category_ids": [],
+        "outlet_ids": [],
+        "channel_codes": null,
+        "payment_methods": null,
+        "days_of_week": null,
+        "time_start": null,
+        "time_end": null,
+        "starts_at": "2026-01-01T00:00:00+07:00",
+        "ends_at": null,
+        "quota_remaining": null,
+        "stackable": false,
+        "auto_apply": true,
+        "priority": 0
+      }
+    ]
+  },
+  "expected": {
+    "applied": [
+      {
+        "id": "hh",
+        "name": "hh",
+        "amount": "10000.00"
+      }
+    ],
+    "line_discounts": {
+      "L1": [
+        {
+          "type": "amount",
+          "value": "10000.00",
+          "source": "promo:hh"
+        }
+      ]
+    },
+    "order_discounts": []
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "01-srs-kopi-susu-uang-pas",
+  "description": "Skenario SRS §10.1: 2 × Kopi Susu Rp18.000, PB1 10% belum termasuk pajak",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "kopi-susu",
+        "unit_price": "18000",
+        "qty": "2"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "36000.00",
+      "discount": "0.00",
+      "service_charge": "0.00",
+      "tax": "3600.00",
+      "rounding": "0.00",
+      "total": "39600.00"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "19-diskon-berurutan-sumber",
+  "description": "Beberapa diskon item diterapkan berurutan dan dilaporkan per sumber",
+  "input": {
+    "config": {
+      "tax_rate": "0",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 0,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "20000",
+        "qty": "1",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "10",
+            "source": "promo:happy-hour"
+          },
+          {
+            "type": "amount",
+            "value": "3000",
+            "source": "manual"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "item_discount": "5000.00",
+      "total": "15000.00"
+    },
+    "discounts": [
+      {
+        "source": "promo:happy-hour",
+        "scope": "item",
+        "amount": "2000.00"
+      },
+      {
+        "source": "manual",
+        "scope": "item",
+        "amount": "3000.00"
+      }
+    ]
+  }
+}

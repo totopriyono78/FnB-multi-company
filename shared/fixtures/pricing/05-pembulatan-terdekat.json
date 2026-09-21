@@ -1,0 +1,29 @@
+{
+  "name": "05-pembulatan-terdekat",
+  "description": "Pajak 11%, total pecahan dibulatkan ke Rp100 terdekat",
+  "input": {
+    "config": {
+      "tax_rate": "11",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18555",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "tax": "2041.05",
+      "total_before_rounding": "20596.05",
+      "rounding": "3.95",
+      "total": "20600.00"
+    }
+  }
+}

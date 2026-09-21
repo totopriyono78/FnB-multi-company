@@ -1,0 +1,536 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+/*
+ * Token desain FnB Cloud — satu-satunya sumber warna, huruf, radius, dan spasi back-office.
+ * Lihat CLAUDE.md §5.2. Format warna "r g b" dipakai karena Filament 3 membaca
+ * variabel --{palet}-{tingkat} sebagai rgb(var(...)).
+ *
+ * Aksen brand: hijau daun (#1d7a55). Netral: abu hangat (stone).
+ * Mode gelap memakai abu gelap, bukan hitam pekat.
+ */
+html:root {
+    /* Aksen */
+    --primary-50: 236, 248, 242;
+    --primary-100: 209, 238, 223;
+    --primary-200: 164, 221, 193;
+    --primary-300: 110, 197, 157;
+    --primary-400: 62, 167, 120;
+    --primary-500: 33, 128, 89;
+    --primary-600: 28, 114, 79;
+    --primary-700: 25, 98, 70;
+    --primary-800: 23, 78, 57;
+    --primary-900: 20, 64, 48;
+    --primary-950: 10, 36, 27;
+
+    /* Netral hangat */
+    --gray-50: 250, 250, 249;
+    --gray-100: 245, 245, 244;
+    --gray-200: 231, 229, 228;
+    --gray-300: 214, 211, 209;
+    --gray-400: 168, 162, 158;
+    --gray-500: 104, 98, 93;
+    --gray-600: 87, 83, 78;
+    --gray-700: 68, 64, 60;
+    --gray-800: 48, 45, 42;
+    --gray-900: 36, 33, 31;
+    --gray-950: 28, 26, 24;
+
+    /* Status */
+    --danger-50: 254, 242, 242;
+    --danger-100: 254, 226, 226;
+    --danger-400: 248, 113, 113;
+    --danger-500: 239, 68, 68;
+    --danger-600: 200, 38, 38;
+    --danger-700: 170, 28, 28;
+    --warning-50: 255, 251, 235;
+    --warning-400: 251, 191, 36;
+    --warning-500: 245, 158, 11;
+    --warning-600: 161, 84, 5;
+    --success-50: 240, 253, 244;
+    --success-400: 74, 222, 128;
+    --success-500: 34, 197, 94;
+    --success-600: 17, 102, 48;
+    --info-50: 240, 249, 255;
+    --info-400: 56, 189, 248;
+    --info-500: 14, 165, 233;
+    --info-600: 3, 105, 161;
+
+    /* Tipografi, radius, spasi */
+    --fnb-font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --fnb-radius-sm: 4px;
+    --fnb-radius-md: 6px;
+    --fnb-radius-lg: 8px;
+    --fnb-space-1: 4px;
+    --fnb-space-2: 8px;
+    --fnb-space-3: 12px;
+    --fnb-space-4: 16px;
+}
+
+/* Angka harga & jumlah selalu rata kolom. */
+.fi-ta-text,
+.fi-wi-stats-overview-stat-value,
+.fi-in-text {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Radius kecil–sedang dan bayangan tipis hanya untuk elemen melayang. */
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat {
+    border-radius: var(--fnb-radius-lg);
+    box-shadow: none;
+}
+
+.fi-btn,
+.fi-input-wrp,
+.fi-badge {
+    border-radius: var(--fnb-radius-md);
+}
+
+.fi-dropdown-panel,
+.fi-modal-window {
+    border-radius: var(--fnb-radius-lg);
+}
+
+/* Fokus keyboard harus jelas terlihat (WCAG 2.4.7). */
+.fi-btn:focus-visible,
+.fi-link:focus-visible,
+.fi-sidebar-item-button:focus-visible,
+.fi-ta-record-checkbox:focus-visible {
+    outline: 2px solid rgb(var(--primary-600));
+    outline-offset: 2px;
+}
+
+/* Teks placeholder tabel harus tetap terbaca (kontras ≥ 4,5:1). */
+.fi-ta-placeholder {
+    color: rgb(var(--gray-500));
+}
+
+.dark .fi-ta-placeholder {
+    color: rgb(var(--gray-400));
+}
+
+/* Daftar akun demo di halaman login (hanya mode demo). */
+.fnb-demo {
+    margin-top: var(--fnb-space-4);
+    padding-top: var(--fnb-space-4);
+    border-top: 1px solid rgb(var(--gray-200));
+}
+
+.fnb-demo__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--gray-950));
+}
+
+.fnb-demo__hint,
+.fnb-demo__note {
+    margin-top: var(--fnb-space-1);
+    font-size: 0.8125rem;
+    color: rgb(var(--gray-600));
+}
+
+.fnb-demo__note {
+    margin-top: var(--fnb-space-3);
+}
+
+.fnb-demo__code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 0 var(--fnb-space-1);
+    border-radius: var(--fnb-radius-sm);
+    background: rgb(var(--gray-100));
+    color: rgb(var(--gray-950));
+}
+
+.fnb-demo__list {
+    margin-top: var(--fnb-space-3);
+    display: grid;
+    gap: var(--fnb-space-2);
+}
+
+.fnb-demo__list > li {
+    min-width: 0;
+}
+
+.fnb-demo__item {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--fnb-space-3);
+    padding: var(--fnb-space-2) var(--fnb-space-3);
+    min-height: 56px;
+    text-align: left;
+    border: 1px solid rgb(var(--gray-200));
+    border-radius: var(--fnb-radius-md);
+    background: transparent;
+    transition: border-color 120ms, background-color 120ms;
+}
+
+.fnb-demo__item:hover {
+    border-color: rgb(var(--primary-600));
+    background: rgb(var(--primary-50));
+}
+
+.fnb-demo__item:focus-visible {
+    outline: 2px solid rgb(var(--primary-600));
+    outline-offset: 2px;
+}
+
+.fnb-demo__item:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.fnb-demo__main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fnb-demo__name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--gray-950));
+}
+
+.fnb-demo__role,
+.fnb-demo__email {
+    font-size: 0.75rem;
+    color: rgb(var(--gray-600));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fnb-demo__meta {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--fnb-space-2);
+}
+
+.fnb-demo__pin {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    padding: 0 var(--fnb-space-2);
+    border-radius: var(--fnb-radius-sm);
+    background: rgb(var(--gray-100));
+    color: rgb(var(--gray-700));
+}
+
+.fnb-demo__icon {
+    width: 1rem;
+    height: 1rem;
+    color: rgb(var(--gray-500));
+}
+
+.dark .fnb-demo {
+    border-top-color: rgb(var(--gray-700));
+}
+
+.dark .fnb-demo__title,
+.dark .fnb-demo__name {
+    color: rgb(var(--gray-50));
+}
+
+.dark .fnb-demo__hint,
+.dark .fnb-demo__note,
+.dark .fnb-demo__role,
+.dark .fnb-demo__email {
+    color: rgb(var(--gray-400));
+}
+
+.dark .fnb-demo__code,
+.dark .fnb-demo__pin {
+    background: rgb(var(--gray-800));
+    color: rgb(var(--gray-200));
+}
+
+.dark .fnb-demo__item {
+    border-color: rgb(var(--gray-700));
+    background: rgb(var(--gray-900));
+}
+
+.dark .fnb-demo__item:hover {
+    border-color: rgb(var(--primary-400));
+    background: rgb(var(--gray-800));
+}
+
+/* Halaman menu: teks bantu, callout, dan rincian harga. */
+.fnb-stack {
+    display: grid;
+    gap: var(--fnb-space-4);
+}
+
+.fnb-muted {
+    margin-top: var(--fnb-space-2);
+    font-size: 0.8125rem;
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-muted {
+    color: rgb(var(--gray-400));
+}
+
+.fnb-availability-toolbar {
+    display: grid;
+    gap: var(--fnb-space-2);
+    max-width: 42rem;
+}
+
+.fnb-callout {
+    padding: var(--fnb-space-3) var(--fnb-space-4);
+    border: 1px solid rgb(var(--gray-200));
+    border-radius: var(--fnb-radius-md);
+}
+
+.fnb-callout--danger {
+    border-color: rgb(var(--danger-600));
+    background: rgb(var(--danger-50));
+    color: rgb(var(--danger-700));
+}
+
+.dark .fnb-callout--danger {
+    background: transparent;
+    color: rgb(var(--danger-400));
+}
+
+.fnb-callout__title {
+    font-weight: 600;
+}
+
+.fnb-callout__list {
+    margin-top: var(--fnb-space-1);
+    padding-left: var(--fnb-space-4);
+    list-style: disc;
+    font-size: 0.875rem;
+}
+
+.fnb-receipt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.fnb-receipt th {
+    padding: var(--fnb-space-2);
+    text-align: left;
+    font-weight: 600;
+    color: rgb(var(--gray-600));
+    border-bottom: 1px solid rgb(var(--gray-200));
+}
+
+.fnb-receipt td {
+    padding: var(--fnb-space-2);
+    vertical-align: top;
+    border-bottom: 1px solid rgb(var(--gray-100));
+}
+
+.dark .fnb-receipt th,
+.dark .fnb-receipt td {
+    border-color: rgb(var(--gray-800));
+    color: rgb(var(--gray-200));
+}
+
+.fnb-receipt .fnb-num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.fnb-receipt .fnb-negative {
+    color: rgb(var(--danger-700));
+    font-weight: 600;
+}
+
+.dark .fnb-receipt .fnb-negative {
+    color: rgb(var(--danger-400));
+}
+
+.fnb-table-scroll {
+    overflow-x: auto;
+}
+
+.fnb-receipt__name {
+    display: block;
+    font-weight: 500;
+}
+
+.fnb-receipt__sub {
+    display: block;
+    font-size: 0.8125rem;
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-receipt__sub {
+    color: rgb(var(--gray-400));
+}
+
+.fnb-totals {
+    margin-top: var(--fnb-space-4);
+    margin-left: auto;
+    max-width: 22rem;
+    display: grid;
+    gap: var(--fnb-space-1);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.fnb-totals > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--fnb-space-4);
+}
+
+.fnb-totals dt {
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-totals dt {
+    color: rgb(var(--gray-400));
+}
+
+.fnb-totals__grand {
+    margin-top: var(--fnb-space-1);
+    padding-top: var(--fnb-space-2);
+    border-top: 1px solid rgb(var(--gray-200));
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/* Laporan (Tahap 5): filter, ringkasan angka, tabel, dan batang kontribusi. */
+.fnb-report-toolbar {
+    display: grid;
+    gap: var(--fnb-space-2);
+    max-width: 72rem;
+}
+
+.fnb-report-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--fnb-space-1) var(--fnb-space-4);
+}
+
+.fnb-report-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--fnb-space-3);
+}
+
+.fnb-report-summary__item {
+    padding: var(--fnb-space-3) var(--fnb-space-4);
+    border: 1px solid rgb(var(--gray-200));
+    border-radius: var(--fnb-radius-md);
+}
+
+.dark .fnb-report-summary__item {
+    border-color: rgb(var(--gray-800));
+}
+
+.fnb-report-summary dt {
+    font-size: 0.8125rem;
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-report-summary dt {
+    color: rgb(var(--gray-400));
+}
+
+.fnb-report-summary dd {
+    margin-top: var(--fnb-space-1);
+    font-size: 1.25rem;
+    overflow-wrap: anywhere;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: rgb(var(--gray-900));
+}
+
+.dark .fnb-report-summary dd {
+    color: rgb(var(--gray-50));
+}
+
+.fnb-report-summary dd.fnb-report-summary__negative {
+    color: rgb(var(--danger-700));
+}
+
+.dark .fnb-report-summary dd.fnb-report-summary__negative {
+    color: rgb(var(--danger-400));
+}
+
+.fnb-report-table th,
+.fnb-report-table td {
+    padding-left: var(--fnb-space-2);
+    padding-right: var(--fnb-space-2);
+}
+
+.fnb-report-table th[scope='row'] {
+    min-width: 12rem;
+    color: rgb(var(--gray-900));
+    font-weight: 500;
+    border-bottom-color: rgb(var(--gray-100));
+}
+
+.dark .fnb-report-table th[scope='row'] {
+    color: rgb(var(--gray-100));
+}
+
+.fnb-report-table tfoot th,
+.fnb-report-table tfoot td {
+    font-weight: 700;
+    color: rgb(var(--gray-900));
+    border-top: 1px solid rgb(var(--gray-300));
+    border-bottom: 0;
+}
+
+.dark .fnb-report-table tfoot th,
+.dark .fnb-report-table tfoot td {
+    color: rgb(var(--gray-50));
+}
+
+.fnb-report-bar {
+    display: inline-block;
+    width: 3rem;
+    height: 0.375rem;
+    margin-right: var(--fnb-space-2);
+    vertical-align: middle;
+    border-radius: 999px;
+    background: rgb(var(--gray-100));
+    overflow: hidden;
+}
+
+.fnb-report-bar > span {
+    display: block;
+    height: 100%;
+    background: rgb(var(--primary-600));
+}
+
+.dark .fnb-report-bar {
+    background: rgb(var(--gray-800));
+}
+
+.dark .fnb-report-bar > span {
+    background: rgb(var(--primary-400));
+}
+
+.fnb-report-notes {
+    margin-top: var(--fnb-space-4);
+    padding-left: var(--fnb-space-4);
+    list-style: disc;
+    font-size: 0.8125rem;
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-report-notes {
+    color: rgb(var(--gray-400));
+}
+
+
+.fnb-dashboard-grid {
+    display: grid;
+    gap: var(--fnb-space-4);
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    align-items: start;
+}

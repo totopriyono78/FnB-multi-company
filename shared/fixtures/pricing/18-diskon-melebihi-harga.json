@@ -1,0 +1,42 @@
+{
+  "name": "18-diskon-melebihi-harga",
+  "description": "Diskon nominal dibatasi nilai baris, total tidak pernah negatif",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "10000",
+        "qty": "1",
+        "discounts": [
+          {
+            "type": "amount",
+            "value": "15000"
+          }
+        ]
+      }
+    ],
+    "order_discounts": [
+      {
+        "type": "amount",
+        "value": "5000"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "item_discount": "10000.00",
+      "order_discount": "0.00",
+      "service_charge_base": "0.00",
+      "tax": "0.00",
+      "total": "0.00"
+    }
+  }
+}

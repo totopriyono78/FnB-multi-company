@@ -1,0 +1,92 @@
+{
+  "name": "04-beli-1-gratis-1",
+  "description": "Beli 1 gratis 1 kategori kopi: unit termahal dibayar, berikutnya gratis",
+  "input": {
+    "cart": {
+      "lines": [
+        {
+          "id": "L1",
+          "item_id": "latte",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "25000",
+          "qty": "2"
+        },
+        {
+          "id": "L2",
+          "item_id": "kopi-susu",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "18000",
+          "qty": "1"
+        },
+        {
+          "id": "L3",
+          "item_id": "roti-bakar",
+          "category_id": "makanan",
+          "brand_id": "rb88",
+          "unit_price": "22000",
+          "qty": "1"
+        }
+      ]
+    },
+    "context": {
+      "outlet_id": "kemang",
+      "channel_code": "dine_in",
+      "local_time": "2026-09-16 15:30",
+      "timezone": "Asia/Jakarta",
+      "payment_method": null,
+      "codes": []
+    },
+    "promotions": [
+      {
+        "id": "b1g1",
+        "name": "b1g1",
+        "code": null,
+        "brand_id": null,
+        "type": "buy_x_get_y",
+        "scope": "items",
+        "value": "0",
+        "min_purchase": null,
+        "max_discount": null,
+        "buy_qty": 1,
+        "get_qty": 1,
+        "item_ids": [],
+        "category_ids": [
+          "kopi"
+        ],
+        "outlet_ids": [],
+        "channel_codes": null,
+        "payment_methods": null,
+        "days_of_week": null,
+        "time_start": null,
+        "time_end": null,
+        "starts_at": "2026-01-01T00:00:00+07:00",
+        "ends_at": null,
+        "quota_remaining": null,
+        "stackable": false,
+        "auto_apply": true,
+        "priority": 0
+      }
+    ]
+  },
+  "expected": {
+    "applied": [
+      {
+        "id": "b1g1",
+        "name": "b1g1",
+        "amount": "25000.00"
+      }
+    ],
+    "line_discounts": {
+      "L1": [
+        {
+          "type": "amount",
+          "value": "25000.00",
+          "source": "promo:b1g1"
+        }
+      ]
+    },
+    "order_discounts": []
+  }
+}

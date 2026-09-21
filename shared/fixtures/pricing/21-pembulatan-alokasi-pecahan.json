@@ -1,0 +1,83 @@
+{
+  "name": "21-pembulatan-alokasi-pecahan",
+  "description": "Diskon persen pecahan: dibulatkan sekali di total lalu dialokasikan",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "3333",
+        "qty": "1",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "12.5"
+          }
+        ]
+      },
+      {
+        "id": "b",
+        "unit_price": "3333",
+        "qty": "1",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "12.5"
+          }
+        ]
+      },
+      {
+        "id": "c",
+        "unit_price": "3333",
+        "qty": "1",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "12.5"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "9999.00",
+      "item_discount": "1249.88",
+      "service_charge_base": "8749.12",
+      "tax": "874.91",
+      "total_before_rounding": "9624.03",
+      "rounding": "-24.03",
+      "total": "9600.00"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "gross": "3333.00",
+        "item_discount": "416.63",
+        "order_discount": "0.00",
+        "net": "2916.37"
+      },
+      {
+        "id": "b",
+        "gross": "3333.00",
+        "item_discount": "416.63",
+        "order_discount": "0.00",
+        "net": "2916.37"
+      },
+      {
+        "id": "c",
+        "gross": "3333.00",
+        "item_discount": "416.62",
+        "order_discount": "0.00",
+        "net": "2916.38"
+      }
+    ]
+  }
+}

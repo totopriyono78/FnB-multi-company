@@ -1,0 +1,62 @@
+{
+  "name": "24-qty-pecahan-tidak-ikut-b1g1",
+  "description": "Menu berbasis berat tidak ikut beli-1-gratis-1",
+  "input": {
+    "cart": {
+      "lines": [
+        {
+          "id": "F1",
+          "item_id": "kakap",
+          "category_id": "ikan",
+          "brand_id": "ktj",
+          "unit_price": "125000",
+          "qty": "1.5"
+        }
+      ]
+    },
+    "context": {
+      "outlet_id": "kemang",
+      "channel_code": "dine_in",
+      "local_time": "2026-09-16 15:30",
+      "timezone": "Asia/Jakarta",
+      "payment_method": null,
+      "codes": []
+    },
+    "promotions": [
+      {
+        "id": "b1g1",
+        "name": "b1g1",
+        "code": null,
+        "brand_id": null,
+        "type": "buy_x_get_y",
+        "scope": "items",
+        "value": "0",
+        "min_purchase": null,
+        "max_discount": null,
+        "buy_qty": 1,
+        "get_qty": 1,
+        "item_ids": [],
+        "category_ids": [
+          "ikan"
+        ],
+        "outlet_ids": [],
+        "channel_codes": null,
+        "payment_methods": null,
+        "days_of_week": null,
+        "time_start": null,
+        "time_end": null,
+        "starts_at": "2026-01-01T00:00:00+07:00",
+        "ends_at": null,
+        "quota_remaining": null,
+        "stackable": false,
+        "auto_apply": true,
+        "priority": 0
+      }
+    ]
+  },
+  "expected": {
+    "applied": [],
+    "line_discounts": [],
+    "order_discounts": []
+  }
+}

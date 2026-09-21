@@ -1,0 +1,29 @@
+{
+  "name": "14-termasuk-pajak",
+  "description": "Harga sudah termasuk pajak 10%, tanpa SC: pelanggan membayar harga menu",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": true,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "22000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "service_charge_base": "20000.00",
+      "tax": "2000.00",
+      "total": "22000.00",
+      "rounding": "0.00"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "11-diskon-item-persen",
+  "description": "Diskon item 10% pada satu baris",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "latte",
+        "unit_price": "25000",
+        "qty": "3",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "10",
+            "source": "manual"
+          }
+        ]
+      },
+      {
+        "id": "kopi",
+        "unit_price": "18000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "93000.00",
+      "item_discount": "7500.00",
+      "order_discount": "0.00",
+      "service_charge_base": "85500.00",
+      "tax": "8550.00",
+      "total_before_rounding": "94050.00",
+      "rounding": "50.00",
+      "total": "94100.00"
+    }
+  }
+}

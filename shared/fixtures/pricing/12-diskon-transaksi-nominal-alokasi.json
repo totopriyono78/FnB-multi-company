@@ -1,0 +1,67 @@
+{
+  "name": "12-diskon-transaksi-nominal-alokasi",
+  "description": "Diskon transaksi Rp10.000 setelah diskon item, dialokasikan sisa terbesar",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "latte",
+        "unit_price": "25000",
+        "qty": "3",
+        "discounts": [
+          {
+            "type": "percent",
+            "value": "10"
+          }
+        ]
+      },
+      {
+        "id": "kopi",
+        "unit_price": "18000",
+        "qty": "1"
+      }
+    ],
+    "order_discounts": [
+      {
+        "type": "amount",
+        "value": "10000",
+        "source": "voucher"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "item_discount": "7500.00",
+      "order_discount": "10000.00",
+      "discount": "17500.00",
+      "service_charge_base": "75500.00",
+      "tax": "7550.00",
+      "total_before_rounding": "83050.00",
+      "rounding": "50.00",
+      "total": "83100.00"
+    },
+    "lines": [
+      {
+        "id": "latte",
+        "gross": "75000.00",
+        "item_discount": "7500.00",
+        "order_discount": "7894.74",
+        "net": "59605.26"
+      },
+      {
+        "id": "kopi",
+        "gross": "18000.00",
+        "item_discount": "0.00",
+        "order_discount": "2105.26",
+        "net": "15894.74"
+      }
+    ]
+  }
+}

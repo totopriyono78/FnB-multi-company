@@ -1,0 +1,29 @@
+{
+  "name": "17-channel-tanpa-sc",
+  "description": "Channel ojol tidak dikenai service charge (BR-01)",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "5",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest",
+      "service_charge_applies": false
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "58000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "service_charge": "0.00",
+      "tax": "5800.00",
+      "total": "63800.00"
+    }
+  }
+}

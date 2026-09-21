@@ -1,0 +1,42 @@
+{
+  "name": "09-modifier",
+  "description": "Modifier dijumlahkan ke harga satuan sebelum dikali qty",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "kopi",
+        "unit_price": "18000",
+        "qty": "2",
+        "modifiers": [
+          {
+            "id": "extra-shot",
+            "price": "5000"
+          },
+          {
+            "id": "oat",
+            "price": "6000"
+          },
+          {
+            "id": "less-sugar",
+            "price": "0"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "58000.00",
+      "tax": "5800.00",
+      "total": "63800.00"
+    }
+  }
+}

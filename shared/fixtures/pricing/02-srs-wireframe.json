@@ -1,0 +1,49 @@
+{
+  "name": "02-srs-wireframe",
+  "description": "Wireframe SRS §4.1.1: 2 × Kopi Susu + 1 × Roti Bakar",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "kopi-susu",
+        "unit_price": "18000",
+        "qty": "2"
+      },
+      {
+        "id": "roti-bakar",
+        "unit_price": "22000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "58000.00",
+      "tax": "5800.00",
+      "total": "63800.00"
+    },
+    "lines": [
+      {
+        "id": "kopi-susu",
+        "gross": "36000.00",
+        "item_discount": "0.00",
+        "order_discount": "0.00",
+        "net": "36000.00"
+      },
+      {
+        "id": "roti-bakar",
+        "gross": "22000.00",
+        "item_discount": "0.00",
+        "order_discount": "0.00",
+        "net": "22000.00"
+      }
+    ]
+  }
+}

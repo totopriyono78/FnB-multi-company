@@ -1,0 +1,24 @@
+{
+  "name": "22-pembulatan-default",
+  "description": "Tanpa konfigurasi pembulatan: default Rp100 terdekat",
+  "input": {
+    "config": {
+      "tax_rate": "10"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18550",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "tax": "1855.00",
+      "total_before_rounding": "20405.00",
+      "rounding": "-5.00",
+      "total": "20400.00"
+    }
+  }
+}

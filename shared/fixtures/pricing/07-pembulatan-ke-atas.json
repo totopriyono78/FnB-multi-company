@@ -1,0 +1,29 @@
+{
+  "name": "07-pembulatan-ke-atas",
+  "description": "Pembulatan ke atas",
+  "input": {
+    "config": {
+      "tax_rate": "11",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "up"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18501",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "tax": "2035.11",
+      "total_before_rounding": "20536.11",
+      "rounding": "63.89",
+      "total": "20600.00"
+    }
+  }
+}

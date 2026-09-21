@@ -1,0 +1,38 @@
+{
+  "name": "03-sc-pajak-atas-sc-pembulatan",
+  "description": "SC 5%, pajak dihitung dari subtotal + SC, dibulatkan ke Rp100 terdekat",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "5",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "36000",
+        "qty": "1"
+      },
+      {
+        "id": "b",
+        "unit_price": "22000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "58000.00",
+      "service_charge_base": "58000.00",
+      "service_charge": "2900.00",
+      "tax_base": "60900.00",
+      "tax": "6090.00",
+      "total_before_rounding": "66990.00",
+      "rounding": "10.00",
+      "total": "67000.00"
+    }
+  }
+}

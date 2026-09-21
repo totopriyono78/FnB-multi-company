@@ -1,0 +1,78 @@
+{
+  "name": "03-happy-hour-di-luar-jam",
+  "description": "Happy hour tidak berlaku pukul 18.00",
+  "input": {
+    "cart": {
+      "lines": [
+        {
+          "id": "L1",
+          "item_id": "latte",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "25000",
+          "qty": "2"
+        },
+        {
+          "id": "L2",
+          "item_id": "kopi-susu",
+          "category_id": "kopi",
+          "brand_id": "ktj",
+          "unit_price": "18000",
+          "qty": "1"
+        },
+        {
+          "id": "L3",
+          "item_id": "roti-bakar",
+          "category_id": "makanan",
+          "brand_id": "rb88",
+          "unit_price": "22000",
+          "qty": "1"
+        }
+      ]
+    },
+    "context": {
+      "outlet_id": "kemang",
+      "channel_code": "dine_in",
+      "local_time": "2026-09-16 18:00",
+      "timezone": "Asia/Jakarta",
+      "payment_method": null,
+      "codes": []
+    },
+    "promotions": [
+      {
+        "id": "hh",
+        "name": "hh",
+        "code": null,
+        "brand_id": null,
+        "type": "special_price",
+        "scope": "items",
+        "value": "20000",
+        "min_purchase": null,
+        "max_discount": null,
+        "buy_qty": null,
+        "get_qty": null,
+        "item_ids": [
+          "latte"
+        ],
+        "category_ids": [],
+        "outlet_ids": [],
+        "channel_codes": null,
+        "payment_methods": null,
+        "days_of_week": null,
+        "time_start": "15:00",
+        "time_end": "17:00",
+        "starts_at": "2026-01-01T00:00:00+07:00",
+        "ends_at": null,
+        "quota_remaining": null,
+        "stackable": false,
+        "auto_apply": true,
+        "priority": 0
+      }
+    ]
+  },
+  "expected": {
+    "applied": [],
+    "line_discounts": [],
+    "order_discounts": []
+  }
+}

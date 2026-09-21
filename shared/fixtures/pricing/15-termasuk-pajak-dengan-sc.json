@@ -1,0 +1,37 @@
+{
+  "name": "15-termasuk-pajak-dengan-sc",
+  "description": "Harga termasuk pajak 10%, SC 5% dikenai pajak",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": true,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "5",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18000",
+        "qty": "1"
+      },
+      {
+        "id": "b",
+        "unit_price": "22000",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "40000.00",
+      "service_charge_base": "36363.64",
+      "service_charge": "1818.18",
+      "tax": "3818.18",
+      "total_before_rounding": "42000.00",
+      "rounding": "0.00",
+      "total": "42000.00"
+    }
+  }
+}

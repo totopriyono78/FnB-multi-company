@@ -1,0 +1,71 @@
+{
+  "name": "13-diskon-transaksi-persen",
+  "description": "Diskon transaksi 15%",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "12500",
+        "qty": "1"
+      },
+      {
+        "id": "b",
+        "unit_price": "9900",
+        "qty": "1"
+      },
+      {
+        "id": "c",
+        "unit_price": "7300",
+        "qty": "1"
+      }
+    ],
+    "order_discounts": [
+      {
+        "type": "percent",
+        "value": "15"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "29700.00",
+      "order_discount": "4455.00",
+      "service_charge_base": "25245.00",
+      "tax": "2524.50",
+      "total_before_rounding": "27769.50",
+      "rounding": "30.50",
+      "total": "27800.00"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "gross": "12500.00",
+        "item_discount": "0.00",
+        "order_discount": "1875.00",
+        "net": "10625.00"
+      },
+      {
+        "id": "b",
+        "gross": "9900.00",
+        "item_discount": "0.00",
+        "order_discount": "1485.00",
+        "net": "8415.00"
+      },
+      {
+        "id": "c",
+        "gross": "7300.00",
+        "item_discount": "0.00",
+        "order_discount": "1095.00",
+        "net": "6205.00"
+      }
+    ]
+  }
+}

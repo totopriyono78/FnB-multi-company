@@ -1,0 +1,27 @@
+{
+  "name": "08-tanpa-pembulatan",
+  "description": "Outlet memilih tanpa pembulatan (rounding_unit 0)",
+  "input": {
+    "config": {
+      "tax_rate": "11",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 0,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "a",
+        "unit_price": "18555",
+        "qty": "1"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "rounding": "0.00",
+      "total": "20596.05"
+    }
+  }
+}

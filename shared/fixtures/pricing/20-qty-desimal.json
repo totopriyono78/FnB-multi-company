@@ -1,0 +1,30 @@
+{
+  "name": "20-qty-desimal",
+  "description": "Menu berbasis berat (qty desimal)",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "ikan",
+        "unit_price": "125000",
+        "qty": "0.35"
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "43750.00",
+      "tax": "4375.00",
+      "total_before_rounding": "48125.00",
+      "rounding": "-25.00",
+      "total": "48100.00"
+    }
+  }
+}

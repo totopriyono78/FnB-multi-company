@@ -1,0 +1,34 @@
+{
+  "name": "10-modifier-qty",
+  "description": "Modifier dengan jumlah lebih dari satu",
+  "input": {
+    "config": {
+      "tax_rate": "0",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "nasi",
+        "unit_price": "15000",
+        "qty": "1",
+        "modifiers": [
+          {
+            "id": "telur",
+            "price": "4000",
+            "qty": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "23000.00",
+      "total": "23000.00"
+    }
+  }
+}
