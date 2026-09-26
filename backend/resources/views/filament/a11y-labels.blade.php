@@ -5,6 +5,7 @@
     - daftar repeater & repeatable entry infolist berbentuk <ul><div><li> (li tidak berada langsung di dalam list);
     - item terpilih choices.js dengan aria-selected tanpa role yang mengizinkannya;
     - tombol hapus pada tag (TagsInput) dan tombol tutup notifikasi tanpa nama aksesibel;
+    - bilah progres navigasi SPA Livewire (NProgress) dengan role="bar" yang tidak sah;
     - infolist berbentuk <dl><div><div><dt> (dt/dd tidak langsung di dalam dl): dl dijadikan presentasi dan
       pasangan label–nilai diberi role term/definition agar hubungan label tetap terbaca.
     Hapus bagian terkait bila Filament sudah memperbaikinya.
@@ -71,7 +72,16 @@
 
         // Dijalankan paling banyak sekali per frame: pembaruan Livewire bisa memicu ratusan mutasi sekaligus.
         let queued = false;
+        // Bilah progres navigasi SPA (NProgress bawaan Livewire) memakai role="bar" yang tidak sah;
+        // dibetulkan seketika (bukan per frame) karena bilah itu hanya tampil sebentar.
+        const fixProgressBar = () => {
+            document.querySelectorAll('#nprogress [role="bar"]').forEach((el) => {
+                el.setAttribute('role', 'progressbar');
+                el.setAttribute('aria-label', 'Memuat halaman');
+            });
+        };
         const schedule = () => {
+            fixProgressBar();
             if (queued) return;
             queued = true;
             requestAnimationFrame(() => { queued = false; apply(); });

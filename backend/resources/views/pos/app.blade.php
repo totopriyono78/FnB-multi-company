@@ -8,22 +8,25 @@
 <link rel="stylesheet" href="https://fonts.bunny.net/css?family=montserrat:400,500,600,700&display=swap">
 <style>
   /* Token gaya Vuexy (sama dengan back-office, resources/css/filament/admin/theme.css):
-     latar #f8f8f8, kartu putih tanpa garis + bayangan lembut, menu aktif bergradien + pendar,
-     huruf Montserrat. Aksen hijau daun FnB Cloud. */
+     kartu putih tanpa garis + bayangan lembut, huruf Montserrat.
+     Warna brand: cokelat tua (utama: tombol, harga, pilihan) + emas (aksen: rail semi-gelap dengan
+     menu aktif emas, merek, garis KPI). Emas tidak dipakai untuk teks di latar terang (2,1:1). */
   :root{
-    --accent-rgb:28,114,79;
-    --rail:#fff; --rail-ink:#625f6e;
-    --bg:#f8f8f8; --surface:#fff; --line:#ebe9f1; --line-2:#d8d6de; --line-soft:#f3f2f7; --head:#f3f2f7;
-    --ink:#5e5873; --ink-2:#625f6e; --muted:#6e6b7b;
-    --accent:rgb(var(--accent-rgb)); --accent-hover:#18633f; --accent-soft:rgba(var(--accent-rgb),.12);
+    --accent-rgb:93,58,31; --gold-rgb:212,175,55;
+    --gold:rgb(var(--gold-rgb)); --gold-2:#ddb94a; --gold-ink:#8c6d1c;
+    --rail:#2e1d12; --rail-ink:#e9dccb; --rail-muted:#bfa98a; --rail-active-ink:#2e1d12;
+    --bg:#f8f6f3; --surface:#fff; --line:#e8e1d8; --line-2:#d6ccbf; --line-soft:#f3efea; --head:#f3efea;
+    --ink:#4a3c30; --ink-2:#5a4f43; --muted:#6f6457;
+    --accent:rgb(var(--accent-rgb)); --accent-hover:#4a2e18; --accent-soft:rgba(var(--accent-rgb),.12);
     --sel:var(--accent); --sel-soft:var(--accent-soft);
     --warn:#9e5a0c; --warn-soft:#fff5ec; --danger:#c42f30; --danger-soft:#fdeeee; --ok:#168045; --ok-soft:#eaf9f1;
     --r:5px; --r-lg:6px;
-    --shadow:0 4px 24px 0 rgba(34,41,47,.1); --shadow-hover:0 4px 25px 0 rgba(34,41,47,.25);
-    --shadow-menu:0 0 15px 0 rgba(34,41,47,.05); --shadow-float:0 5px 25px rgba(34,41,47,.1);
-    --grad:linear-gradient(118deg,rgb(var(--accent-rgb)),rgba(var(--accent-rgb),.7));
-    --glow:0 0 10px 1px rgba(var(--accent-rgb),.7); --glow-btn:0 8px 25px -8px rgb(var(--accent-rgb));
-    --pill-glow:0 4px 18px -4px rgba(var(--accent-rgb),.65);
+    --shadow:0 4px 24px 0 rgba(58,36,19,.1); --shadow-hover:0 4px 25px 0 rgba(58,36,19,.22);
+    --shadow-menu:0 0 15px 0 rgba(58,36,19,.08); --shadow-float:0 5px 25px rgba(58,36,19,.12);
+    --grad:linear-gradient(118deg,rgb(var(--accent-rgb)),rgba(var(--accent-rgb),.8));
+    --grad-gold:linear-gradient(118deg,var(--gold),rgba(221,185,74,.8));
+    --glow:0 0 10px 1px rgba(var(--gold-rgb),.55); --glow-btn:0 8px 25px -8px rgb(var(--accent-rgb));
+    --pill-glow:0 4px 18px -4px rgba(var(--accent-rgb),.6);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
@@ -36,14 +39,18 @@
   /* ---- layar penuh (pairing / login / shift) ---- */
   .full{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:20;padding:24px}
   .full.on{display:flex}
-  .panel{background:var(--surface);border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);width:100%;max-width:440px;padding:28px}
+  /* Latar ornamen batik samar (sama dengan halaman login back-office), opacity 20%. */
+  .full::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:url('/img/batik-ornamen.png') 0 0/120px 120px;opacity:.2}
+  .full > *{position:relative;z-index:1}
+  .panel{background:var(--surface);border:0;border-top:4px solid var(--gold);border-radius:var(--r-lg);box-shadow:var(--shadow);width:100%;max-width:440px;padding:28px}
   .panel.wide{max-width:760px}
   .panel h2{margin:0 0 4px;font-size:18px;font-weight:600;color:var(--ink)}
   .panel p.s{margin:0 0 18px;font-size:12.5px;color:var(--muted);line-height:1.6}
   .fld{margin-bottom:14px}
   .fld label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
   .fld input{width:100%;padding:11px 12px;border:1px solid var(--line-2);border-radius:var(--r);font-size:15px;font-family:inherit;color:var(--ink-2);transition:box-shadow .25s,border-color .25s}
-  .fld input:focus{outline:0;border-color:var(--accent);box-shadow:0 3px 10px 0 rgba(34,41,47,.1)}
+  .fld input:focus{outline:0;border-color:var(--accent);box-shadow:0 3px 10px 0 rgba(58,36,19,.1)}
   .fld input.code{letter-spacing:.35em;text-transform:uppercase;font-size:20px;text-align:center;font-weight:600}
   .btn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:10px 14px;
     font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;
@@ -77,15 +84,16 @@
   .app{display:none;height:100vh}
   .app.on{display:flex}
   .rail{width:88px;background:var(--rail);display:flex;flex-direction:column;flex:0 0 auto;box-shadow:var(--shadow-menu);position:relative;z-index:2}
-  .rail .brand{height:64px;display:grid;place-items:center;color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.14em}
+  .rail .brand{height:64px;display:grid;place-items:center;color:var(--gold-2);font-size:12px;font-weight:700;letter-spacing:.14em;border-bottom:1px solid rgba(var(--gold-rgb),.18)}
   /* Menu ditempatkan di tengah tinggi rail agar jarak atas dan bawah seimbang. */
   .rail nav{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px 0}
-  .rail .sep{height:1px;background:var(--line);margin:10px 14px}
+  .rail .sep{height:1px;background:rgba(191,169,138,.25);margin:10px 14px}
   .rail button{width:calc(100% - 20px);margin:0 10px;border:0;border-radius:4px;background:transparent;color:var(--rail-ink);height:64px;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:5px;font-size:10.5px;font-weight:500;font-family:inherit;cursor:pointer;position:relative;
     transition:color .2s,transform .25s}
-  .rail button:hover{color:var(--accent);transform:translateX(3px)}
-  .rail button.on,.rail button.on:hover{color:#fff;background:var(--grad);box-shadow:var(--glow);transform:none}
+  .rail button:hover{color:var(--gold-2);transform:translateX(3px)}
+  .rail button.on,.rail button.on:hover{color:var(--rail-active-ink);font-weight:600;background:var(--grad-gold);box-shadow:var(--glow);transform:none}
+  .rail button:focus-visible{outline-color:var(--gold-2)}
   .main{flex:1;display:flex;flex-direction:column;min-width:0}
   .top{height:60px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:12px 16px 0;display:flex;align-items:center;gap:16px;padding:0 18px;flex:0 0 auto}
   .top h1{margin:0;font-size:15px;font-weight:600;color:var(--ink)}
@@ -166,14 +174,14 @@
   table.t th,table.t td{padding:11px 18px;text-align:left;border-bottom:1px solid var(--line)}
   table.t tr:last-child td{border-bottom:0}
   table.t th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;background:var(--head);border-bottom:0}
-  table.t tbody tr:hover td{background:#fafafc}
+  table.t tbody tr:hover td{background:#faf8f5}
   table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:20px}
-  .kpi{background:var(--surface);border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px 20px;border-left:3px solid var(--accent)}
+  .kpi{background:var(--surface);border:0;border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px 20px;border-left:3px solid var(--gold)}
   .kpi h4{margin:0 0 6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .kpi .v{font-size:21px;font-weight:600;color:var(--ink)}.kpi .s{font-size:11px;color:var(--muted);margin-top:2px}
 
-  .ov{position:fixed;inset:0;background:rgba(34,41,47,.5);display:none;align-items:center;justify-content:center;padding:22px;z-index:50}
+  .ov{position:fixed;inset:0;background:rgba(46,29,18,.5);display:none;align-items:center;justify-content:center;padding:22px;z-index:50}
   .ov.on{display:flex}
   .box{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:var(--shadow-float)}
   .box header{padding:16px 20px;background:var(--line-soft);border-bottom:0}
@@ -188,7 +196,7 @@
   .quick button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font-family:inherit;border-radius:var(--r);padding:10px 4px;font-size:12px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
   .quick button.on{border-color:var(--sel);background:var(--sel-soft);color:var(--accent)}
   .paid{display:flex;justify-content:space-between;font-size:13px;padding:9px 11px;background:var(--line-soft);border-radius:var(--r)}
-  .slip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;white-space:pre;line-height:1.55;overflow-x:auto;color:#2f2b3d}
+  .slip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;white-space:pre;line-height:1.55;overflow-x:auto;color:#2a211a}
   .qr{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:10px;border-radius:var(--r);margin-bottom:10px}
   .opt{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
   .opt button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:8px 12px;font-size:12.5px;font-family:inherit;cursor:pointer}
@@ -222,7 +230,12 @@
     body>#printSlip{
       display:block !important;
       width:var(--paper,72mm);
-      margin:0;padding:2mm 0 8mm;
+      /* `auto` = tidak berpengaruh di gulungan termal (lebar halaman = lebar slip),
+         tetapi menaruh struk di tengah bila dicetak ke kertas lebar seperti A4. */
+      margin:0 auto;
+      /* Sisi kiri-kanan diberi jarak: kepala cetak termal tidak mencetak tepat di tepi kertas,
+         dan di kertas biasa teks yang menempel tepi ikut terpotong margin tak-tercetak. */
+      padding:2mm var(--paperPad,3mm) 8mm;
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       font-size:var(--paperFont,11pt);line-height:1.35;
       white-space:pre;color:#000;
@@ -1368,10 +1381,48 @@ function savePrefs(patch){
   applyPaper();
   return p;
 }
+/**
+ * Menyetel lebar kertas dan ukuran huruf struk.
+ *
+ * Ukuran huruf **dihitung**, bukan ditebak: struk disusun dengan lebar kolom tetap
+ * (42 kolom di kertas 80 mm, 32 di 58 mm) dan kerapiannya — harga rata kanan, garis pemisah —
+ * bergantung pada seluruh kolom itu muat dalam satu baris. Nilai tetap 11pt dulu membuat satu
+ * baris 42 karakter memerlukan +-103 mm, jauh melebihi 72 mm kertasnya, sehingga kolom harga
+ * terpotong di printer termal (di kertas A4 tidak kelihatan karena halamannya lebar).
+ *
+ * Lebar karakter diukur langsung dari font yang benar-benar dipakai peramban, jadi hasilnya
+ * tetap benar walau fontnya berbeda antar-komputer. Ukuran yang tersimpan di PAPER menjadi
+ * batas atas: huruf boleh mengecil agar muat, tidak pernah membesar melebihi itu.
+ */
 function applyPaper(){
   const p = PAPER[prefs().w] || PAPER[80];
-  document.documentElement.style.setProperty('--paper', p.css);
-  document.documentElement.style.setProperty('--paperFont', p.font);
+  const gaya = document.documentElement.style;
+  gaya.setProperty('--paper', p.css);
+  gaya.setProperty('--paperFont', ukuranHurufMuat(p));
+}
+
+const PAPER_PAD_MM = 3;   // jarak aman kiri & kanan, selaras dengan --paperPad di CSS
+const PX_PER_MM = 96 / 25.4;
+
+/** Ukuran huruf terbesar (pt) yang masih membuat `p.cols` karakter muat di lebar kertas. */
+function ukuranHurufMuat(p){
+  const dasar = parseFloat(p.font);
+  const lebarKertasMm = parseFloat(p.css);
+  if (!(dasar > 0) || !(lebarKertasMm > 0)) return p.font;
+
+  const ukur = document.createElement('span');
+  ukur.textContent = 'M'.repeat(p.cols);
+  ukur.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;' +
+    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:' + dasar + 'pt';
+  document.body.appendChild(ukur);
+  const lebarTeksPx = ukur.getBoundingClientRect().width;
+  ukur.remove();
+  if (!(lebarTeksPx > 0)) return p.font;
+
+  const tersediaPx = (lebarKertasMm - 2 * PAPER_PAD_MM) * PX_PER_MM;
+  const skala = Math.min(1, tersediaPx / lebarTeksPx);
+
+  return (Math.floor(dasar * skala * 10) / 10) + 'pt';
 }
 
 /** Pembantu tata letak struk untuk lebar kolom yang sedang dipakai. */

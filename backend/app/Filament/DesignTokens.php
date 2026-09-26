@@ -10,22 +10,22 @@ namespace App\Filament;
 final class DesignTokens
 {
     /** --primary-600 */
-    public const PRIMARY = '#1c724f';
+    public const PRIMARY = '#5d3a1f';
 
-    /** --primary-50 */
-    public const PRIMARY_SOFT = '#ecf8f2';
+    /** --primary-100 */
+    public const PRIMARY_SOFT = '#f2e8df';
 
     /** --primary-800 */
-    public const PRIMARY_STRONG = '#174e39';
+    public const PRIMARY_STRONG = '#3a2413';
 
-    /** --gray-400 (pembanding di grafik) */
-    public const NEUTRAL_MUTED = '#b4b7bd';
+    /** --gray-300 (pembanding di grafik) */
+    public const NEUTRAL_MUTED = '#d6ccbf';
 
     /** --gray-200 (garis bantu grafik) */
-    public const NEUTRAL_LINE = '#ebe9f1';
+    public const NEUTRAL_LINE = '#e8e1d8';
 
-    /** --gray-500 (teks isi Vuexy) */
-    public const NEUTRAL_TEXT = '#6e6b7b';
+    /** --gray-500 (teks isi, abu hangat) */
+    public const NEUTRAL_TEXT = '#6f6457';
 
     /** --success-500 / --danger-500 / --warning-500 / --info-500 (rona Vuexy) */
     public const SUCCESS = '#28c76f';
@@ -35,4 +35,7 @@ final class DesignTokens
     public const WARNING = '#ff9f43';
 
     public const INFO = '#00cfe8';
+
+    /** --fnb-gold-500 (aksen emas brand; jangan untuk teks di latar terang) */
+    public const GOLD = '#d4af37';
 }

@@ -42,3 +42,23 @@ dengan CLAUDE.md §5.1 lama (gradien & pendar di menu aktif, bayangan kartu). Us
 - `npm run build` wajib setelah mengubah `theme.css`; hasilnya (`public/build`) ikut dikirim
   karena komputer user tidak menjalankan npm.
 - Montserrat dimuat dari fonts.bunny.net; bila offline jatuh ke Helvetica/Arial.
+
+## Pembaruan 26 Sep 2026 — warna brand cokelat tua + emas
+
+Keputusan user: warna utama diganti **cokelat tua (deep brown) + emas (gold)**, menggantikan hijau daun.
+
+| Peran | Token | Nilai | Catatan kontras |
+|---|---|---|---|
+| Utama (tombol, tautan, fokus, pilihan aktif) | `--primary-600` | #5d3a1f | 10:1 terhadap putih |
+| Aksen emas (menu aktif, logo, garis penanda) | `--fnb-gold-500` | #d4af37 | 2,1:1 terhadap putih → **bukan untuk teks di latar terang** |
+| Emas untuk ikon/teks di latar terang | `--fnb-gold-700` | #8c6d1c | 4,9:1 |
+| Sidebar semi-gelap | `--fnb-sidebar-bg` | #2e1d12 | teks #e9dccb 12:1, label #bfa98a 7:1 |
+| Teks di menu aktif emas | `--fnb-sidebar-active-text` | #2e1d12 | 7,7:1 |
+| Netral terang (abu hangat) | `--gray-50…500` | #f8f6f3 … #6f6457 | teks isi 5,8:1 |
+| Mode gelap | `--gray-950/900` | #1a120c / #261a12 | tautan emas (primary-400 = #ddb94a) 7,7:1 |
+
+- Sidebar memakai varian **"semi dark menu" Vuexy**: latar cokelat tua, menu aktif gradien emas + pendar emas.
+- Tombol & tautan cokelat tua; ikon statistik bawaan emas-700; kartu login & layar kasir diberi garis atas emas 4px;
+  batang laporan bergradien cokelat (`--fnb-gradient-primary`).
+- Bayangan dihangatkan (`rgba(58,36,19,…)`) agar serasi dengan palet cokelat.
+- POS: rail kiri cokelat tua dengan menu aktif emas, merek "FNB" emas, KPI bergaris emas.

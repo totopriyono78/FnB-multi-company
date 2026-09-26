@@ -2,7 +2,7 @@
     <style>
         /* Gaya Vuexy: seluruh warna diambil dari token tema back-office (theme.css). */
         .pr { --pr-line: rgb(var(--gray-200)); --pr-soft: rgb(var(--gray-100)); --pr-surface: rgb(var(--fnb-surface)); --pr-ink: rgb(var(--fnb-heading)); --pr-text: rgb(var(--fnb-text)); --pr-muted: rgb(var(--gray-500)); --pr-brand: rgb(var(--primary-600)); --pr-brand-rgb: var(--primary-600); --pr-accent: rgb(var(--warning-600)); --pr-shadow: var(--fnb-shadow-card); }
-        .dark .pr { --pr-line: rgb(var(--gray-800)); --pr-soft: rgb(52, 61, 85); --pr-muted: rgb(var(--gray-400)); --pr-brand: rgb(var(--primary-400)); --pr-brand-rgb: var(--primary-400); --pr-accent: rgb(var(--warning-400)); }
+        .dark .pr { --pr-line: rgb(var(--gray-800)); --pr-soft: rgb(var(--gray-800)); --pr-muted: rgb(var(--gray-400)); --pr-brand: rgb(var(--primary-400)); --pr-brand-rgb: var(--primary-400); --pr-accent: rgb(var(--warning-400)); }
         .pr { color: var(--pr-text); }
         .pr-note { display: flex; gap: .6rem; align-items: flex-start; border: 1px dashed var(--pr-accent); background: color-mix(in srgb, var(--pr-accent) 8%, transparent); border-radius: var(--fnb-radius-lg); padding: .7rem .9rem; font-size: .8rem; line-height: 1.45; margin-bottom: 1rem; }
         .pr-note b { color: var(--pr-accent); }
