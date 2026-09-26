@@ -67,7 +67,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     // Tutup hari: hari ini masih ada shift terbuka → tombol nonaktif
     await klikNavigasi(page, page.getByRole('link', { name: 'Tutup Hari' }));
     await expect(page.getByRole('heading', { name: 'Tutup Hari' })).toBeVisible();
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KLU)' });
     await expect(page.getByText(/Masih ada 1 shift terbuka/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tutup hari' })).toBeDisabled();
     await expectAccessible(page, 'tutup hari');

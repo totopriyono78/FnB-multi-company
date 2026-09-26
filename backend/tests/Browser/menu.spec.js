@@ -71,7 +71,7 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await expectAccessible(page, 'tambah menu');
     await page.screenshot({ path: `${SHOTS}/11-menu-baru.png`, fullPage: true });
     await page.getByRole('button', { name: 'Simpan Menu' }).click();
-    await expect(page).toHaveURL(/\/menu\/.+\/edit/);
+    await expect(page).toHaveURL(/\/menu\/.+\/edit/, { timeout: 15_000 });
     await expect(page.getByRole('heading', { name: /Ubah Menu: Es Teh Lemon/ })).toBeVisible();
 
     // Halaman ubah menu dengan harga khusus & riwayat harga
@@ -100,7 +100,7 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
 
     // Simulasi harga: Kopi Susu Regular di Kaliurang (PB1 10%, pembulatan Rp100)
     await klikNavigasi(page, page.getByRole('link', { name: 'Simulasi Harga' }));
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KLU)' });
     // Waktu dipatok di luar jam promo (Happy Hour Kopi 14.00-17.00), supaya angka yang diuji
     // tidak berubah tergantung jam berapa rangkaian uji ini dijalankan.
     const hariIni = new Date().toISOString().slice(0, 10);

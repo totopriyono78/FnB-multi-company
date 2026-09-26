@@ -597,11 +597,39 @@ html.dark:root {
 }
 
 
+/*
+ * Dasbor Ringkasan: dua kolom (Menu terlaris | Pembayaran), Peringkat outlet selebar penuh di bawahnya.
+ * Tiga kartu berjajar membuat tabel empat kolom terjepit (±320px) dan nama outlet patah per kata.
+ */
 .fnb-dashboard-grid {
     display: grid;
-    gap: var(--fnb-space-4);
-    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-    align-items: start;
+    gap: var(--fnb-space-6);
+    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    align-items: stretch;
+}
+
+.fnb-dashboard-grid > .fi-section {
+    min-width: 0;
+}
+
+.fnb-dashboard-grid > .fnb-dashboard-grid__wide {
+    grid-column: 1 / -1;
+}
+
+/* Nama item/outlet diberi ruang minimum; bila layar terlalu sempit, tabel digulir di dalam kartu. */
+.fnb-dashboard-grid .fnb-receipt th[scope='row'] {
+    min-width: 9rem;
+    font-weight: 500;
+}
+
+@media (max-width: 640px) {
+    .fnb-dashboard-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fnb-dashboard-grid .fnb-receipt th[scope='row'] {
+        min-width: 6.5rem;
+    }
 }
 
 /* =====================================================================
@@ -892,6 +920,15 @@ html.dark:root {
     border-radius: 999px;
     color: rgb(var(--fnb-stat-rgb));
     background-color: rgba(var(--fnb-stat-rgb), 0.12);
+}
+
+/* Kartu statistik sebaris sama tinggi; ikon tren menempel pada teksnya, bukan terdorong ke tepi kanan. */
+.fi-wi-stats-overview-stats-ctn > .fi-wi-stats-overview-stat {
+    height: 100%;
+}
+
+.fi-wi-stats-overview-stat-description {
+    flex: 0 1 auto;
 }
 
 a.fi-wi-stats-overview-stat {

@@ -84,7 +84,7 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     await expect(page.getByRole('heading', { name: 'Food Cost', exact: true })).toBeVisible();
     // Halaman ini memilih outlet pertama secara otomatis; tunjuk Kaliurang agar skenario tidak
     // bergantung pada urutan outlet.
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KLU)' });
     await expect(page.getByRole('table', { name: 'Food cost per menu' })).toContainText('Kopi Susu Hamzah · Regular');
     await expect(page.getByText('Food cost aktual').first()).toBeVisible();
     await expectAccessible(page, 'food cost');

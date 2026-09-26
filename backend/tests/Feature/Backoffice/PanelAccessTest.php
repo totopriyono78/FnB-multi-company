@@ -21,6 +21,12 @@ it('menampilkan halaman login dalam Bahasa Indonesia', function () {
     $this->get('/admin/login')->assertOk()->assertSee('Email atau nomor HP');
 });
 
+it('membuka halaman profil pengguna yang berada di luar lingkup tenant', function () {
+    // Rute ini (/admin/profile, tanpa {tenant}) pernah memunculkan layar 500: tata letak penuh
+    // membangun sidebar, lalu tautan halaman pertama memanggil getUrl() tanpa tenant aktif.
+    $this->actingAs($this->owner)->get('/admin/profile')->assertOk();
+});
+
 it('mengarahkan tamu ke halaman login', function () {
     $this->get("/admin/{$this->company->code}")->assertRedirect('/admin/login');
 });

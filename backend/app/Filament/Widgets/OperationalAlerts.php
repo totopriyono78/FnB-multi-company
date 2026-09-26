@@ -87,6 +87,12 @@ class OperationalAlerts extends StatsOverviewWidget
         return array_map(self::tint(...), $stats);
     }
 
+    /** Empat kartu per baris di layar lebar agar 8 kartu tersusun dua baris penuh, bukan 3-3-2. */
+    protected function getColumns(): int
+    {
+        return count($this->getCachedStats()) >= 4 ? 4 : 3;
+    }
+
     /** Lingkaran ikon mengikuti warna status kartu (avatar bernuansa ala Vuexy). */
     private static function tint(Stat $stat): Stat
     {

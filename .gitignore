@@ -2,3 +2,10 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# Berkas kerja sesi Claude & paket kiriman — jangan ikut masuk repositori.
+Claude outputs/
+_to_delete/
+*.tgz
+*.tar
+md5-d.txt

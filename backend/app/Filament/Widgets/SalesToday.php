@@ -6,6 +6,7 @@ use App\Filament\Pages\Reports\SalesReportPage;
 use App\Filament\Support\SalesDashboard;
 use App\Modules\Reporting\Application\ReportTable;
 use Carbon\CarbonImmutable;
+use Filament\Support\Enums\IconPosition;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -78,7 +79,7 @@ class SalesToday extends StatsOverviewWidget
 
         return Stat::make($label, $value)
             ->description($text)
-            ->descriptionIcon($up ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
+            ->descriptionIcon($up ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down', IconPosition::Before)
             ->color($up ? 'success' : 'danger');
     }
 }

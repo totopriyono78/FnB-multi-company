@@ -41,7 +41,15 @@ class AdminPanelProvider extends PanelProvider
             ->login(Login::class)
             ->registration()
             ->passwordReset()
-            ->profile(isSimple: false)
+            /*
+             * Halaman profil pengguna WAJIB memakai tata letak sederhana selama panel ini
+             * multi-tenant. Rute profil didaftarkan Filament di LUAR awalan `{tenant}`
+             * (lihat vendor/filament/filament/routes/web.php), sehingga saat halamannya
+             * dibuka tidak ada tenant aktif. Tata letak penuh ikut membangun sidebar, dan
+             * setiap tautan menu memanggil `getUrl()` yang menuntut parameter `tenant` —
+             * hasilnya UrlGenerationException dan layar 500. Dijaga PanelAccessTest.
+             */
+            ->profile(isSimple: true)
             ->tenant(Company::class, slugAttribute: 'code', ownershipRelationship: 'company')
             ->tenantRegistration(RegisterCompany::class)
             ->tenantProfile(EditCompanyProfile::class)

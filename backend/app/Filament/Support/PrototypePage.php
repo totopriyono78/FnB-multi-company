@@ -20,12 +20,23 @@ abstract class PrototypePage extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return (bool) config('fnb.prototype_accounting', true);
+        return static::canAccess();
     }
 
+    /**
+     * Modul Akuntansi hanya untuk pemegang izin `accounting.view` — sesuai matriks izin
+     * SRS Lampiran 12.1: role `finance` (kelola + lihat) dan `owner` (lihat saja).
+     *
+     * Kasir, manajer outlet, manajer brand, admin company, dapur, dan gudang tidak melihatnya
+     * sama sekali. Pemeriksaan ini ikut menutup ALAMATNYA, bukan cuma menyembunyikan menu:
+     * `canAccess()` dipakai Filament untuk mengotorisasi permintaan ke halaman, sehingga
+     * mengetik URL-nya langsung tetap ditolak. Statusnya yang masih prototipe tidak mengubah
+     * apa pun di sini — angka contoh pun tidak boleh bocor ke peran yang tidak berkepentingan.
+     */
     public static function canAccess(): bool
     {
-        return (bool) config('fnb.prototype_accounting', true);
+        return (bool) config('fnb.prototype_accounting', true)
+            && MenuFields::user()?->can('accounting.view') === true;
     }
 
     /** @return array<Action> */

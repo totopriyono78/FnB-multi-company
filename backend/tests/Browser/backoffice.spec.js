@@ -74,7 +74,8 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
     await page.getByLabel('Kode').fill(brandCode.toLowerCase());
     await page.getByLabel('Nama brand').fill('Mie Bangka Jaya');
     await page.getByRole('button', { name: 'Simpan Brand' }).click();
-    await expect(page).toHaveURL(/\/brands\/.+\/edit$/);
+    // Simpan lalu dialihkan lewat navigasi SPA; di mesin sibuk bisa lebih dari 5 dtk.
+    await expect(page).toHaveURL(/\/brands\/.+\/edit$/, { timeout: 15_000 });
     await klikNavigasi(page, page.getByRole('link', { name: 'Brand' }).first());
     await expect(page.getByRole('cell', { name: brandCode, exact: true })).toBeVisible();
     await expectAccessible(page, 'daftar brand');
@@ -124,7 +125,7 @@ test('manajer outlet hanya melihat outlet & brand miliknya (lihat saja)', async 
     // SRS §12.1: Manajer Outlet melihat brand & outlet (👁️), tidak mengelola.
     await klikNavigasi(page, page.getByRole('link', { name: 'Brand', exact: true }));
     await expect(page.getByRole('cell', { name: 'Hamzah Coffee', exact: true })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Hamzah Resto', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: 'Roti Bakar 88', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Tambah Brand' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Daftar Menu' })).toBeVisible();
     await klikNavigasi(page, page.getByRole('link', { name: 'Outlet' }).first());
