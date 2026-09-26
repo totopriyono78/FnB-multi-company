@@ -32,7 +32,8 @@ use Illuminate\Database\Seeder;
  * 2. **Cara olah dan varian rasa sebagai modifier wajib.** Setiap ikan harus punya satu cara olah
  *    (bakar/goreng) dan satu rasa; rasa tertentu menambah harga karena bumbunya lebih mahal.
  *
- * Dijalankan terpisah dari data demo utama:
+ * Ikut dijalankan oleh DemoSeeder (brand Bahari Ikan Bakar: outlet Kelapa Gading dan BSD).
+ * Bisa juga dijalankan sendiri:
  *     php artisan db:seed --class=DemoIkanBakarSeeder
  *
  * Aman diulang: semuanya firstOrCreate / dilewati bila sudah ada.
@@ -40,6 +41,8 @@ use Illuminate\Database\Seeder;
 class DemoIkanBakarSeeder extends Seeder
 {
     private const OUTLET = 'BHR';
+
+    private const OUTLET_BSD = 'BSD';
 
     /**
      * Harga per gram. Rp 95/gram = Rp 95.000/kg.
@@ -106,6 +109,27 @@ class DemoIkanBakarSeeder extends Seeder
             $this->device($outlet, 'POS01', 'Kasir depan');
             $this->device($outlet, 'POS02', 'Kasir samping');
 
+            // Outlet kedua brand yang sama: menu dan harga ikut brand, jadi tidak perlu dibuat ulang.
+            $bsd = Outlet::query()->firstOrCreate(['code' => self::OUTLET_BSD], [
+                'brand_id' => $brand->id,
+                'name' => 'Bahari Ikan Bakar BSD',
+                'address' => 'Jl. Pahlawan Seribu Ruko Golden Boulevard Blok C No. 8, Lengkong Karya',
+                'city' => 'Tangerang Selatan',
+                'province' => 'Banten',
+                'postal_code' => '15310',
+                'phone' => '02153160088',
+                'tax_name' => 'PB1',
+                'tax_rate' => '10',
+                'service_charge_rate' => '5',
+                'rounding_unit' => 100,
+                'order_mode' => 'dine_in',
+                'stock_deduction_trigger' => 'on_kitchen',
+                'table_count' => 16,
+                'timezone' => 'Asia/Jakarta',
+                'receipt_settings' => ['footer' => 'Terima kasih, selamat menikmati', 'paper_width' => 80, 'show_logo' => true],
+            ]);
+            $this->device($bsd, 'POS01', 'Kasir');
+
             $bakaran = KitchenStation::query()->firstOrCreate(['code' => 'BAKARAN'], ['name' => 'Pembakaran', 'sort_order' => 10]);
             $dapur = KitchenStation::query()->firstOrCreate(['code' => 'KITCHEN'], ['name' => 'Dapur', 'sort_order' => 20]);
 
@@ -147,10 +171,11 @@ class DemoIkanBakarSeeder extends Seeder
             if ($owner instanceof User) {
                 $this->staff($owner, 'Yusuf Maulana', 'yusuf@bahariikanbakar.test', 'BHR-001', ['cashier'], $outlet->id, '4719');
                 $this->staff($owner, 'Siti Aminah', 'siti.aminah@bahariikanbakar.test', 'BHR-002', ['outlet_manager'], $outlet->id, '260418');
+                $this->staff($owner, 'Rizky Ramadhan', 'rizky@bahariikanbakar.test', 'BSD-001', ['cashier'], $bsd->id, '5836');
             }
         });
 
-        $this->command?->info('Menu resto ikan bakar siap: outlet BHR, 6 ikan per gram, 6 pelengkap, 2 grup modifier.');
+        $this->command?->info('Menu resto ikan bakar siap: outlet BHR dan BSD, 6 ikan per gram, 6 pelengkap, 2 grup modifier.');
     }
 
     private function device(Outlet $outlet, string $code, string $name): void

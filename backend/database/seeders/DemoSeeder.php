@@ -41,6 +41,8 @@ class DemoSeeder extends Seeder
         });
 
         $this->seedKopiNusantara($context);
+        // Brand kedua PT Kopi Nusantara: resto ikan bakar dengan dua outlet (Kelapa Gading, BSD).
+        $this->call(DemoIkanBakarSeeder::class);
         $this->seedDapurBuRatna($context);
 
         // Staf demo memakai password yang sama agar mudah dicoba (hanya non-produksi).

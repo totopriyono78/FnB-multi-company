@@ -22,6 +22,9 @@ final class DemoAccounts
             ['email' => 'rudi@kopinusantara.test', 'name' => 'Rudi Hartanto', 'role' => 'Gudang / Purchasing', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => null],
             ['email' => 'lina@kopinusantara.test', 'name' => 'Lina Kusuma', 'role' => 'Finance', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => null],
             ['email' => 'andi@kopinusantara.test', 'name' => 'Andi Saputra', 'role' => 'Kasir Kemang', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '7351'],
+            ['email' => 'siti.aminah@bahariikanbakar.test', 'name' => 'Siti Aminah', 'role' => 'Manajer Bahari Kelapa Gading', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '260418'],
+            ['email' => 'yusuf@bahariikanbakar.test', 'name' => 'Yusuf Maulana', 'role' => 'Kasir Bahari Kelapa Gading', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '4719'],
+            ['email' => 'rizky@bahariikanbakar.test', 'name' => 'Rizky Ramadhan', 'role' => 'Kasir Bahari BSD', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '5836'],
             ['email' => 'ratna@dapurburatna.test', 'name' => 'Ratna Wulandari', 'role' => 'Pemilik', 'company' => 'CV Dapur Bu Ratna', 'pin' => null],
         ];
     }
@@ -45,6 +48,7 @@ final class DemoAccounts
             // DemoIkanBakarSeeder (outlet uji coba resto ikan bakar).
             'Yusuf Maulana' => '4719',
             'Siti Aminah' => '260418',
+            'Rizky Ramadhan' => '5836',
         ];
     }
 
