@@ -196,7 +196,11 @@
   .quick button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font-family:inherit;border-radius:var(--r);padding:10px 4px;font-size:12px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
   .quick button.on{border-color:var(--sel);background:var(--sel-soft);color:var(--accent)}
   .paid{display:flex;justify-content:space-between;font-size:13px;padding:9px 11px;background:var(--line-soft);border-radius:var(--r)}
-  .slip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;white-space:pre;line-height:1.55;overflow-x:auto;color:#2a211a}
+  /* Pratinjau struk di layar. Yang dipusatkan adalah KOTAKNYA (width:max-content + margin auto),
+     bukan teksnya: baris struk rata kiri dengan kolom harga rata kanan, dan `text-align:center`
+     akan merusak perataan itu. Di layar sempit kotaknya mentok selebar modal lalu menggulir. */
+  .slip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;white-space:pre;line-height:1.55;overflow-x:auto;color:#2a211a;
+    width:max-content;max-width:100%;margin-inline:auto}
   .qr{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:10px;border-radius:var(--r);margin-bottom:10px}
   .opt{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
   .opt button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:8px 12px;font-size:12.5px;font-family:inherit;cursor:pointer}

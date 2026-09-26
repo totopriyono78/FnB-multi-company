@@ -48,3 +48,36 @@ for (const [lebarKertas, cssLebar] of [[80, '72mm'], [58, '50mm']]) {
         expect(ukur.slipKiri, 'slip tidak boleh menempel tepi kiri kertas lebar').toBeGreaterThan(1);
     });
 }
+
+test('pratinjau struk di layar berada di tengah, barisnya tetap rata kiri', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/pos');
+    await page.evaluate(() => {
+        savePrefs({ w: 80 });
+        applyPaper();
+        const P = slip();
+        document.getElementById('rcpt').textContent =
+            [P.rule, P.row('TOTAL', '28.200'), P.row('Tunai', '50.000')].join('');
+        document.getElementById('rcptModal').classList.add('on');
+    });
+
+    const ukur = await page.evaluate(() => {
+        const el = document.getElementById('rcpt');
+        const wadah = el.parentElement;
+        const r = el.getBoundingClientRect();
+        const w = wadah.getBoundingClientRect();
+        return {
+            kiri: r.left - w.left,
+            kanan: w.right - r.right,
+            menyusutKeIsi: r.width < w.width - 20,
+            perataanTeks: getComputedStyle(el).textAlign,
+        };
+    });
+
+    // Kotaknya menyusut seukuran isi lalu dipusatkan — jarak kiri dan kanan sama.
+    expect(ukur.menyusutKeIsi, 'kotak struk harus seukuran isinya, bukan selebar modal').toBe(true);
+    expect(Math.abs(ukur.kiri - ukur.kanan), 'kotak struk harus di tengah').toBeLessThan(2);
+    // Yang dipusatkan kotaknya, bukan teksnya: baris struk wajib tetap rata kiri
+    // supaya kolom harga yang rata kanan tidak berantakan.
+    expect(ukur.perataanTeks).not.toBe('center');
+});
