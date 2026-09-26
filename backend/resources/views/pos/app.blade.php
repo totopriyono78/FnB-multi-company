@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Kasir — FnB Cloud</title>
+{{-- Halaman ini di luar panel Filament, jadi judul & ikonnya ditulis sendiri. Polanya disamakan
+     dengan back-office ("<nama halaman> - <brand>") supaya tab kasir dan tab back-office terbaca
+     satu keluarga; nama brand diambil dari config/fnb.php agar tidak ada dua sumber kebenaran. --}}
+<title>Kasir - {{ config('fnb.brand.name') }}</title>
+<link rel="icon" href="{{ asset('img/favicon.svg') }}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link rel="stylesheet" href="https://fonts.bunny.net/css?family=montserrat:400,500,600,700&display=swap">
 <style>

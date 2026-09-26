@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="FnB Cloud">
+  <!--
+    Ikon FnB Cloud. Bentuknya tutup saji (cloche) di atas piring, sekaligus terbaca sebagai awan
+    sesuai nama produk. Warna diambil dari resources/css/filament/admin/theme.css: primary-600
+    #5d3a1f (cokelat tua) dan fnb-gold-500 #d4af37 (emas brand); garis piring memakai primary-100
+    #f2e8df supaya tetap terpisah dari kubahnya saat ikon dirender 16 px.
+    Detail sengaja dibatasi tiga bentuk: apa pun yang lebih halus lenyap di ukuran tab peramban.
+    Ini BUKAN logo korporat PT. Gamatechno Indonesia. Bila logo resmi dipakai, tukar berkas ini
+    lalu render ulang turunannya: public/favicon.ico (16/32/48), img/favicon-32|192|512.png,
+    dan img/apple-touch-icon.png (180 px, sudut TIDAK dibulatkan karena iOS memasang maskernya sendiri).
+    Catatan XML: jangan menulis dua tanda hubung berturut-turut di dalam komentar (mis. nama
+    CSS variable lengkap) karena membuat berkas SVG ini gagal diurai.
+  -->
+  <rect width="64" height="64" rx="14" fill="#5d3a1f"/>
+  <g fill="#d4af37">
+    <circle cx="24" cy="26" r="8.5"/>
+    <circle cx="32.5" cy="22.5" r="10.5"/>
+    <circle cx="41" cy="27" r="8"/>
+    <rect x="15" y="27" width="34" height="9" rx="4.5"/>
+  </g>
+  <rect x="11" y="40" width="42" height="5" rx="2.5" fill="#f2e8df"/>
+</svg>

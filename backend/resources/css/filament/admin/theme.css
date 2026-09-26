@@ -722,6 +722,30 @@ html.dark:root {
     letter-spacing: 0.02rem;
 }
 
+/*
+ * Kepala sidebar hanya selebar 191 px, sedangkan "FnB Cloud - Gamatechno" perlu 251 px pada
+ * ukuran di atas. Dibuat dua baris — nama produk besar, nama pemilik lebih kecil di bawahnya —
+ * dan tanda hubungnya disembunyikan supaya tidak menggantung di ujung baris pertama.
+ * Yang hilang hanya tampilannya: judul tab tetap memakai teks utuh (lihat AdminPanelProvider).
+ */
+.fi-sidebar-header .fi-logo {
+    display: block;
+    line-height: 1.15;
+}
+
+.fi-sidebar-header .fnb-brand__sep {
+    display: none;
+}
+
+.fi-sidebar-header .fnb-brand__owner {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(var(--fnb-gold-400), 0.75);
+}
+
 /* Tombol ikon di sidebar (lipat sidebar, lipat grup) */
 .fi-sidebar .fi-icon-btn,
 .fi-sidebar .fi-sidebar-group-collapse-button {
@@ -1295,4 +1319,29 @@ a.fi-wi-stats-overview-stat:hover {
 .fi-no-notification {
     border-radius: var(--fnb-radius-lg);
     box-shadow: var(--fnb-shadow-float);
+}
+
+/* ---- Baris hak cipta di kaki halaman ---- */
+
+/*
+ * Dirender lewat PanelsRenderHook::FOOTER, yang dipakai layout penuh maupun layout sederhana
+ * (halaman masuk & profil). Padding atasnya dibuat longgar supaya baris ini tidak terbaca sebagai
+ * bagian dari kartu terakhir. Warnanya gray-500 di latar terang (5,35:1 di atas gray-50) dan
+ * gray-400 di mode gelap (7,4:1 di atas gray-900) — keduanya lolos WCAG AA untuk teks kecil,
+ * yang menuntut 4,5:1. Jangan diturunkan ke gray-400 di mode terang: di sana hanya 2,2:1.
+ */
+.fnb-footer {
+    padding: 1.5rem 0 0.25rem;
+    text-align: center;
+}
+
+.fnb-footer__text {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgb(var(--gray-500));
+}
+
+.dark .fnb-footer__text {
+    color: rgb(var(--gray-400));
 }

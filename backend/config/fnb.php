@@ -1,6 +1,31 @@
 <?php
 
+/*
+ * Identitas produk & penerbitnya. Satu tempat untuk tiga hal yang harus selalu seiring:
+ * judul tab peramban, teks brand back-office, dan baris hak cipta di kaki halaman.
+ *
+ * `name` dirakit di sini, bukan ditulis ulang, supaya judul tab dan teks brand tidak bisa
+ * berselisih satu spasi pun — dan supaya sidebar boleh memenggalnya jadi dua baris
+ * (lihat AdminPanelProvider::brandMarkup) tanpa mengubah judulnya.
+ */
+$produk = env('FNB_BRAND_PRODUCT', 'FnB Cloud');
+$pemilik = env('FNB_BRAND_SHORT', 'Gamatechno');
+
 return [
+    'brand' => [
+        'product' => $produk,
+        'short' => $pemilik,
+        'name' => $produk.' - '.$pemilik,
+        'publisher' => env('FNB_BRAND_PUBLISHER', 'PT. Gamatechno Indonesia'),
+
+        /*
+         * Tahun hak cipta sengaja nilai TETAP, bukan date('Y'): tahun pada pemberitahuan hak
+         * cipta adalah tahun karya ini diterbitkan, bukan tahun jam server. Saat rilis besar
+         * berikutnya terbit, ubah menjadi rentang (mis. '2026-2027') — jangan dijadikan otomatis.
+         */
+        'year' => env('FNB_BRAND_YEAR', '2026'),
+    ],
+
     // Tampilkan daftar akun demo di halaman login (tidak pernah aktif di produksi).
     'demo_login' => (bool) env('FNB_DEMO_LOGIN', false),
 

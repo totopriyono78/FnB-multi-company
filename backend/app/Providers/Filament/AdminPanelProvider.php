@@ -21,12 +21,14 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\MaxWidth;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -37,7 +39,13 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->brandName('FnB Cloud')
+            ->brandName($this->brandMarkup())
+            /*
+             * SVG, bukan .ico: satu berkas 1,4 KB tetap tajam dari 16 px sampai ikon layar utama,
+             * dan otomatis ikut bila tema warnanya diubah. public/favicon.ico tetap disediakan
+             * karena peramban meminta alamat itu sendiri walau tidak ada <link>.
+             */
+            ->favicon(asset('img/favicon.svg'))
             ->login(Login::class)
             ->registration()
             ->passwordReset()
@@ -122,8 +130,35 @@ class AdminPanelProvider extends PanelProvider
             )
             // Tombol ikon bawaan Filament tanpa nama aksesibel (WCAG 4.1.2) diberi label Bahasa Indonesia.
             ->renderHook(PanelsRenderHook::BODY_END, fn (): View => view('filament.a11y-labels'))
+            /*
+             * Baris hak cipta. Hook FOOTER dirender oleh layout penuh MAUPUN layout sederhana,
+             * jadi satu pendaftaran ini sudah menutup semua halaman panel termasuk masuk,
+             * daftar, atur ulang sandi, dan profil.
+             */
+            ->renderHook(PanelsRenderHook::FOOTER, fn (): View => view('filament.footer'))
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    /**
+     * Nama brand: judul tab peramban sekaligus teks di kepala sidebar dan halaman masuk.
+     *
+     * Filament menyusun judul tab sebagai "<nama halaman> - <brandName>" dan membersihkannya
+     * dengan strip_tags (vendor/filament/filament/resources/views/components/layout/base.blade.php),
+     * sementara komponen logo memasang nilainya apa adanya bila berupa Htmlable. Keduanya dipakai
+     * di sini: judulnya tetap "... - FnB Cloud - Gamatechno" sebagai satu baris polos, tetapi di
+     * sidebar — yang hanya selebar 191 px — namanya dipenggal jadi dua baris lewat CSS.
+     *
+     * Dipenggal, bukan dikecilkan: agar muat satu baris di sidebar, hurufnya harus turun ke 15 px,
+     * lebih kecil daripada label menu di bawahnya, sehingga nama produk justru kalah menonjol.
+     */
+    protected function brandMarkup(): Htmlable
+    {
+        return new HtmlString(
+            e(config('fnb.brand.product'))
+            .'<span class="fnb-brand__sep"> - </span>'
+            .'<span class="fnb-brand__owner">'.e(config('fnb.brand.short')).'</span>'
+        );
     }
 }
