@@ -16,16 +16,17 @@ final class DemoAccounts
     public static function all(): array
     {
         return [
-            ['email' => 'rina@kopinusantara.test', 'name' => 'Rina Hartono', 'role' => 'Pemilik', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '802614'],
-            ['email' => 'bayu@kopinusantara.test', 'name' => 'Bayu Pratama', 'role' => 'Admin Company', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => null],
-            ['email' => 'dewi@kopinusantara.test', 'name' => 'Dewi Lestari', 'role' => 'Manajer Outlet Kemang', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '482915'],
-            ['email' => 'rudi@kopinusantara.test', 'name' => 'Rudi Hartanto', 'role' => 'Gudang / Purchasing', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => null],
-            ['email' => 'lina@kopinusantara.test', 'name' => 'Lina Kusuma', 'role' => 'Finance', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => null],
-            ['email' => 'andi@kopinusantara.test', 'name' => 'Andi Saputra', 'role' => 'Kasir Kemang', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '7351'],
-            ['email' => 'siti.aminah@bahariikanbakar.test', 'name' => 'Siti Aminah', 'role' => 'Manajer Bahari Kelapa Gading', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '260418'],
-            ['email' => 'yusuf@bahariikanbakar.test', 'name' => 'Yusuf Maulana', 'role' => 'Kasir Bahari Kelapa Gading', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '4719'],
-            ['email' => 'rizky@bahariikanbakar.test', 'name' => 'Rizky Ramadhan', 'role' => 'Kasir Bahari BSD', 'company' => 'PT Kopi Nusantara Sejahtera', 'pin' => '5836'],
-            ['email' => 'ratna@dapurburatna.test', 'name' => 'Ratna Wulandari', 'role' => 'Pemilik', 'company' => 'CV Dapur Bu Ratna', 'pin' => null],
+            ['email' => 'rina@gtgroup.test', 'name' => 'Rina Hartono', 'role' => 'Pemilik', 'company' => 'Gamatechno Group', 'pin' => '802614'],
+            ['email' => 'bayu@gtgroup.test', 'name' => 'Bayu Pratama', 'role' => 'Admin Company', 'company' => 'Gamatechno Group', 'pin' => null],
+            ['email' => 'lina@gtgroup.test', 'name' => 'Lina Kusuma', 'role' => 'Finance', 'company' => 'Gamatechno Group', 'pin' => null],
+            ['email' => 'rudi@gtgroup.test', 'name' => 'Rudi Hartanto', 'role' => 'Gudang / Purchasing', 'company' => 'Gamatechno Group', 'pin' => null],
+            ['email' => 'dewi@gtgroup.test', 'name' => 'Dewi Lestari', 'role' => 'Manajer Hamzah Coffee Kaliurang', 'company' => 'Gamatechno Group', 'pin' => '482915'],
+            ['email' => 'andi@gtgroup.test', 'name' => 'Andi Saputra', 'role' => 'Kasir Hamzah Coffee Kaliurang', 'company' => 'Gamatechno Group', 'pin' => '7351'],
+            ['email' => 'yohanes@gtgroup.test', 'name' => 'Yohanes Siregar', 'role' => 'Manajer Hamzah Coffee Prawirotaman', 'company' => 'Gamatechno Group', 'pin' => '615283'],
+            ['email' => 'aminah@gtgroup.test', 'name' => 'Siti Aminah', 'role' => 'Manajer Hamzah Resto Ikan Bakar', 'company' => 'Gamatechno Group', 'pin' => '260418'],
+            ['email' => 'yusuf@gtgroup.test', 'name' => 'Yusuf Maulana', 'role' => 'Kasir Hamzah Resto Ikan Bakar', 'company' => 'Gamatechno Group', 'pin' => '4719'],
+            ['email' => 'rizky@gtgroup.test', 'name' => 'Rizky Ramadhan', 'role' => 'Manajer Hamzah Resto Jl. Magelang', 'company' => 'Gamatechno Group', 'pin' => '5836'],
+            ['email' => 'hendra@gtgroup.test', 'name' => 'Hendra Gunawan', 'role' => 'Kasir Hamzah Resto Jl. Magelang', 'company' => 'Gamatechno Group', 'pin' => '5172'],
         ];
     }
 
@@ -44,11 +45,10 @@ final class DemoAccounts
             'Siti Nurhaliza' => '9024',
             'Yohanes Siregar' => '615283',
             'Putri Maharani' => '3867',
-            'Hendra Gunawan' => '5172',
-            // DemoIkanBakarSeeder (outlet uji coba resto ikan bakar).
-            'Yusuf Maulana' => '4719',
             'Siti Aminah' => '260418',
+            'Yusuf Maulana' => '4719',
             'Rizky Ramadhan' => '5836',
+            'Hendra Gunawan' => '5172',
         ];
     }
 

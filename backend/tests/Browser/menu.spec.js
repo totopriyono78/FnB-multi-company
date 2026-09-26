@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
-const CASHIER = { email: 'andi@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
+const CASHIER = { email: 'andi@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function login(page, { email, password }) {
@@ -44,10 +44,10 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     // tertimpa render pertama Livewire.
     await page.waitForLoadState('networkidle');
     await page.getByPlaceholder('Cari nama atau SKU').fill('kopi susu');
-    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('cell', { name: /Kopi Susu Hamzah/ })).toBeVisible({ timeout: 10_000 });
     await page.getByPlaceholder('Cari nama atau SKU').fill('paket');
     await expect(page.getByRole('cell', { name: /Paket Sarapan/ })).toBeVisible();
-    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: /Kopi Susu Hamzah/ })).toHaveCount(0);
     // Tombol hapus pencarian harus punya nama aksesibel.
     await expect(page.getByRole('button', { name: 'Hapus semua filter' })).toBeVisible();
     await expectAccessible(page, 'daftar menu (pencarian aktif)');
@@ -61,7 +61,7 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     // Form menu memuat aset unggah foto; menyentuh isian sebelum Livewire siap membuat
     // perubahan brand tidak terkirim, sehingga pilihan kategorinya tidak pernah muncul.
     await page.waitForLoadState('networkidle');
-    await page.getByRole('combobox', { name: 'Brand' }).selectOption({ label: 'Kopi Tepi Jalan' });
+    await page.getByRole('combobox', { name: 'Brand' }).selectOption({ label: 'Hamzah Coffee' });
     await expect(page.locator('#data\\.category_id option', { hasText: 'Non-Kopi' })).toHaveCount(1, { timeout: 15_000 });
     await page.getByRole('combobox', { name: 'Kategori' }).selectOption({ label: 'Non-Kopi' });
     const sku = `E2E-${Date.now() % 100000}`;
@@ -78,8 +78,8 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await page.goto(`${base}/menu`);
     await page.waitForLoadState('networkidle');
     await page.getByPlaceholder('Cari nama atau SKU').fill('kopi susu');
-    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ }).click();
+    await expect(page.getByRole('cell', { name: /Kopi Susu Hamzah/ })).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('cell', { name: /Kopi Susu Hamzah/ }).click();
     await expect(page.getByRole('tab', { name: 'Varian & Modifier' })).toBeVisible();
     await page.getByRole('tab', { name: 'Varian & Modifier' }).click();
     await expect(page.getByRole('textbox', { name: /^Nama varian/ }).nth(1)).toHaveValue('Large');
@@ -98,19 +98,19 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await expectAccessible(page, 'ubah promo');
     await page.screenshot({ path: `${SHOTS}/13-promo.png`, fullPage: true });
 
-    // Simulasi harga: Kopi Susu Regular di Kemang (PB1 10%, pembulatan Rp100)
+    // Simulasi harga: Kopi Susu Regular di Kaliurang (PB1 10%, pembulatan Rp100)
     await klikNavigasi(page, page.getByRole('link', { name: 'Simulasi Harga' }));
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
     // Waktu dipatok di luar jam promo (Happy Hour Kopi 14.00-17.00), supaya angka yang diuji
     // tidak berubah tergantung jam berapa rangkaian uji ini dijalankan.
     const hariIni = new Date().toISOString().slice(0, 10);
     await page.getByLabel('Waktu pesanan').fill(`${hariIni}T11:00`);
     const menuSelect = page.getByRole('combobox', { name: /^Menu\*?$/ }).first();
-    await menuSelect.selectOption({ label: 'Kopi Susu Tepi Jalan' });
+    await menuSelect.selectOption({ label: 'Kopi Susu Hamzah' });
     await page.getByRole('button', { name: 'Hitung' }).click();
     // Menu bervarian wajib memilih varian → sistem menolak dengan pesan yang jelas.
     await expect(page.getByText('Pesanan tidak dapat dihitung')).toBeVisible();
-    await expect(page.getByText('Pilih varian untuk Kopi Susu Tepi Jalan.')).toBeVisible();
+    await expect(page.getByText('Pilih varian untuk Kopi Susu Hamzah.')).toBeVisible();
     await expectAccessible(page, 'simulasi harga (galat)');
 
     await menuSelect.selectOption({ label: 'Croissant Butter' });
@@ -119,7 +119,7 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await expect(page.locator('.fnb-totals__grand')).toContainText('Rp24.200');
 
     // Kopi Susu Large + Tingkat Gula + Suhu + Extra Shot: 24.000 + 6.000 = 30.000; PB1 3.000 → 33.000
-    await menuSelect.selectOption({ label: 'Kopi Susu Tepi Jalan' });
+    await menuSelect.selectOption({ label: 'Kopi Susu Hamzah' });
     await page.getByRole('combobox', { name: 'Varian' }).first().selectOption({ label: 'Large' });
     await page.getByRole('checkbox', { name: 'Tingkat Gula: Normal' }).check();
     await page.getByRole('checkbox', { name: 'Suhu: Dingin' }).check();

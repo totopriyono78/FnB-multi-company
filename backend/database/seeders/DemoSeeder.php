@@ -19,8 +19,13 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * Data demo realistis untuk pengembangan & pilot internal. Semua orang dan usaha fiktif.
- * Password semua akun demo: Rahasia123 — jangan dipakai di produksi.
+ * Data demo Gamatechno Group untuk peragaan dan pilot internal. Semua orang fiktif.
+ *
+ *   Gamatechno Group
+ *   ├─ Hamzah Coffee: Kaliurang, Prawirotaman
+ *   └─ Hamzah Resto:  Ikan Bakar Seturan (ikan per gram), Jl. Magelang (resto umum)
+ *
+ * Semua akun memakai domain @gtgroup.test dan password Rahasia123 — jangan dipakai di produksi.
  */
 class DemoSeeder extends Seeder
 {
@@ -34,125 +39,120 @@ class DemoSeeder extends Seeder
 
         $context->runAsSystem(function (): void {
             $admin = User::query()->firstOrCreate(
-                ['email' => 'platform@fnbcloud.test'],
+                ['email' => 'platform@gtgroup.test'],
                 ['name' => 'Tim Operasional FnB Cloud', 'password' => self::PASSWORD],
             );
             $admin->forceFill(['is_platform_admin' => true, 'email_verified_at' => now()])->save();
         });
 
-        $this->seedKopiNusantara($context);
-        // Brand kedua PT Kopi Nusantara: resto ikan bakar dengan dua outlet (Kelapa Gading, BSD).
-        $this->call(DemoIkanBakarSeeder::class);
-        $this->seedDapurBuRatna($context);
+        $this->seedGamatechno($context);
 
         // Staf demo memakai password yang sama agar mudah dicoba (hanya non-produksi).
         $context->runAsSystem(function (): void {
-            User::query()->where('email', 'like', '%.test')->where('is_platform_admin', false)->get()
+            User::query()->where('email', 'like', '%@gtgroup.test')->where('is_platform_admin', false)->get()
                 ->each(fn (User $u) => $u->forceFill(['password' => self::PASSWORD, 'email_verified_at' => now()])->save());
         });
     }
 
-    private function seedKopiNusantara(TenantContext $context): void
+    private function seedGamatechno(TenantContext $context): void
     {
-        $owner = $this->user('Rina Hartono', 'rina@kopinusantara.test', '6281211112222');
-        $company = $this->company($owner, 'PT Kopi Nusantara Sejahtera', 'Jakarta Selatan', 'pro', [
-            'legal_name' => 'PT Kopi Nusantara Sejahtera',
+        $owner = $this->user('Rina Hartono', 'rina@gtgroup.test', '6281211112222');
+        $company = $this->company($owner, 'Gamatechno Group', 'Yogyakarta', 'pro', [
+            'legal_name' => 'Gamatechno Group',
             'npwp' => '012345678901000',
-            'address' => 'Jl. Kemang Raya No. 18',
-            'province' => 'DKI Jakarta',
-            'postal_code' => '12730',
-            'phone' => '0217199876',
+            'address' => 'Jl. Kaliurang Km 5,6 No. 21, Caturtunggal, Depok, Sleman',
+            'province' => 'DI Yogyakarta',
+            'postal_code' => '55281',
+            'phone' => '0274588990',
         ]);
 
         $context->runAsTenant($company->id, function () use ($owner): void {
-            $kopi = $this->brand('KTJ', 'Kopi Tepi Jalan');
-            $roti = $this->brand('RB88', 'Roti Bakar 88');
+            $coffee = $this->brand('HMC', 'Hamzah Coffee');
+            $resto = $this->brand('HMR', 'Hamzah Resto');
 
-            $kemang = $this->outlet($kopi, 'KMG', 'Kopi Tepi Jalan Kemang', [
-                'address' => 'Jl. Kemang Raya No. 18, Bangka, Mampang Prapatan',
-                'city' => 'Jakarta Selatan', 'province' => 'DKI Jakarta', 'postal_code' => '12730',
-                'latitude' => '-6.2607130', 'longitude' => '106.8134500', 'phone' => '0217199876',
-                'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 18,
+            $kaliurang = $this->outlet($coffee, 'KLU', 'Hamzah Coffee Kaliurang', [
+                'address' => 'Jl. Kaliurang Km 5,6 No. 21, Caturtunggal, Depok',
+                'city' => 'Sleman', 'province' => 'DI Yogyakarta', 'postal_code' => '55281',
+                'latitude' => '-7.7581200', 'longitude' => '110.3818600', 'phone' => '0274588991',
+                'tax_name' => 'PB1', 'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 18,
                 'opening_hours' => $this->hours('07:00', '22:00'),
             ]);
-            $dago = $this->outlet($kopi, 'DGO', 'Kopi Tepi Jalan Dago', [
-                'address' => 'Jl. Ir. H. Juanda No. 102, Lebakgede, Coblong',
-                'city' => 'Bandung', 'province' => 'Jawa Barat', 'postal_code' => '40132',
-                'latitude' => '-6.8845620', 'longitude' => '107.6135200', 'phone' => '0222503311',
-                'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 24,
+            $prawirotaman = $this->outlet($coffee, 'PRW', 'Hamzah Coffee Prawirotaman', [
+                'address' => 'Jl. Prawirotaman No. 18, Brontokusuman, Mergangsan',
+                'city' => 'Yogyakarta', 'province' => 'DI Yogyakarta', 'postal_code' => '55153',
+                'latitude' => '-7.8193400', 'longitude' => '110.3697100', 'phone' => '0274388112',
+                'tax_name' => 'PB1', 'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 24,
                 'opening_hours' => $this->hours('08:00', '23:00'),
                 'business_day_cutoff' => '03:00',
             ]);
-            $tebet = $this->outlet($roti, 'TBT', 'Roti Bakar 88 Tebet', [
-                'address' => 'Jl. Tebet Raya No. 45, Tebet Timur',
-                'city' => 'Jakarta Selatan', 'province' => 'DKI Jakarta', 'postal_code' => '12820',
-                'tax_rate' => '10', 'service_charge_rate' => '5', 'order_mode' => 'dine_in', 'table_count' => 12,
-                'stock_deduction_trigger' => 'on_kitchen', 'rounding_unit' => 500,
-                'opening_hours' => $this->hours('16:00', '02:00'),
+            $ikanBakar = $this->outlet($resto, 'SRT', 'Hamzah Resto Ikan Bakar Seturan', [
+                'address' => 'Jl. Seturan Raya No. 45, Caturtunggal, Depok',
+                'city' => 'Sleman', 'province' => 'DI Yogyakarta', 'postal_code' => '55281',
+                'latitude' => '-7.7695300', 'longitude' => '110.4090200', 'phone' => '0274489900',
+                'tax_name' => 'PB1', 'tax_rate' => '10', 'service_charge_rate' => '5', 'rounding_unit' => 100,
+                // Tamu makan dulu, membayar di kasir setelah selesai.
+                'order_mode' => 'dine_in', 'stock_deduction_trigger' => 'on_kitchen', 'table_count' => 20,
+                'opening_hours' => $this->hours('10:00', '22:00'),
+            ]);
+            $umum = $this->outlet($resto, 'MGL', 'Hamzah Resto Jl. Magelang', [
+                'address' => 'Jl. Magelang Km 5 No. 12, Sinduadi, Mlati',
+                'city' => 'Sleman', 'province' => 'DI Yogyakarta', 'postal_code' => '55284',
+                'latitude' => '-7.7589100', 'longitude' => '110.3614800', 'phone' => '0274566770',
+                'tax_name' => 'PB1', 'tax_rate' => '10', 'service_charge_rate' => '5', 'rounding_unit' => 500,
+                'order_mode' => 'dine_in', 'stock_deduction_trigger' => 'on_kitchen', 'table_count' => 24,
+                'opening_hours' => $this->hours('10:00', '21:30'),
             ]);
 
-            $this->device($kemang, 'POS01', 'Kasir depan', 'pos', true);
-            $this->device($kemang, 'POS02', 'Kasir drive-thru', 'pos', true);
-            $this->device($kemang, 'KDS01', 'Layar bar', 'kds', false);
-            $this->device($dago, 'POS01', 'Kasir utama', 'pos', true);
-            $this->device($tebet, 'POS01', 'Kasir', 'pos', false);
+            $this->device($kaliurang, 'POS01', 'Kasir depan', 'pos', true);
+            $this->device($kaliurang, 'POS02', 'Kasir drive-thru', 'pos', true);
+            $this->device($kaliurang, 'KDS01', 'Layar bar', 'kds', false);
+            $this->device($prawirotaman, 'POS01', 'Kasir utama', 'pos', true);
+            $this->device($ikanBakar, 'POS01', 'Kasir depan', 'pos', true);
+            $this->device($ikanBakar, 'POS02', 'Kasir samping', 'pos', false);
+            $this->device($umum, 'POS01', 'Kasir', 'pos', true);
+            $this->device($umum, 'KDS01', 'Layar dapur', 'kds', false);
 
-            $this->staff($owner, $this->member('Bayu Pratama', 'bayu@kopinusantara.test', 'HO-001', ['company_admin']));
-            $this->staff($owner, $this->member('Dewi Lestari', 'dewi@kopinusantara.test', 'KMG-001', ['outlet_manager'], [$kemang->id], '482915'));
-            $this->staff($owner, $this->member('Andi Saputra', 'andi@kopinusantara.test', 'KMG-002', ['cashier'], [$kemang->id], '7351'));
-            $this->staff($owner, $this->member('Siti Nurhaliza', 'siti@kopinusantara.test', 'KMG-003', ['cashier'], [$kemang->id], '9024'));
-            $this->staff($owner, $this->member('Made Wirawan', 'made@kopinusantara.test', 'KMG-004', ['kitchen'], [$kemang->id]));
-            $this->staff($owner, $this->member('Yohanes Siregar', 'yohanes@kopinusantara.test', 'DGO-001', ['outlet_manager'], [$dago->id], '615283'));
-            $this->staff($owner, $this->member('Putri Maharani', 'putri@kopinusantara.test', 'DGO-002', ['cashier'], [$dago->id], '3867'));
-            $this->staff($owner, $this->member('Hendra Gunawan', 'hendra@kopinusantara.test', 'TBT-001', ['cashier'], [$tebet->id], '5172'));
-            $this->staff($owner, $this->member('Lina Kusuma', 'lina@kopinusantara.test', 'HO-002', ['finance']));
-            $this->staff($owner, $this->member('Rudi Hartanto', 'rudi@kopinusantara.test', 'HO-003', ['warehouse']));
+            // Kantor pusat.
+            $this->staff($owner, $this->member('Bayu Pratama', 'bayu@gtgroup.test', 'HO-001', ['company_admin']));
+            $this->staff($owner, $this->member('Lina Kusuma', 'lina@gtgroup.test', 'HO-002', ['finance']));
+            $this->staff($owner, $this->member('Rudi Hartanto', 'rudi@gtgroup.test', 'HO-003', ['warehouse']));
+            // Hamzah Coffee Kaliurang.
+            $this->staff($owner, $this->member('Dewi Lestari', 'dewi@gtgroup.test', 'KLU-001', ['outlet_manager'], [$kaliurang->id], '482915'));
+            $this->staff($owner, $this->member('Andi Saputra', 'andi@gtgroup.test', 'KLU-002', ['cashier'], [$kaliurang->id], '7351'));
+            $this->staff($owner, $this->member('Siti Nurhaliza', 'siti@gtgroup.test', 'KLU-003', ['cashier'], [$kaliurang->id], '9024'));
+            $this->staff($owner, $this->member('Made Wirawan', 'made@gtgroup.test', 'KLU-004', ['kitchen'], [$kaliurang->id]));
+            // Hamzah Coffee Prawirotaman.
+            $this->staff($owner, $this->member('Yohanes Siregar', 'yohanes@gtgroup.test', 'PRW-001', ['outlet_manager'], [$prawirotaman->id], '615283'));
+            $this->staff($owner, $this->member('Putri Maharani', 'putri@gtgroup.test', 'PRW-002', ['cashier'], [$prawirotaman->id], '3867'));
+            // Hamzah Resto Ikan Bakar Seturan.
+            $this->staff($owner, $this->member('Siti Aminah', 'aminah@gtgroup.test', 'SRT-001', ['outlet_manager'], [$ikanBakar->id], '260418'));
+            $this->staff($owner, $this->member('Yusuf Maulana', 'yusuf@gtgroup.test', 'SRT-002', ['cashier'], [$ikanBakar->id], '4719'));
+            // Hamzah Resto Jl. Magelang.
+            $this->staff($owner, $this->member('Rizky Ramadhan', 'rizky@gtgroup.test', 'MGL-001', ['outlet_manager'], [$umum->id], '5836'));
+            $this->staff($owner, $this->member('Hendra Gunawan', 'hendra@gtgroup.test', 'MGL-002', ['cashier'], [$umum->id], '5172'));
+            $this->staff($owner, $this->member('Joko Susanto', 'joko@gtgroup.test', 'MGL-003', ['kitchen'], [$umum->id]));
 
             app(PinService::class)->setPin(CompanyUser::query()->where('user_id', $owner->id)->firstOrFail(), '802614');
 
             $menu = new DemoMenuSeeder;
-            $menu->kopiTepiJalan($owner, $kopi, $kemang, $dago);
-            $menu->rotiBakar88($owner, $roti);
+            $menu->hamzahCoffee($owner, $coffee, $kaliurang, $prawirotaman);
+            $menu->hamzahResto($owner, $resto, $ikanBakar, $umum);
 
             $userId = fn (string $email) => User::query()->where('email', $email)->value('id');
             $find = fn (string $email) => User::query()->findOrFail($userId($email));
             $inventory = new DemoInventorySeeder;
-            $inventory->kopiTepiJalan($owner, $kemang, $dago, $find('dewi@kopinusantara.test'), $find('rudi@kopinusantara.test'));
-            (new DemoSalesSeeder)->kemang($kemang, $find('dewi@kopinusantara.test'), $find('andi@kopinusantara.test'), $find('siti@kopinusantara.test'));
+            $inventory->hamzahCoffee($owner, $kaliurang, $prawirotaman, $find('dewi@gtgroup.test'), $find('rudi@gtgroup.test'));
+            (new DemoSalesSeeder)->kaliurang($kaliurang, $find('dewi@gtgroup.test'), $find('andi@gtgroup.test'), $find('siti@gtgroup.test'));
             (new DemoReportSeeder)->run([
-                'kemang' => $kemang, 'dago' => $dago, 'owner' => $owner,
-                'kemangManager' => $find('dewi@kopinusantara.test'),
-                'kemangCashiers' => [$find('andi@kopinusantara.test'), $find('siti@kopinusantara.test')],
-                'dagoManager' => $find('yohanes@kopinusantara.test'), 'dagoCashier' => $find('putri@kopinusantara.test'),
-                'warehouse' => $find('rudi@kopinusantara.test'),
+                'kemang' => $kaliurang, 'dago' => $prawirotaman, 'owner' => $owner,
+                'kemangManager' => $find('dewi@gtgroup.test'),
+                'kemangCashiers' => [$find('andi@gtgroup.test'), $find('siti@gtgroup.test')],
+                'dagoManager' => $find('yohanes@gtgroup.test'), 'dagoCashier' => $find('putri@gtgroup.test'),
+                'warehouse' => $find('rudi@gtgroup.test'),
+                'restoUmum' => $umum, 'restoUmumManager' => $find('rizky@gtgroup.test'), 'restoUmumCashier' => $find('hendra@gtgroup.test'),
+                'restoIkan' => $ikanBakar, 'restoIkanManager' => $find('aminah@gtgroup.test'), 'restoIkanCashier' => $find('yusuf@gtgroup.test'),
             ]);
-            $inventory->afterSales($kemang, $find('rudi@kopinusantara.test'));
-        });
-    }
-
-    private function seedDapurBuRatna(TenantContext $context): void
-    {
-        $owner = $this->user('Ratna Wulandari', 'ratna@dapurburatna.test', '6285733334444');
-        $company = $this->company($owner, 'CV Dapur Bu Ratna', 'Semarang', 'basic', [
-            'legal_name' => 'CV Dapur Bu Ratna',
-            'address' => 'Jl. Fatmawati No. 7, Tlogosari',
-            'province' => 'Jawa Tengah',
-            'postal_code' => '50196',
-        ]);
-
-        $context->runAsTenant($company->id, function () use ($owner): void {
-            $brand = $this->brand('WBR', 'Warung Bu Ratna');
-            $outlet = $this->outlet($brand, 'TLG', 'Warung Bu Ratna Tlogosari', [
-                'address' => 'Jl. Fatmawati No. 7, Tlogosari Kulon, Pedurungan',
-                'city' => 'Semarang', 'province' => 'Jawa Tengah', 'postal_code' => '50196',
-                'tax_rate' => '10', 'tax_inclusive' => true,
-                'opening_hours' => $this->hours('06:00', '15:00'),
-            ]);
-            $this->device($outlet, 'POS01', 'Kasir', 'pos', true);
-
-            $this->staff($owner, $this->member('Agus Setiawan', 'agus@dapurburatna.test', 'TLG-001', ['cashier'], [$outlet->id], '2749'));
-
-            (new DemoMenuSeeder)->warungBuRatna($owner, $brand);
+            $inventory->afterSales($kaliurang, $find('rudi@gtgroup.test'));
         });
     }
 

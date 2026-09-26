@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test';
 import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
-const FINANCE = { email: 'lina@kopinusantara.test', password: 'Rahasia123' };
-const MANAGER = { email: 'dewi@kopinusantara.test', password: 'Rahasia123' };
-const CASHIER = { email: 'andi@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
+const FINANCE = { email: 'lina@gtgroup.test', password: 'Rahasia123' };
+const MANAGER = { email: 'dewi@gtgroup.test', password: 'Rahasia123' };
+const CASHIER = { email: 'andi@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function login(page, { email, password }) {
@@ -37,7 +37,7 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(page.getByRole('heading', { name: 'Penjualan hari ini' })).toBeVisible();
     await expect(page.getByText('Penjualan bersih').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Penjualan per jam' })).toBeVisible();
-    await expect(page.getByRole('table', { name: 'Peringkat outlet hari ini' })).toContainText('Kopi Tepi Jalan Dago');
+    await expect(page.getByRole('table', { name: 'Peringkat outlet hari ini' })).toContainText('Hamzah Coffee Prawirotaman');
     await expectAccessible(page, 'ringkasan');
     await page.screenshot({ path: `${SHOTS}/40-dashboard.png`, fullPage: true });
 
@@ -46,8 +46,8 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(page.getByRole('heading', { name: 'Laporan Penjualan', exact: true })).toBeVisible();
     await page.getByRole('combobox', { name: 'Kelompokkan' }).selectOption({ label: 'Per outlet' });
     const table = page.getByRole('table', { name: 'Laporan Penjualan — Per outlet' });
-    await expect(table).toContainText('Kopi Tepi Jalan Kemang');
-    await expect(table).toContainText('Kopi Tepi Jalan Dago');
+    await expect(table).toContainText('Hamzah Coffee Kaliurang');
+    await expect(table).toContainText('Hamzah Coffee Prawirotaman');
     await expect(table.locator('tfoot')).toContainText('100%');
     await expectAccessible(page, 'laporan penjualan');
     await page.screenshot({ path: `${SHOTS}/41-laporan-outlet.png`, fullPage: true });
@@ -62,8 +62,8 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
 
     // Per jam untuk satu outlet.
     await page.getByRole('combobox', { name: 'Kelompokkan' }).selectOption({ label: 'Per jam' });
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Dago' });
-    await expect(page.getByText('Outlet: Kopi Tepi Jalan Dago')).toBeVisible();
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Prawirotaman' });
+    await expect(page.getByText('Outlet: Hamzah Coffee Prawirotaman')).toBeVisible();
     await expect(page.getByRole('table', { name: 'Laporan Penjualan — Per jam' })).toContainText('08.00–08.59');
 
     // Anti-fraud & rincian kejadian (FR-RPT-04).
@@ -76,14 +76,14 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
 
     // Menu engineering (FR-RPT-03).
     await klikNavigasi(page, page.getByRole('link', { name: 'Menu Terlaris' }));
-    await expect(page.getByRole('table', { name: 'Menu Terlaris & Menu Engineering' })).toContainText('Kopi Susu Tepi Jalan');
+    await expect(page.getByRole('table', { name: 'Menu Terlaris & Menu Engineering' })).toContainText('Kopi Susu Hamzah');
     await expect(page.getByRole('table', { name: 'Saran per kelompok menu' })).toBeVisible();
     await expectAccessible(page, 'menu engineering');
     await page.screenshot({ path: `${SHOTS}/43-menu-engineering.png`, fullPage: true });
 
     // Laba kotor (FR-RPT-07).
     await klikNavigasi(page, page.getByRole('link', { name: 'Laba Kotor' }));
-    await expect(page.getByRole('table', { name: 'Laporan Laba Kotor per Outlet' })).toContainText('Kopi Tepi Jalan Kemang');
+    await expect(page.getByRole('table', { name: 'Laporan Laba Kotor per Outlet' })).toContainText('Hamzah Coffee Kaliurang');
     await expectAccessible(page, 'laba kotor');
     await page.screenshot({ path: `${SHOTS}/44-laba-kotor.png`, fullPage: true });
 });
@@ -94,7 +94,7 @@ test('finance membaca laporan pajak dan membuat jadwal email', async ({ page }) 
     await klikNavigasi(page, page.getByRole('link', { name: 'Pajak & Service' }));
     const tax = page.getByRole('table', { name: 'Laporan Pajak & Service Charge' });
     await expect(tax).toContainText('PB1 10%');
-    await expect(tax).toContainText('Kopi Tepi Jalan Dago');
+    await expect(tax).toContainText('Hamzah Coffee Prawirotaman');
     await expectAccessible(page, 'pajak');
     await page.screenshot({ path: `${SHOTS}/45-pajak.png`, fullPage: true });
 
@@ -115,7 +115,7 @@ test('finance membaca laporan pajak dan membuat jadwal email', async ({ page }) 
     await page.getByRole('combobox', { name: 'Frekuensi' }).selectOption({ label: 'Mingguan (Senin–Minggu lalu)' });
     await expect(page.getByText('Dikirim setiap Senin untuk Senin–Minggu sebelumnya.')).toBeVisible();
     const recipients = page.getByRole('combobox', { name: /Email penerima/ });
-    await recipients.fill('owner@kopinusantara.test');
+    await recipients.fill('owner@gtgroup.test');
     await recipients.press('Enter');
     await expectAccessible(page, 'jadwal baru');
     await page.screenshot({ path: `${SHOTS}/46-jadwal-baru.png`, fullPage: true });
@@ -129,10 +129,10 @@ test('manajer outlet hanya melihat outletnya; kasir tidak melihat laporan', asyn
     const base = await login(page, MANAGER);
     await page.goto(`${base}/laporan/penjualan?tampilan=outlet`);
     const table = page.getByRole('table', { name: 'Laporan Penjualan — Per outlet' });
-    await expect(table).toContainText('Kopi Tepi Jalan Kemang');
-    await expect(table).not.toContainText('Dago');
+    await expect(table).toContainText('Hamzah Coffee Kaliurang');
+    await expect(table).not.toContainText('Prawirotaman');
     await page.goto(`${base}/laporan/jadwal-email`);
-    await expect(page.getByText('Anti-fraud mingguan Kemang')).toBeVisible();
+    await expect(page.getByText('Anti-fraud mingguan Kaliurang')).toBeVisible();
     await expect(page.getByText('Pajak bulanan untuk konsultan')).toHaveCount(0);
 
     await page.goto('/admin/logout');

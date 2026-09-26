@@ -22,8 +22,8 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 
 /**
- * Data inventory & pembelian demo untuk Kopi Tepi Jalan (Tahap 4): bahan, resep, pemasok, saldo awal,
- * PO yang sudah diterima & yang menunggu persetujuan, waste, transfer ke Dago, dan opname yang menunggu manajer.
+ * Data inventory & pembelian demo untuk Hamzah Coffee (Tahap 4): bahan, resep, pemasok, saldo awal,
+ * PO yang sudah diterima & yang menunggu persetujuan, waste, transfer ke Prawirotaman, dan opname yang menunggu manajer.
  * Semua data dibuat lewat layanan aplikasi. Aman diulang (berhenti bila bahan sudah ada).
  */
 class DemoInventorySeeder
@@ -59,7 +59,7 @@ class DemoInventorySeeder
         'CUP-22' => ['Gelas Plastik 22 oz + Tutup', 'Kemasan', 'pcs', '100', ['dus' => '1000'], '780'],
     ];
 
-    public function kopiTepiJalan(User $owner, Outlet $kemang, Outlet $dago, User $manager, User $warehouse): void
+    public function hamzahCoffee(User $owner, Outlet $kemang, Outlet $dago, User $manager, User $warehouse): void
     {
         if (Ingredient::query()->where('code', 'KOPI-GAYO')->exists()) {
             return;
@@ -67,10 +67,10 @@ class DemoInventorySeeder
         $kemang = Outlet::query()->findOrFail($kemang->id);
         $dago = Outlet::query()->findOrFail($dago->id);
         $locations = app(StockLocations::class);
-        $mainKemang = $locations->ensureDefault($kemang);
-        $mainDago = $locations->ensureDefault($dago);
-        $mainKemang->update(['name' => 'Gudang Kemang']);
-        $mainDago->update(['name' => 'Gudang Dago']);
+        $mainKaliurang = $locations->ensureDefault($kemang);
+        $mainPrawirotaman = $locations->ensureDefault($dago);
+        $mainKaliurang->update(['name' => 'Gudang Kaliurang']);
+        $mainPrawirotaman->update(['name' => 'Gudang Prawirotaman']);
 
         foreach (self::INGREDIENTS as $code => [$name, $category, $unit, $min, $units]) {
             $ingredient = Ingredient::query()->create(['code' => $code, 'name' => $name, 'category' => $category, 'base_unit' => $unit, 'min_stock' => $min]);
@@ -90,27 +90,27 @@ class DemoInventorySeeder
         [$dairy, $roastery, $pastry, $market] = $this->suppliers();
 
         $documents = app(StockDocumentService::class);
-        // Saldo awal Kemang & Dago (3 hari lalu). Matcha & boba sengaja di bawah minimum agar muncul di stok kritis.
+        // Saldo awal Kaliurang & Prawirotaman (3 hari lalu). Matcha & boba sengaja di bawah minimum agar muncul di stok kritis.
         $opening = [];
         foreach (self::INGREDIENTS as $code => [, , , $min, , $cost]) {
             $factor = in_array($code, ['MATCHA', 'BOBA'], true) ? '0.8' : '3';
             $opening[] = ['ingredient_id' => $this->ing[$code]->id, 'qty' => (string) BigDecimal::of($min)->multipliedBy($factor)->toScale(0), 'unit_cost' => $cost];
         }
         $documents->adjust($warehouse, [
-            'location_id' => $mainKemang->id, 'type' => 'adjustment', 'reason_code' => 'opening',
+            'location_id' => $mainKaliurang->id, 'type' => 'adjustment', 'reason_code' => 'opening',
             'notes' => 'Saldo awal saat mulai memakai FnB Cloud', 'occurred_at' => now()->subDays(3)->toIso8601String(), 'lines' => $opening,
         ]);
         $documents->adjust($warehouse, [
-            'location_id' => $mainDago->id, 'type' => 'adjustment', 'reason_code' => 'opening',
+            'location_id' => $mainPrawirotaman->id, 'type' => 'adjustment', 'reason_code' => 'opening',
             'notes' => 'Saldo awal saat mulai memakai FnB Cloud', 'occurred_at' => now()->subDays(3)->toIso8601String(),
             'lines' => array_slice($opening, 0, 10),
         ]);
 
-        // PO susu: diajukan manajer Kemang, disetujui pemilik, diterima gudang (harga faktur naik sedikit).
+        // PO susu: diajukan manajer Kaliurang, disetujui pemilik, diterima gudang (harga faktur naik sedikit).
         $orders = app(PurchaseOrderService::class);
         $receipts = app(GoodsReceiptService::class);
         $po = $orders->create($manager, [
-            'location_id' => $mainKemang->id, 'supplier_id' => $dairy->id, 'order_date' => now()->subDays(3)->format('Y-m-d'),
+            'location_id' => $mainKaliurang->id, 'supplier_id' => $dairy->id, 'order_date' => now()->subDays(3)->format('Y-m-d'),
             'expected_date' => now()->subDays(2)->format('Y-m-d'), 'notes' => 'Kirim sebelum jam 8 pagi lewat pintu belakang.',
             'lines' => [
                 ['ingredient_id' => $this->ing['SUSU-SEGAR']->id, 'unit_name' => 'karton', 'qty' => '4', 'unit_price' => '234000'],
@@ -131,7 +131,7 @@ class DemoInventorySeeder
 
         // PO roastery: diterima sebagian (sisa menunggu roasting).
         $coffee = $orders->create($warehouse, [
-            'location_id' => $mainKemang->id, 'supplier_id' => $roastery->id, 'order_date' => now()->subDays(2)->format('Y-m-d'),
+            'location_id' => $mainKaliurang->id, 'supplier_id' => $roastery->id, 'order_date' => now()->subDays(2)->format('Y-m-d'),
             'lines' => [['ingredient_id' => $this->ing['KOPI-GAYO']->id, 'unit_name' => 'kg', 'qty' => '10', 'unit_price' => '245000']],
         ]);
         $orders->submit($warehouse, $coffee);
@@ -145,7 +145,7 @@ class DemoInventorySeeder
 
         // PO pastry menunggu persetujuan (muncul di dashboard pemilik).
         $pastryPo = $orders->create($manager, [
-            'location_id' => $mainKemang->id, 'supplier_id' => $pastry->id,
+            'location_id' => $mainKaliurang->id, 'supplier_id' => $pastry->id,
             'expected_date' => now()->addDays(2)->format('Y-m-d'),
             'lines' => [
                 ['ingredient_id' => $this->ing['CRS-BEKU']->id, 'unit_name' => 'dus', 'qty' => '3', 'unit_price' => '228000'],
@@ -153,15 +153,15 @@ class DemoInventorySeeder
         ]);
         $orders->submit($manager, $pastryPo);
 
-        // Draf PO Dago.
+        // Draf PO Prawirotaman.
         $orders->create($warehouse, [
-            'location_id' => $mainDago->id, 'supplier_id' => $dairy->id,
+            'location_id' => $mainPrawirotaman->id, 'supplier_id' => $dairy->id,
             'lines' => [['ingredient_id' => $this->ing['SUSU-SEGAR']->id, 'unit_name' => 'karton', 'qty' => '2', 'unit_price' => '234000']],
         ]);
 
         // Belanja pasar tanpa PO.
         $receipts->manual($manager, [
-            'location_id' => $mainKemang->id, 'supplier_id' => $market->id, 'supplier_invoice_no' => 'Nota 0917',
+            'location_id' => $mainKaliurang->id, 'supplier_id' => $market->id, 'supplier_invoice_no' => 'Nota 0917',
             'received_at' => now()->subDays(2)->toIso8601String(),
             'lines' => [
                 ['ingredient_id' => $this->ing['PISANG']->id, 'unit_name' => 'sisir', 'qty' => '3', 'unit_price' => '17000'],
@@ -172,20 +172,20 @@ class DemoInventorySeeder
 
         // Waste kemarin.
         $documents->adjust($manager, [
-            'location_id' => $mainKemang->id, 'type' => 'waste', 'reason_code' => 'expired',
+            'location_id' => $mainKaliurang->id, 'type' => 'waste', 'reason_code' => 'expired',
             'notes' => 'Susu lewat tanggal kedaluwarsa', 'occurred_at' => now()->subDay()->toIso8601String(),
             'lines' => [['ingredient_id' => $this->ing['SUSU-SEGAR']->id, 'qty' => '1000', 'note' => '1 kotak']],
         ]);
         $documents->adjust($manager, [
-            'location_id' => $mainKemang->id, 'type' => 'waste', 'reason_code' => 'damaged',
+            'location_id' => $mainKaliurang->id, 'type' => 'waste', 'reason_code' => 'damaged',
             'occurred_at' => now()->subDay()->toIso8601String(),
             'lines' => [['ingredient_id' => $this->ing['CRS-BEKU']->id, 'qty' => '2', 'note' => 'Remuk saat pengiriman']],
         ]);
 
-        // Transfer ke Dago dalam perjalanan.
+        // Transfer ke Prawirotaman dalam perjalanan.
         $documents->send($warehouse, [
-            'from_location_id' => $mainKemang->id, 'to_location_id' => $mainDago->id,
-            'notes' => 'Tambahan stok akhir pekan Dago',
+            'from_location_id' => $mainKaliurang->id, 'to_location_id' => $mainPrawirotaman->id,
+            'notes' => 'Tambahan stok akhir pekan Prawirotaman',
             'lines' => [
                 ['ingredient_id' => $this->ing['KOPI-GAYO']->id, 'qty' => '2000'],
                 ['ingredient_id' => $this->ing['GULA-AREN']->id, 'qty' => '1000'],
@@ -193,7 +193,7 @@ class DemoInventorySeeder
         ]);
     }
 
-    /** Opname sebagian Kemang setelah penjualan demo; menunggu persetujuan manajer. */
+    /** Opname sebagian Kaliurang setelah penjualan demo; menunggu persetujuan manajer. */
     public function afterSales(Outlet $kemang, User $warehouse): void
     {
         $location = StockLocation::query()->where('outlet_id', $kemang->id)->where('is_default', true)->first();
@@ -234,7 +234,7 @@ class DemoInventorySeeder
         $this->ing['BUMBU-NG'] = $bumbu;
 
         $menu = [
-            'KSTJ-01' => [['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '120', 'GULA-AREN' => '20', 'CUP-16' => '1'], ['Large' => ['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '180', 'GULA-AREN' => '30', 'CUP-22' => '1']]],
+            'KSH-01' => [['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '120', 'GULA-AREN' => '20', 'CUP-16' => '1'], ['Large' => ['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '180', 'GULA-AREN' => '30', 'CUP-22' => '1']]],
             'AMR-01' => [['KOPI-GAYO' => '18', 'CUP-16' => '1'], ['Large' => ['KOPI-GAYO' => '27', 'CUP-22' => '1']]],
             'LAT-01' => [['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '200', 'CUP-16' => '1'], ['Large' => ['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '260', 'CUP-22' => '1']]],
             'KOA-01' => [['KOPI-GAYO' => '18', 'SUSU-SEGAR' => '100', 'GULA-AREN' => '30', 'CUP-16' => '1'], []],
@@ -254,7 +254,7 @@ class DemoInventorySeeder
         }
 
         $modifier = fn (string $group, string $name) => Modifier::query()
-            ->whereHas('group', fn ($q) => $q->where('name', $group)->where('brand_id', $item('KSTJ-01')->brand_id))
+            ->whereHas('group', fn ($q) => $q->where('name', $group)->where('brand_id', $item('KSH-01')->brand_id))
             ->where('name', $name)->firstOrFail();
         $service->save($owner, Recipe::MODIFIER, $modifier('Tambahan Kopi', 'Extra Shot')->id, ['lines' => $lines(['KOPI-GAYO' => '9'])]);
         $service->save($owner, Recipe::MODIFIER, $modifier('Tambahan Kopi', 'Oat Milk')->id, ['notes' => 'Mengganti susu segar', 'lines' => $lines(['OAT-MILK' => '150', 'SUSU-SEGAR' => '-120'])]);

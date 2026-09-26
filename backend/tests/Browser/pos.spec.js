@@ -12,7 +12,7 @@ import { klikNavigasi } from './support/spa.js';
  * Prasyarat sama dengan spec lain: `php artisan migrate:fresh --seed` lalu server aktif.
  */
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
 const KASIR = { nama: 'Andi', pin: '7351' };
 
 async function masukBackOffice(page) {
@@ -33,10 +33,10 @@ async function kodePairing(page) {
     await page.locator('.fi-ta-search-field input').fill('POS01');
     // Tunggu pencarian diterapkan; tanpa ini baris KDS01 ikut terpilih.
     await expect(page.getByText('Pencarian: POS01')).toBeVisible({ timeout: 10_000 });
-    // Beberapa outlet memakai kode perangkat POS01; ambil baris outlet Kemang. Jumlah barisnya
+    // Beberapa outlet memakai kode perangkat POS01; ambil baris outlet Kaliurang. Jumlah barisnya
     // sengaja tidak diperiksa — data contoh boleh bertambah tanpa membuat skenario ini gagal.
     const baris = page.getByRole('row')
-        .filter({ hasText: 'Kopi Tepi Jalan Kemang' })
+        .filter({ hasText: 'Hamzah Coffee Kaliurang' })
         .filter({ hasText: 'POS01' })
         .first();
     await expect(baris).toBeVisible({ timeout: 15_000 });
@@ -147,7 +147,7 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     // makan di tempat wajib bernomor meja: tombol Ke dapur membuka pemilih meja dulu
     await page.locator('#kitchenBtn').click();
     await expect(page.locator('#tableModal.on')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('#tableGrid button')).toHaveCount(18); // jumlah meja outlet Kemang
+    await expect(page.locator('#tableGrid button')).toHaveCount(18); // jumlah meja outlet Kaliurang
     await page.locator('#tableGrid button[data-t="7"]').click();
     await expect(page.locator('#tableText')).toHaveText(/Meja\s*7/);
 
@@ -167,7 +167,7 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
 
     const struk = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
-    expect(struk).toMatch(/KMG-POS01-\d{6}-\d{4}/);
+    expect(struk).toMatch(/KLU-POS01-\d{6}-\d{4}/);
     expect(struk).toContain('TOTAL');
     expect(struk).toContain('Tunai');
     expect(struk).toContain('Meja 7');
@@ -185,7 +185,7 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     const ulang = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
     expect(Math.max(...ulang.split('\n').map((b) => b.length))).toBeLessThanOrEqual(32);
     // nomor struk tidak boleh terpotong di kertas sempit
-    expect(ulang).toMatch(/KMG-POS01-\d{6}-\d{4}/);
+    expect(ulang).toMatch(/KLU-POS01-\d{6}-\d{4}/);
 });
 
 

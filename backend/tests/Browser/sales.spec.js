@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
-const CASHIER = { email: 'andi@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
+const CASHIER = { email: 'andi@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function login(page, { email, password }) {
@@ -36,16 +36,16 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
 
     await klikNavigasi(page, page.getByRole('link', { name: 'Transaksi', exact: true }));
     await expect(page.getByRole('heading', { name: 'Transaksi' })).toBeVisible();
-    // Data demo berisi riwayat dua minggu: cari struk kasir depan Kemang.
-    await page.locator('.fi-ta-search-field input').fill('KMG-POS01');
-    await expect(page.getByRole('cell', { name: /KMG-POS01-\d{6}-0007/ })).toBeVisible();
-    await expect(page.getByRole('row', { name: /KMG-POS01-\d{6}-0007/ }).getByText('Refund sebagian')).toBeVisible();
+    // Data demo berisi riwayat dua minggu: cari struk kasir depan Kaliurang.
+    await page.locator('.fi-ta-search-field input').fill('KLU-POS01');
+    await expect(page.getByRole('cell', { name: /KLU-POS01-\d{6}-0007/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).getByText('Refund sebagian')).toBeVisible();
     await expectAccessible(page, 'daftar transaksi');
     await page.screenshot({ path: `${SHOTS}/20-transaksi.png`, fullPage: true });
 
     // Rincian transaksi yang sebagian direfund
-    await klikNavigasi(page, page.getByRole('row', { name: /KMG-POS01-\d{6}-0007/ }).getByRole('link', { name: 'Detail' }));
-    await expect(page.getByRole('heading', { name: /Transaksi KMG-POS01-\d{6}-0007/ })).toBeVisible();
+    await klikNavigasi(page, page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).getByRole('link', { name: 'Detail' }));
+    await expect(page.getByRole('heading', { name: /Transaksi KLU-POS01-\d{6}-0007/ })).toBeVisible();
     await expect(page.getByRole('table', { name: 'Rincian pesanan' })).toContainText('Croissant Butter');
     await expect(page.getByRole('table', { name: 'Refund' })).toContainText('Croissant gosong');
     await expect(page.getByRole('table', { name: 'Refund' })).toContainText('Dibuang (waste)');
@@ -67,7 +67,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     // Tutup hari: hari ini masih ada shift terbuka → tombol nonaktif
     await klikNavigasi(page, page.getByRole('link', { name: 'Tutup Hari' }));
     await expect(page.getByRole('heading', { name: 'Tutup Hari' })).toBeVisible();
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
     await expect(page.getByText(/Masih ada 1 shift terbuka/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tutup hari' })).toBeDisabled();
     await expectAccessible(page, 'tutup hari');
@@ -75,7 +75,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
 
     // Metode pembayaran outlet
     await page.goto(`${base}/outlets`);
-    await klikNavigasi(page, page.getByRole('row', { name: /Kopi Tepi Jalan Kemang/ }).getByRole('link', { name: /Ubah/ }));
+    await klikNavigasi(page, page.getByRole('row', { name: /Hamzah Coffee Kaliurang/ }).getByRole('link', { name: /Ubah/ }));
     await expect(page.getByRole('heading', { name: 'Metode Pembayaran' })).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Aktifkan E-Wallet' })).toHaveAttribute('aria-checked', 'false');
     await expectAccessible(page, 'metode pembayaran outlet');

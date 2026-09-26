@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
-const WAREHOUSE = { email: 'rudi@kopinusantara.test', password: 'Rahasia123' };
-const CASHIER = { email: 'andi@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
+const WAREHOUSE = { email: 'rudi@gtgroup.test', password: 'Rahasia123' };
+const CASHIER = { email: 'andi@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function login(page, { email, password }) {
@@ -54,7 +54,7 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     // Posisi stok: bahan di bawah minimum.
     await klikNavigasi(page, page.getByRole('link', { name: 'Posisi Stok' }));
     await expect(page.getByRole('heading', { name: 'Posisi Stok' })).toBeVisible();
-    await expect(page.getByRole('row', { name: /Boba Brown Sugar.*Gudang Kemang/ }).getByText('Di bawah minimum')).toBeVisible();
+    await expect(page.getByRole('row', { name: /Boba Brown Sugar.*Gudang Kaliurang/ }).getByText('Di bawah minimum')).toBeVisible();
     await expectAccessible(page, 'posisi stok');
     await page.screenshot({ path: `${SHOTS}/30-posisi-stok.png`, fullPage: true });
 
@@ -73,7 +73,7 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
 
     // Resep & HPP per porsi.
     await page.goto(`${base}/resep`);
-    await choose(page, searchable(page, 'Pilih'), 'Kopi Susu Tepi Jalan');
+    await choose(page, searchable(page, 'Pilih'), 'Kopi Susu Hamzah');
     await expect(page.getByRole('heading', { name: 'HPP teoritis per porsi' })).toBeVisible();
     await expect(page.getByRole('table', { name: 'Rincian HPP resep' })).toContainText('Biji Kopi Arabika Gayo');
     await expectAccessible(page, 'resep');
@@ -82,10 +82,10 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     // Food cost.
     await klikNavigasi(page, page.getByRole('link', { name: 'Food Cost' }));
     await expect(page.getByRole('heading', { name: 'Food Cost', exact: true })).toBeVisible();
-    // Halaman ini memilih outlet pertama secara otomatis; tunjuk Kemang agar skenario tidak
+    // Halaman ini memilih outlet pertama secara otomatis; tunjuk Kaliurang agar skenario tidak
     // bergantung pada urutan outlet.
-    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
-    await expect(page.getByRole('table', { name: 'Food cost per menu' })).toContainText('Kopi Susu Tepi Jalan · Regular');
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Hamzah Coffee Kaliurang (KMG)' });
+    await expect(page.getByRole('table', { name: 'Food cost per menu' })).toContainText('Kopi Susu Hamzah · Regular');
     await expect(page.getByText('Food cost aktual').first()).toBeVisible();
     await expectAccessible(page, 'food cost');
     await page.screenshot({ path: `${SHOTS}/33-food-cost.png`, fullPage: true });
@@ -121,19 +121,19 @@ test('gudang mencatat waste dan menerima transfer', async ({ page }) => {
 
     await page.goto(`${base}/penyesuaian-stok/create`);
     await expect(page.getByRole('heading', { name: 'Catat Penyesuaian / Waste' })).toBeVisible();
-    await page.getByRole('combobox', { name: 'Lokasi' }).selectOption({ label: 'Kopi Tepi Jalan Kemang · Gudang Kemang' });
+    await page.getByRole('combobox', { name: 'Lokasi' }).selectOption({ label: 'Hamzah Coffee Kaliurang · Gudang Kaliurang' });
     await page.getByRole('combobox', { name: 'Alasan' }).selectOption({ label: 'Tumpah / jatuh' });
     await choose(page, searchable(page, 'Bahan'), 'Susu Segar Full Cream');
     await page.getByRole('textbox', { name: /^Jumlah\*?$/ }).first().fill('250');
     await page.getByRole('textbox', { name: /^Catatan$/ }).first().fill('Tumpah saat steaming');
     await expectAccessible(page, 'form waste');
     await page.getByRole('button', { name: 'Simpan Dokumen' }).click();
-    await expect(page.getByRole('heading', { name: /Dokumen WST-KMG-\d{4}-\d{4}/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Dokumen WST-KLU-\d{4}-\d{4}/ })).toBeVisible();
     await expect(page.getByText('Tumpah saat steaming')).toBeVisible();
     await expect(page.getByText('-250 ml')).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/36-waste.png`, fullPage: true });
 
-    // Transfer Kemang → Dago yang masih dalam perjalanan.
+    // Transfer Kaliurang → Prawirotaman yang masih dalam perjalanan.
     await page.goto(`${base}/transfer-stok`);
     await klikNavigasi(page, page.getByRole('row', { name: /Dalam pengiriman/ }).getByRole('link', { name: 'Detail' }));
     await expectAccessible(page, 'rincian transfer');

@@ -27,14 +27,14 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 
 /**
- * Transaksi contoh untuk Kopi Tepi Jalan Kemang (Tahap 3): shift kemarin yang sudah ditutup beserta tutup hari,
+ * Transaksi contoh untuk Hamzah Coffee Kaliurang (Tahap 3): shift kemarin yang sudah ditutup beserta tutup hari,
  * dan shift hari ini yang masih berjalan. Semua data dibuat melalui layanan yang sama dengan POS.
  */
 class DemoSalesSeeder
 {
     protected int $sequence = 0;
 
-    public function kemang(Outlet $outlet, User $manager, User $cashierA, User $cashierB): void
+    public function kaliurang(Outlet $outlet, User $manager, User $cashierA, User $cashierB): void
     {
         // Model dari seeder belum memuat nilai bawaan kolom (zona waktu, pajak).
         $outlet = Outlet::query()->findOrFail($outlet->id);
@@ -60,14 +60,14 @@ class DemoSalesSeeder
         $shift = $shifts->open($device, ['id' => (string) Str::uuid7(), 'cashier_id' => $cashierA->id, 'opening_cash' => '500000', 'opened_at' => $open->toIso8601String()]);
 
         $this->sequence = 0;
-        $this->sell($device, $shift, $cashierA, $open->addMinutes(35), [['KSTJ-01', 'Regular', 2], ['CRS-01', null, 1]], 'cash', '100000');
+        $this->sell($device, $shift, $cashierA, $open->addMinutes(35), [['KSH-01', 'Regular', 2], ['CRS-01', null, 1]], 'cash', '100000');
         $this->sell($device, $shift, $cashierA, $open->addMinutes(80), [['AMR-01', 'Large', 1]], 'debit');
         $this->sell($device, $shift, $cashierA, $open->addHours(2), [['KOA-01', null, 3]], 'qris');
         $this->sell($device, $shift, $cashierA, $open->addHours(3), [['MTL-01', 'Regular', 1], ['PGK-01', null, 2]], 'cash', '100000', 'take_away');
         $voided = $this->sell($device, $shift, $cashierA, $open->addHours(4), [['TTR-01', null, 2]], 'cash', '50000');
-        $this->sell($device, $shift, $cashierA, $open->addHours(5), [['NGK-01', null, 2], ['KSTJ-01', 'Regular', 2]], 'credit');
+        $this->sell($device, $shift, $cashierA, $open->addHours(5), [['NGK-01', null, 2], ['KSH-01', 'Regular', 2]], 'credit');
         $refunded = $this->sell($device, $shift, $cashierA, $open->addHours(6), [['CKL-01', null, 1], ['CRS-01', null, 2]], 'cash', '100000');
-        $this->sell($device, $shift, $cashierA, $open->addHours(6)->addMinutes(30), [['KSTJ-01', 'Large', 2]], 'cash', '60000'); // sebelum Happy Hour 14.00
+        $this->sell($device, $shift, $cashierA, $open->addHours(6)->addMinutes(30), [['KSH-01', 'Large', 2]], 'cash', '60000'); // sebelum Happy Hour 14.00
 
         $shifts->recordCash($device, [
             'id' => (string) Str::uuid7(), 'shift_id' => $shift->id, 'type' => 'out', 'amount' => '35000',
@@ -107,7 +107,7 @@ class DemoSalesSeeder
         $at = fn (int $minutes) => min($todayOpen->addMinutes($minutes), $now);
         $shiftToday = $shifts->open($device, ['id' => (string) Str::uuid7(), 'cashier_id' => $cashierB->id, 'opening_cash' => '500000', 'opened_at' => $todayOpen->toIso8601String()]);
         $this->sequence = 0;
-        $this->sell($device, $shiftToday, $cashierB, $at(20), [['KSTJ-01', 'Regular', 1], ['CRS-01', null, 1]], 'cash', '50000');
+        $this->sell($device, $shiftToday, $cashierB, $at(20), [['KSH-01', 'Regular', 1], ['CRS-01', null, 1]], 'cash', '50000');
         $this->sell($device, $shiftToday, $cashierB, $at(45), [['AMR-01', 'Regular', 2]], 'qris');
         $this->sell($device, $shiftToday, $cashierB, $at(70), [['MTL-01', 'Large', 1]], 'debit');
     }

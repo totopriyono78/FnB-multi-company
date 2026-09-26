@@ -18,14 +18,14 @@ use App\Modules\Tenancy\Domain\Models\Brand;
 use App\Modules\Tenancy\Domain\Models\Outlet;
 
 /**
- * Menu demo realistis (harga Jakarta/Bandung/Semarang 2026). Dipanggil DemoSeeder di dalam konteks tenant.
+ * Menu demo Gamatechno Group (harga Yogyakarta 2026): Hamzah Coffee dan Hamzah Resto. Dipanggil DemoSeeder di dalam konteks tenant.
  * Aman diulang: data yang sudah ada (berdasarkan SKU/nama) tidak dibuat ulang.
  */
 class DemoMenuSeeder
 {
     private const COFFEE_MODS = ['Tingkat Gula', 'Suhu', 'Tambahan Kopi'];
 
-    public function kopiTepiJalan(User $owner, Brand $brand, Outlet $kemang, Outlet $dago): void
+    public function hamzahCoffee(User $owner, Brand $brand, Outlet $kemang, Outlet $dago): void
     {
         $cat = $this->categories($brand, [['Kopi', 'amber'], ['Non-Kopi', 'green'], ['Makanan', 'orange'], ['Paket', 'blue']]);
         $mods = $this->modifierGroups($brand, [
@@ -35,8 +35,8 @@ class DemoMenuSeeder
         ]);
         $coffeeMods = array_map(fn ($n) => $mods[$n], self::COFFEE_MODS);
 
-        $kopiSusu = $this->item($brand, $cat['Kopi'], 'KSTJ-01', 'Kopi Susu Tepi Jalan', '18000', 'BAR', [
-            'short_name' => 'Kopi Susu TJ',
+        $kopiSusu = $this->item($brand, $cat['Kopi'], 'KSH-01', 'Kopi Susu Hamzah', '18000', 'BAR', [
+            'short_name' => 'Kopi Susu H',
             'variants' => [['name' => 'Regular', 'price' => '18000', 'is_default' => true], ['name' => 'Large', 'price' => '24000']],
             'modifier_group_ids' => $coffeeMods,
             'description' => 'Espresso, susu segar, dan gula aren Kulon Progo.',
@@ -53,6 +53,13 @@ class DemoMenuSeeder
             'modifier_group_ids' => [$mods['Tingkat Gula'], $mods['Tambahan Kopi']],
             'channel_codes' => ['dine_in', 'take_away', 'gofood', 'grabfood', 'shopeefood'],
         ]);
+        $this->item($brand, $cat['Kopi'], 'CAP-01', 'Cappuccino', '26000', 'BAR', [
+            'variants' => [['name' => 'Regular', 'price' => '26000', 'is_default' => true], ['name' => 'Large', 'price' => '32000']],
+            'modifier_group_ids' => $coffeeMods,
+        ]);
+        $this->item($brand, $cat['Kopi'], 'V60-01', 'Kopi Manual V60', '30000', 'BAR', [
+            'description' => 'Seduh manual biji single origin Merapi atau Gayo.',
+        ]);
         $this->item($brand, $cat['Non-Kopi'], 'MTL-01', 'Matcha Latte', '28000', 'BAR', [
             'variants' => [['name' => 'Regular', 'price' => '28000', 'is_default' => true], ['name' => 'Large', 'price' => '34000']],
             'modifier_group_ids' => [$mods['Tingkat Gula'], $mods['Suhu']],
@@ -63,6 +70,7 @@ class DemoMenuSeeder
         $this->item($brand, $cat['Non-Kopi'], 'CKL-01', 'Cokelat Panas', '24000', 'BAR');
         $croissant = $this->item($brand, $cat['Makanan'], 'CRS-01', 'Croissant Butter', '22000', 'PASTRY');
         $pisang = $this->item($brand, $cat['Makanan'], 'PGK-01', 'Pisang Goreng Keju', '20000', 'KITCHEN');
+        $this->item($brand, $cat['Makanan'], 'KTG-01', 'Kentang Goreng', '22000', 'KITCHEN');
         $this->item($brand, $cat['Makanan'], 'NGK-01', 'Nasi Goreng Kampung', '32000', 'KITCHEN', [
             'schedule' => [['days' => null, 'start' => '10:00', 'end' => '21:30']],
         ]);
@@ -106,61 +114,98 @@ class DemoMenuSeeder
         app(AvailabilityService::class)->set($croissant, $dago, null, true, $owner);
     }
 
-    public function rotiBakar88(User $owner, Brand $brand): void
+    /**
+     * Hamzah Resto: satu menu brand untuk dua outlet. Outlet ikan bakar menjual ikan per gram,
+     * outlet umum menjual masakan rumahan; pelengkap dan minuman dijual di keduanya.
+     * Menu yang bukan milik suatu outlet disembunyikan lewat ketersediaan per outlet.
+     */
+    public function hamzahResto(User $owner, Brand $brand, Outlet $ikanBakar, Outlet $umum): void
     {
-        $cat = $this->categories($brand, [['Roti Bakar', 'orange'], ['Indomie', 'red'], ['Minuman', 'sky']]);
+        $bakaran = KitchenStation::query()->firstOrCreate(['code' => 'BAKARAN'], ['name' => 'Pembakaran', 'sort_order' => 10]);
+
+        $cat = $this->categories($brand, [
+            ['Ikan & Seafood', 'blue'], ['Menu Utama', 'orange'], ['Pelengkap', 'green'], ['Minuman', 'sky'],
+        ]);
         $mods = $this->modifierGroups($brand, [
-            ['Topping Tambahan', 0, 3, [['Keju', '5000'], ['Meses', '3000'], ['Susu Kental Manis', '3000']]],
-            ['Level Pedas', 1, 1, [['Tidak Pedas', '0', true], ['Sedang', '0'], ['Pedas', '0']]],
-            ['Telur', 0, 1, [['Telur Ceplok', '4000'], ['Telur Dadar', '4000']]],
+            // Ikan: wajib pilih cara olah dan rasa; rasa tertentu menambah harga (sekali per baris, bukan per gram).
+            ['Cara Olah', 1, 1, [['Bakar', '0', true], ['Goreng', '0']]],
+            ['Varian Rasa', 1, 1, [['Biasa', '0', true], ['Pedas', '0'], ['Asam Manis', '15000'], ['Bakar Madu', '20000']]],
+            ['Level Pedas', 1, 1, [['Tidak Pedas', '0', true], ['Sedang', '0'], ['Pedas', '0'], ['Extra Pedas', '0']]],
+            ['Tambahan', 0, 3, [['Telur Ceplok', '5000'], ['Keju', '6000'], ['Kerupuk', '3000']]],
         ]);
 
-        $this->item($brand, $cat['Roti Bakar'], 'RBC-01', 'Roti Bakar Cokelat Keju', '28000', 'KITCHEN', [
-            'variants' => [['name' => 'Setangkup', 'price' => '28000', 'is_default' => true], ['name' => 'Double', 'price' => '45000']],
-            'modifier_group_ids' => [$mods['Topping Tambahan']],
-        ]);
-        $this->item($brand, $cat['Roti Bakar'], 'RBS-01', 'Roti Bakar Srikaya', '24000', 'KITCHEN', [
-            'modifier_group_ids' => [$mods['Topping Tambahan']],
-        ]);
-        $this->item($brand, $cat['Roti Bakar'], 'RBT-01', 'Roti Bakar Tuna Mayo', '32000', 'KITCHEN', [
-            'modifier_group_ids' => [$mods['Level Pedas']],
-        ]);
-        $this->item($brand, $cat['Indomie'], 'IMG-01', 'Indomie Goreng Spesial', '18000', 'KITCHEN', [
-            'modifier_group_ids' => [$mods['Level Pedas'], $mods['Telur']],
-        ]);
-        $this->item($brand, $cat['Indomie'], 'IMR-01', 'Indomie Rebus Kornet', '22000', 'KITCHEN', [
-            'modifier_group_ids' => [$mods['Level Pedas'], $mods['Telur']],
-        ]);
-        $esTeh = $this->item($brand, $cat['Minuman'], 'ETM-01', 'Es Teh Manis', '8000', 'KITCHEN');
-        $this->item($brand, $cat['Minuman'], 'SJH-01', 'Susu Jahe', '15000', 'KITCHEN');
+        // Harga per gram: Rp 55/gram = Rp 55.000/kg, angka yang diketik kasir sama dengan layar timbangan.
+        $ikan = [];
+        foreach ([
+            ['IKN-NLA', 'Nila Merah', '55', 'Ikan air tawar, daging lembut, ukuran 300-600 gram.'],
+            ['IKN-GRM', 'Gurame Segar', '95', 'Gurame kolam, ukuran 500 gram - 1,2 kg.'],
+            ['IKN-CMI', 'Cumi Segar', '110', 'Cumi ukuran sedang, cocok dibakar atau digoreng tepung.'],
+            ['IKN-KKP', 'Kakap Merah', '130', 'Kakap laut, ukuran 600 gram - 1,5 kg.'],
+            ['IKN-BWL', 'Bawal Bintang', '145', 'Bawal laut, daging tebal, ukuran 400-900 gram.'],
+            ['IKN-UDG', 'Udang Windu', '165', 'Udang segar ukuran besar.'],
+        ] as [$sku, $name, $perGram, $description]) {
+            $ikan[] = $this->item($brand, $cat['Ikan & Seafood'], $sku, $name, $perGram, null, [
+                'description' => $description,
+                'sold_by_weight' => true,
+                'unit' => 'gram',
+                'kitchen_station_id' => $bakaran->id,
+                'modifier_group_ids' => [$mods['Cara Olah'], $mods['Varian Rasa']],
+            ]);
+        }
 
-        $this->promotion($owner, 'Beli 2 Gratis 1 Es Teh', [
+        $utama = [
+            $this->item($brand, $cat['Menu Utama'], 'HRU-NGH', 'Nasi Goreng Hamzah', '28000', 'KITCHEN', [
+                'description' => 'Nasi goreng kampung dengan ayam suwir, telur, dan kerupuk.',
+                'modifier_group_ids' => [$mods['Level Pedas'], $mods['Tambahan']],
+            ]),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-ABM', 'Ayam Bakar Madu', '32000', 'KITCHEN', [
+                'description' => 'Ayam kampung bakar bumbu madu, dengan nasi dan lalapan.',
+            ]),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-APS', 'Ayam Penyet Sambal Ijo', '27000', 'KITCHEN', [
+                'modifier_group_ids' => [$mods['Level Pedas']],
+            ]),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-SOT', 'Soto Ayam Lamongan', '22000', 'KITCHEN'),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-GDG', 'Gudeg Komplit', '30000', 'KITCHEN', [
+                'description' => 'Gudeg nangka muda, krecek, telur pindang, dan ayam opor.',
+            ]),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-MGJ', 'Mie Goreng Jawa', '25000', 'KITCHEN', [
+                'modifier_group_ids' => [$mods['Level Pedas'], $mods['Tambahan']],
+            ]),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-SBT', 'Sop Buntut', '55000', 'KITCHEN'),
+            $this->item($brand, $cat['Menu Utama'], 'HRU-BBK', 'Bebek Goreng Kremes', '45000', 'KITCHEN', [
+                'modifier_group_ids' => [$mods['Level Pedas']],
+            ]),
+        ];
+
+        $this->item($brand, $cat['Pelengkap'], 'PLK-NSP', 'Nasi Putih', '6000', 'KITCHEN');
+        $this->item($brand, $cat['Pelengkap'], 'PLK-LLP', 'Lalapan & Sambal', '10000', 'KITCHEN');
+        $this->item($brand, $cat['Pelengkap'], 'PLK-KKG', 'Tumis Kangkung', '18000', 'KITCHEN');
+        $this->item($brand, $cat['Pelengkap'], 'PLK-TAH', 'Tahu Tempe Goreng', '12000', 'KITCHEN');
+        $this->item($brand, $cat['Pelengkap'], 'PLK-KRP', 'Kerupuk Udang', '5000', 'KITCHEN');
+
+        $esTeh = $this->item($brand, $cat['Minuman'], 'MNM-ETM', 'Es Teh Manis', '8000', 'BAR');
+        $this->item($brand, $cat['Minuman'], 'MNM-EJR', 'Es Jeruk Peras', '12000', 'BAR');
+        $this->item($brand, $cat['Minuman'], 'MNM-JAP', 'Jus Alpukat', '20000', 'BAR');
+        $this->item($brand, $cat['Minuman'], 'MNM-EKM', 'Es Kelapa Muda', '18000', 'BAR');
+        $this->item($brand, $cat['Minuman'], 'MNM-AMN', 'Air Mineral', '6000', 'BAR');
+
+        $availability = app(AvailabilityService::class);
+        foreach ($ikan as $item) {
+            $availability->set($item, $umum, false, null, $owner);
+        }
+        foreach ($utama as $item) {
+            $availability->set($item, $ikanBakar, false, null, $owner);
+        }
+
+        // Diskon per menu (bukan per nota): promo tingkat nota yang otomatis tidak didukung data penjualan contoh.
+        $this->promotion($owner, 'Makan Siang Hemat 10%', [
+            'brand_id' => $brand->id, 'type' => 'percent', 'value' => '10', 'scope' => 'items',
+            'category_ids' => [$cat['Menu Utama']->id], 'outlet_ids' => [$umum->id],
+            'days_of_week' => [1, 2, 3, 4, 5], 'time_start' => '11:00', 'time_end' => '14:00', 'max_discount' => '10000',
+        ]);
+        $this->promotion($owner, 'Beli 3 Gratis 1 Es Teh', [
             'brand_id' => $brand->id, 'type' => 'buy_x_get_y', 'value' => '0', 'scope' => 'items',
-            'buy_qty' => 2, 'get_qty' => 1, 'item_ids' => [$esTeh->id],
-        ]);
-    }
-
-    public function warungBuRatna(User $owner, Brand $brand): void
-    {
-        $cat = $this->categories($brand, [['Nasi', 'amber'], ['Lauk & Gorengan', 'orange'], ['Minuman', 'sky']]);
-        $mods = $this->modifierGroups($brand, [
-            ['Pilihan Nasi', 0, 1, [['Nasi Putih', '0', true], ['Nasi Merah', '3000']]],
-        ]);
-
-        $this->item($brand, $cat['Nasi'], 'RWN-01', 'Nasi Rawon', '28000', 'KITCHEN', ['modifier_group_ids' => [$mods['Pilihan Nasi']]]);
-        $this->item($brand, $cat['Nasi'], 'PCL-01', 'Nasi Pecel', '18000', 'KITCHEN', [
-            'modifier_group_ids' => [$mods['Pilihan Nasi']],
-            'schedule' => [['days' => null, 'start' => '06:00', 'end' => '10:00']],
-        ]);
-        $this->item($brand, $cat['Nasi'], 'SOT-01', 'Soto Ayam Semarang', '22000', 'KITCHEN');
-        $this->item($brand, $cat['Lauk & Gorengan'], 'TMP-01', 'Tempe Mendoan', '10000', 'KITCHEN');
-        $this->item($brand, $cat['Lauk & Gorengan'], 'LMP-01', 'Lumpia Semarang', '15000', 'KITCHEN');
-        $this->item($brand, $cat['Minuman'], 'ETH-01', 'Es Teh', '5000', 'KITCHEN');
-        $this->item($brand, $cat['Minuman'], 'EJR-01', 'Es Jeruk', '8000', 'KITCHEN');
-
-        $this->promotion($owner, 'Diskon Sarapan 10%', [
-            'brand_id' => $brand->id, 'type' => 'percent', 'value' => '10', 'scope' => 'order',
-            'time_start' => '06:00', 'time_end' => '09:00', 'min_purchase' => '30000', 'max_discount' => '5000',
+            'buy_qty' => 3, 'get_qty' => 1, 'item_ids' => [$esTeh->id],
         ]);
     }
 

@@ -7,8 +7,8 @@ use Livewire\Livewire;
 use Tests\Support\Factory;
 
 beforeEach(function () {
-    [$this->company, $this->owner] = Factory::company('PT Kopi Nusantara Sejahtera');
-    Factory::system(fn () => $this->owner->forceFill(['email' => 'rina@kopinusantara.test', 'password' => DemoAccounts::PASSWORD])->save());
+    [$this->company, $this->owner] = Factory::company('Gamatechno Group');
+    Factory::system(fn () => $this->owner->forceFill(['email' => 'rina@gtgroup.test', 'password' => DemoAccounts::PASSWORD])->save());
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 
@@ -18,7 +18,7 @@ it('menampilkan daftar akun demo bila mode demo aktif', function () {
     $this->get('/admin/login')
         ->assertOk()
         ->assertSee('Akun demo')
-        ->assertSee('rina@kopinusantara.test')
+        ->assertSee('rina@gtgroup.test')
         ->assertSee('Rahasia123')
         ->assertSee('PIN 482915');
 });
@@ -40,7 +40,7 @@ it('masuk dengan satu klik pada akun demo', function () {
     config(['fnb.demo_login' => true]);
 
     Livewire::test(Login::class)
-        ->call('loginAsDemo', 'rina@kopinusantara.test')
+        ->call('loginAsDemo', 'rina@gtgroup.test')
         ->assertHasNoErrors()
         ->assertRedirect();
 
@@ -56,7 +56,7 @@ it('menolak klik akun demo bila mode demo mati atau email bukan akun demo', func
 
     $this->assertGuest();
 })->with([
-    'mode demo mati' => [false, 'rina@kopinusantara.test'],
+    'mode demo mati' => [false, 'rina@gtgroup.test'],
     'email bukan akun demo' => [true, 'orang.lain@contoh.test'],
 ]);
 
@@ -64,7 +64,7 @@ it('tetap menerapkan pesan gagal bila akun demo belum di-seed', function () {
     config(['fnb.demo_login' => true]);
 
     Livewire::test(Login::class)
-        ->call('loginAsDemo', 'bayu@kopinusantara.test')
+        ->call('loginAsDemo', 'bayu@gtgroup.test')
         ->assertHasErrors(['data.email']);
 
     $this->assertGuest();

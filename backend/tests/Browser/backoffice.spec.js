@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
-const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
-const MANAGER = { email: 'dewi@kopinusantara.test', password: 'Rahasia123' };
+const OWNER = { email: 'rina@gtgroup.test', password: 'Rahasia123' };
+const MANAGER = { email: 'dewi@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function login(page, { email, password }) {
@@ -54,7 +54,7 @@ test('akun demo bisa dipilih dengan satu klik', async ({ page }) => {
     await demo.getByRole('button', { name: /Masuk sebagai Dewi Lestari/ }).click();
     await page.waitForURL(/\/admin\/(?!login)[a-z0-9-]+$/);
     await expect(page.getByRole('img', { name: 'Avatar Dewi Lestari' })).toBeVisible();
-    // Ringkasan manajer Kemang hanya menghitung outletnya sendiri.
+    // Ringkasan manajer Kaliurang hanya menghitung outletnya sendiri.
     await expect(page.locator('.fi-wi-stats-overview-stat').filter({ hasText: 'Outlet aktif' })).toContainText('1');
 });
 
@@ -68,7 +68,7 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
 
     // Brand baru
     await klikNavigasi(page, page.getByRole('link', { name: 'Brand' }).first());
-    await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Hamzah Coffee', exact: true })).toBeVisible();
     await klikNavigasi(page, page.getByRole('link', { name: 'Tambah Brand' }));
     const brandCode = `MBJ${Date.now() % 100000}`;
     await page.getByLabel('Kode').fill(brandCode.toLowerCase());
@@ -82,10 +82,10 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
 
     // Outlet
     await klikNavigasi(page, page.getByRole('link', { name: 'Outlet' }).first());
-    await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Kemang' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Hamzah Coffee Kaliurang' })).toBeVisible();
     await expectAccessible(page, 'daftar outlet');
     await page.screenshot({ path: `${SHOTS}/04-outlet.png`, fullPage: true });
-    await page.getByRole('cell', { name: 'Kopi Tepi Jalan Kemang' }).click();
+    await page.getByRole('cell', { name: 'Hamzah Coffee Kaliurang' }).click();
     await page.getByRole('tab', { name: 'Pajak & Harga' }).click();
     await expect(page.getByRole('spinbutton', { name: /Tarif \(%\)/ })).toHaveValue('10.00');
     await expectAccessible(page, 'form outlet');
@@ -97,7 +97,7 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
     await expectAccessible(page, 'daftar perangkat');
     await page.screenshot({ path: `${SHOTS}/06-perangkat.png`, fullPage: true });
     await klikNavigasi(page, page.getByRole('link', { name: 'Daftarkan Perangkat' }));
-    await page.getByLabel('Outlet').selectOption({ label: 'Kopi Tepi Jalan Dago' });
+    await page.getByLabel('Outlet').selectOption({ label: 'Hamzah Coffee Prawirotaman' });
     await page.getByLabel('Kode perangkat').fill(`t${Date.now() % 100000}`);
     await page.getByRole('textbox', { name: /Nama/ }).fill('Kasir teras');
     await page.getByRole('button', { name: 'Daftarkan & Buat Kode Pairing' }).click();
@@ -123,13 +123,13 @@ test('manajer outlet hanya melihat outlet & brand miliknya (lihat saja)', async 
 
     // SRS §12.1: Manajer Outlet melihat brand & outlet (👁️), tidak mengelola.
     await klikNavigasi(page, page.getByRole('link', { name: 'Brand', exact: true }));
-    await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan', exact: true })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Roti Bakar 88', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: 'Hamzah Coffee', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Hamzah Resto', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Tambah Brand' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Daftar Menu' })).toBeVisible();
     await klikNavigasi(page, page.getByRole('link', { name: 'Outlet' }).first());
-    await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Kemang' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Dago' })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: 'Hamzah Coffee Kaliurang' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Hamzah Coffee Prawirotaman' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Tambah Outlet' })).toHaveCount(0);
 
     await klikNavigasi(page, page.getByRole('link', { name: 'Perangkat' }).first());
@@ -144,7 +144,7 @@ test('manajer outlet hanya melihat outlet & brand miliknya (lihat saja)', async 
     await klikNavigasi(page, page.getByRole('link', { name: 'Tambah Staf' }));
     await expect(page.getByRole('checkbox', { name: 'Kasir', exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Admin Company' })).toHaveCount(0);
-    await expect(page.getByRole('checkbox', { name: 'Kopi Tepi Jalan Dago' })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: 'Hamzah Coffee Prawirotaman' })).toHaveCount(0);
     await expectAccessible(page, 'form staf (manajer)');
     await page.screenshot({ path: `${SHOTS}/11-form-staf-manajer.png`, fullPage: true });
 });
