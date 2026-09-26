@@ -1,0 +1,33 @@
+{
+  "name": "23-barang-timbangan",
+  "description": "Barang dijual per berat: qty adalah berat, tambahan dikenakan sekali per baris bukan dikali berat. Gurame 95/gram x 850 gram = 80.750, bumbu Bakar Madu 20.000 sekali, PB1 10%.",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      {
+        "id": "gurame",
+        "unit_price": "95",
+        "qty": "850",
+        "sold_by_weight": true,
+        "modifiers": [
+          { "id": "bakar", "price": "0" },
+          { "id": "bakar-madu", "price": "20000" }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "100750.00",
+      "tax": "10075.00",
+      "total": "110800.00"
+    }
+  }
+}

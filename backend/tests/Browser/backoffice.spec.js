@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
@@ -66,21 +67,21 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
     await page.screenshot({ path: `${SHOTS}/02-ringkasan.png`, fullPage: true });
 
     // Brand baru
-    await page.getByRole('link', { name: 'Brand' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Brand' }).first());
     await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan', exact: true })).toBeVisible();
-    await page.getByRole('link', { name: 'Tambah Brand' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Tambah Brand' }));
     const brandCode = `MBJ${Date.now() % 100000}`;
     await page.getByLabel('Kode').fill(brandCode.toLowerCase());
     await page.getByLabel('Nama brand').fill('Mie Bangka Jaya');
     await page.getByRole('button', { name: 'Simpan Brand' }).click();
     await expect(page).toHaveURL(/\/brands\/.+\/edit$/);
-    await page.getByRole('link', { name: 'Brand' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Brand' }).first());
     await expect(page.getByRole('cell', { name: brandCode, exact: true })).toBeVisible();
     await expectAccessible(page, 'daftar brand');
     await page.screenshot({ path: `${SHOTS}/03-brand.png`, fullPage: true });
 
     // Outlet
-    await page.getByRole('link', { name: 'Outlet' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Outlet' }).first());
     await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Kemang' })).toBeVisible();
     await expectAccessible(page, 'daftar outlet');
     await page.screenshot({ path: `${SHOTS}/04-outlet.png`, fullPage: true });
@@ -91,11 +92,11 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
     await page.screenshot({ path: `${SHOTS}/05-outlet-pajak.png`, fullPage: true });
 
     // Perangkat + kode pairing
-    await page.getByRole('link', { name: 'Perangkat' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Perangkat' }).first());
     await expect(page.getByRole('columnheader', { name: 'Koneksi' })).toBeVisible();
     await expectAccessible(page, 'daftar perangkat');
     await page.screenshot({ path: `${SHOTS}/06-perangkat.png`, fullPage: true });
-    await page.getByRole('link', { name: 'Daftarkan Perangkat' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Daftarkan Perangkat' }));
     await page.getByLabel('Outlet').selectOption({ label: 'Kopi Tepi Jalan Dago' });
     await page.getByLabel('Kode perangkat').fill(`t${Date.now() % 100000}`);
     await page.getByRole('textbox', { name: /Nama/ }).fill('Kasir teras');
@@ -104,13 +105,13 @@ test('pemilik mengelola brand, outlet, perangkat, dan staf', async ({ page }) =>
     await page.screenshot({ path: `${SHOTS}/07-kode-pairing.png` });
 
     // Staf
-    await page.getByRole('link', { name: 'Staf' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Staf' }).first());
     await expect(page.getByRole('cell', { name: 'Andi Saputra' })).toBeVisible();
     await expectAccessible(page, 'daftar staf');
     await page.screenshot({ path: `${SHOTS}/08-staf.png`, fullPage: true });
 
     // Audit log
-    await page.getByRole('link', { name: 'Audit Log' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Audit Log' }).first());
     await expect(page.getByRole('cell', { name: 'device.created' }).first()).toBeVisible();
     await expectAccessible(page, 'audit log');
     await page.screenshot({ path: `${SHOTS}/09-audit.png`, fullPage: true });
@@ -121,26 +122,26 @@ test('manajer outlet hanya melihat outlet & brand miliknya (lihat saja)', async 
     await expect(page.getByRole('img', { name: 'Avatar Dewi Lestari' })).toBeVisible();
 
     // SRS §12.1: Manajer Outlet melihat brand & outlet (👁️), tidak mengelola.
-    await page.getByRole('link', { name: 'Brand', exact: true }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Brand', exact: true }));
     await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Roti Bakar 88', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Tambah Brand' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Daftar Menu' })).toBeVisible();
-    await page.getByRole('link', { name: 'Outlet' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Outlet' }).first());
     await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Kemang' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Kopi Tepi Jalan Dago' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Tambah Outlet' })).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Perangkat' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Perangkat' }).first());
     await expect(page.getByRole('cell', { name: 'Kasir depan' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Kasir utama' })).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Staf' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Staf' }).first());
     await expect(page.getByRole('cell', { name: 'Andi Saputra' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Putri Maharani' })).toHaveCount(0);
 
     // Form tambah staf hanya menawarkan role & outlet yang boleh diberikan manajer.
-    await page.getByRole('link', { name: 'Tambah Staf' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Tambah Staf' }));
     await expect(page.getByRole('checkbox', { name: 'Kasir', exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Admin Company' })).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: 'Kopi Tepi Jalan Dago' })).toHaveCount(0);
@@ -152,7 +153,7 @@ test('mode gelap tetap terbaca', async ({ browser }) => {
     const context = await browser.newContext({ colorScheme: 'dark', locale: 'id-ID' });
     const page = await context.newPage();
     await login(page, OWNER);
-    await page.getByRole('link', { name: 'Perangkat' }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Perangkat' }).first());
     await expectAccessible(page, 'perangkat (gelap)');
     await page.screenshot({ path: `${SHOTS}/10-perangkat-gelap.png`, fullPage: true });
     await context.close();

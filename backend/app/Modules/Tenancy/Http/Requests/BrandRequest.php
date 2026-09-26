@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tenancy\Http\Requests;
 
+use App\Modules\Shared\Application\MediaStore;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Models\Brand;
 use Illuminate\Foundation\Http\FormRequest;
@@ -29,6 +30,8 @@ class BrandRequest extends FormRequest
                     ->ignore($brand?->id),
             ],
             'name' => [$required, 'string', 'max:100'],
+            // Hanya jalur internal hasil unggahan, bukan URL luar — lihat ItemRequest::rules().
+            'logo_path' => ['sometimes', 'nullable', 'string', 'max:120', 'regex:'.MediaStore::PATH_PATTERN],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

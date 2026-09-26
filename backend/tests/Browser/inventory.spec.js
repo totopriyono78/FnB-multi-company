@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
@@ -51,16 +52,22 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     await expect(page.getByText('Opname menunggu persetujuan')).toBeVisible();
 
     // Posisi stok: bahan di bawah minimum.
-    await page.getByRole('link', { name: 'Posisi Stok' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Posisi Stok' }));
     await expect(page.getByRole('heading', { name: 'Posisi Stok' })).toBeVisible();
     await expect(page.getByRole('row', { name: /Boba Brown Sugar.*Gudang Kemang/ }).getByText('Di bawah minimum')).toBeVisible();
     await expectAccessible(page, 'posisi stok');
     await page.screenshot({ path: `${SHOTS}/30-posisi-stok.png`, fullPage: true });
 
     // Kartu stok memuat pemakaian penjualan & penerimaan.
-    await page.getByRole('link', { name: 'Kartu Stok', exact: true }).click();
-    await expect(page.getByRole('cell', { name: 'Pemakaian penjualan' }).first()).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Transfer keluar' }).first()).toBeVisible();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Kartu Stok', exact: true }));
+    await expect(page.getByRole('heading', { name: 'Kartu Stok' })).toBeVisible();
+    // Disaring per jenis, bukan mengandalkan halaman pertama: kartu stok berurut waktu, jadi
+    // memeriksa dua jenis mutasi sekaligus akan gagal begitu transaksi baru bertambah.
+    for (const [jenis, label] of [['sale', 'Pemakaian penjualan'], ['transfer_out', 'Transfer keluar']]) {
+        await page.goto(`${base}/kartu-stok?tableFilters[type][values][0]=${jenis}`);
+        await expect(page.getByRole('cell', { name: label }).first()).toBeVisible({ timeout: 10_000 });
+    }
+    await page.goto(`${base}/kartu-stok`);
     await expectAccessible(page, 'kartu stok');
     await page.screenshot({ path: `${SHOTS}/31-kartu-stok.png`, fullPage: true });
 
@@ -73,19 +80,22 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     await page.screenshot({ path: `${SHOTS}/32-resep.png`, fullPage: true });
 
     // Food cost.
-    await page.getByRole('link', { name: 'Food Cost' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Food Cost' }));
     await expect(page.getByRole('heading', { name: 'Food Cost', exact: true })).toBeVisible();
+    // Halaman ini memilih outlet pertama secara otomatis; tunjuk Kemang agar skenario tidak
+    // bergantung pada urutan outlet.
+    await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
     await expect(page.getByRole('table', { name: 'Food cost per menu' })).toContainText('Kopi Susu Tepi Jalan · Regular');
     await expect(page.getByText('Food cost aktual').first()).toBeVisible();
     await expectAccessible(page, 'food cost');
     await page.screenshot({ path: `${SHOTS}/33-food-cost.png`, fullPage: true });
 
     // PO menunggu persetujuan.
-    await page.getByRole('link', { name: 'Purchase Order' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Purchase Order' }));
     const waiting = page.getByRole('row', { name: /Menunggu persetujuan/ });
     await expect(waiting).toContainText('PT Boulangerie Nusantara');
     await expectAccessible(page, 'daftar PO');
-    await waiting.getByRole('link', { name: 'Buka' }).click();
+    await klikNavigasi(page, waiting.getByRole('link', { name: 'Buka' }));
     await expect(page.getByText('Croissant Butter Beku')).toBeVisible();
     await expectAccessible(page, 'rincian PO');
     await page.getByRole('button', { name: 'Setujui' }).click();
@@ -95,8 +105,8 @@ test('pemilik memantau stok, menyetujui PO & opname, dan melihat food cost', asy
     await page.screenshot({ path: `${SHOTS}/34-po-disetujui.png`, fullPage: true });
 
     // Opname yang diajukan gudang.
-    await page.getByRole('link', { name: 'Stock Opname' }).click();
-    await page.getByRole('row', { name: /Menunggu persetujuan/ }).getByRole('link', { name: 'Buka' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Stock Opname' }));
+    await klikNavigasi(page, page.getByRole('row', { name: /Menunggu persetujuan/ }).getByRole('link', { name: 'Buka' }));
     await expect(page.getByText('Sistem').first()).toBeVisible();
     await expect(page.getByText('4 gelas penyok')).toBeVisible();
     await expectAccessible(page, 'rincian opname');
@@ -125,7 +135,7 @@ test('gudang mencatat waste dan menerima transfer', async ({ page }) => {
 
     // Transfer Kemang → Dago yang masih dalam perjalanan.
     await page.goto(`${base}/transfer-stok`);
-    await page.getByRole('row', { name: /Dalam pengiriman/ }).getByRole('link', { name: 'Detail' }).click();
+    await klikNavigasi(page, page.getByRole('row', { name: /Dalam pengiriman/ }).getByRole('link', { name: 'Detail' }));
     await expectAccessible(page, 'rincian transfer');
     await page.getByRole('button', { name: 'Terima Barang' }).click();
     const dialog = page.getByRole('dialog');

@@ -19,8 +19,20 @@ final class DesignTokens
     public const PRIMARY_STRONG = '#174e39';
 
     /** --gray-400 (pembanding di grafik) */
-    public const NEUTRAL_MUTED = '#a8a29e';
+    public const NEUTRAL_MUTED = '#b4b7bd';
 
     /** --gray-200 (garis bantu grafik) */
-    public const NEUTRAL_LINE = '#e7e5e4';
+    public const NEUTRAL_LINE = '#ebe9f1';
+
+    /** --gray-500 (teks isi Vuexy) */
+    public const NEUTRAL_TEXT = '#6e6b7b';
+
+    /** --success-500 / --danger-500 / --warning-500 / --info-500 (rona Vuexy) */
+    public const SUCCESS = '#28c76f';
+
+    public const DANGER = '#ea5455';
+
+    public const WARNING = '#ff9f43';
+
+    public const INFO = '#00cfe8';
 }

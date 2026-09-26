@@ -58,6 +58,7 @@ class Item extends Model
 
     protected $fillable = [
         'brand_id', 'category_id', 'type', 'sku', 'barcode', 'name', 'short_name', 'description', 'image_path',
+        'sold_by_weight', 'unit',
         'base_price', 'kitchen_station_id', 'channel_codes', 'schedule', 'sort_order', 'is_active',
     ];
 

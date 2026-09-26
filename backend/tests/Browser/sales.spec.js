@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
@@ -33,7 +34,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     // Dasbor menampilkan angka transaksi yang perlu ditinjau.
     await expect(page.getByText('Transaksi perlu ditinjau')).toBeVisible();
 
-    await page.getByRole('link', { name: 'Transaksi', exact: true }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Transaksi', exact: true }));
     await expect(page.getByRole('heading', { name: 'Transaksi' })).toBeVisible();
     // Data demo berisi riwayat dua minggu: cari struk kasir depan Kemang.
     await page.locator('.fi-ta-search-field input').fill('KMG-POS01');
@@ -43,7 +44,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await page.screenshot({ path: `${SHOTS}/20-transaksi.png`, fullPage: true });
 
     // Rincian transaksi yang sebagian direfund
-    await page.getByRole('row', { name: /KMG-POS01-\d{6}-0007/ }).getByRole('link', { name: 'Detail' }).click();
+    await klikNavigasi(page, page.getByRole('row', { name: /KMG-POS01-\d{6}-0007/ }).getByRole('link', { name: 'Detail' }));
     await expect(page.getByRole('heading', { name: /Transaksi KMG-POS01-\d{6}-0007/ })).toBeVisible();
     await expect(page.getByRole('table', { name: 'Rincian pesanan' })).toContainText('Croissant Butter');
     await expect(page.getByRole('table', { name: 'Refund' })).toContainText('Croissant gosong');
@@ -52,11 +53,11 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await page.screenshot({ path: `${SHOTS}/21-transaksi-detail.png`, fullPage: true });
 
     // Shift kemarin (ditutup, selisih) dan hari ini (terbuka)
-    await page.getByRole('link', { name: 'Shift Kasir' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Shift Kasir' }));
     await expect(page.getByText('Masih terbuka').first()).toBeVisible();
     await expect(page.getByRole('cell', { name: '-Rp2.000' })).toBeVisible();
     await expectAccessible(page, 'daftar shift');
-    await page.getByRole('row', { name: /-Rp2\.000/ }).getByRole('link', { name: 'Detail' }).click();
+    await klikNavigasi(page, page.getByRole('row', { name: /-Rp2\.000/ }).getByRole('link', { name: 'Detail' }));
     await expect(page.getByText('Selisih uang receh Rp2.000')).toBeVisible();
     await expect(page.getByRole('table', { name: 'Pergerakan kas' })).toContainText('Beli es batu & galon');
     await expect(page.getByRole('table', { name: 'Pembayaran per metode' })).toContainText('QRIS');
@@ -64,7 +65,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await page.screenshot({ path: `${SHOTS}/22-shift-detail.png`, fullPage: true });
 
     // Tutup hari: hari ini masih ada shift terbuka → tombol nonaktif
-    await page.getByRole('link', { name: 'Tutup Hari' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Tutup Hari' }));
     await expect(page.getByRole('heading', { name: 'Tutup Hari' })).toBeVisible();
     await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
     await expect(page.getByText(/Masih ada 1 shift terbuka/)).toBeVisible();
@@ -74,7 +75,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
 
     // Metode pembayaran outlet
     await page.goto(`${base}/outlets`);
-    await page.getByRole('row', { name: /Kopi Tepi Jalan Kemang/ }).getByRole('link', { name: /Ubah/ }).click();
+    await klikNavigasi(page, page.getByRole('row', { name: /Kopi Tepi Jalan Kemang/ }).getByRole('link', { name: /Ubah/ }));
     await expect(page.getByRole('heading', { name: 'Metode Pembayaran' })).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Aktifkan E-Wallet' })).toHaveAttribute('aria-checked', 'false');
     await expectAccessible(page, 'metode pembayaran outlet');

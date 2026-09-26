@@ -32,10 +32,7 @@ class SalesAccess
             throw new AuthorizationException('Anda tidak memiliki akses ke data transaksi.');
         }
 
-        /** @var list<string> $ids */
-        $ids = $this->scope->applyToOutletQuery(Outlet::withTrashed(), $user)->pluck('id')->all();
-
-        return $ids;
+        return $this->scope->outletIds($user);
     }
 
     public function assertOutlet(User $user, Outlet $outlet): void

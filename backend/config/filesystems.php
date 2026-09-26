@@ -47,6 +47,25 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Foto menu & logo brand (FR-MENU-02).
+         *
+         * Berkasnya disajikan lewat rute `/media/{path}`, bukan symlink `public/storage`:
+         * `php artisan storage:link` butuh hak administrator di Windows dan tidak bertahan di
+         * PaaS yang filesystem-nya ephemeral. Dengan rute, jalur URL-nya sama di semua
+         * lingkungan, dan berpindah ke object storage cukup mengganti FNB_MEDIA_DISK.
+         */
+        'media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/media'),
+            // URL relatif, bukan APP_URL: layar kasir dibuka lewat IP/host apa pun di jaringan
+            // outlet, dan APP_URL yang salah isi membuat semua foto menu jadi tautan mati.
+            'url' => '/media',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

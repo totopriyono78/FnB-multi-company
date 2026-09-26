@@ -10,6 +10,7 @@ use App\Modules\Catalog\Domain\Models\KitchenStation;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\ModifierGroup;
 use App\Modules\Catalog\Domain\Models\SalesChannel;
+use App\Modules\Shared\Application\MediaStore;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ItemWriter
 {
+    public function __construct(private readonly MediaStore $media) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -28,11 +31,14 @@ class ItemWriter
         $brandId = (string) ($data['brand_id'] ?? $item?->brand_id);
         $this->assertReferences($brandId, $data, $item);
 
-        return DB::transaction(function () use ($item, $data): Item {
+        $fotoLama = $item?->image_path;
+
+        $tersimpan = DB::transaction(function () use ($item, $data): Item {
             $item ??= new Item;
             $item->fill(Arr::only($data, [
                 'brand_id', 'category_id', 'type', 'sku', 'barcode', 'name', 'short_name', 'description', 'image_path',
                 'base_price', 'kitchen_station_id', 'channel_codes', 'schedule', 'sort_order', 'is_active',
+                'sold_by_weight', 'unit',
             ]));
             if (! $item->exists && empty($item->short_name)) {
                 $item->short_name = mb_substr((string) $item->name, 0, 24);
@@ -57,6 +63,13 @@ class ItemWriter
 
             return $item->refresh()->load(['variants', 'modifierGroups', 'bundleGroups.options', 'category', 'station']);
         });
+
+        // Foto yang digantikan baru dibuang setelah penyimpanan benar-benar berhasil.
+        if (array_key_exists('image_path', $data) && $tersimpan->image_path !== $fotoLama) {
+            $this->media->forget($fotoLama);
+        }
+
+        return $tersimpan;
     }
 
     /**

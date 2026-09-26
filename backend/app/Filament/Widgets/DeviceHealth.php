@@ -11,6 +11,9 @@ use Filament\Widgets\TableWidget;
 /** Kesehatan sinkronisasi perangkat (NFR-OBS-04). */
 class DeviceHealth extends TableWidget
 {
+    /** Dirender bersama halaman: satu request, bukan satu request per widget (lebih ringan di server satu proses). */
+    protected static bool $isLazy = false;
+
     protected static ?string $heading = 'Perangkat yang perlu dicek';
 
     protected int|string|array $columnSpan = 'full';

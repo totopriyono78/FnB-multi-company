@@ -18,6 +18,15 @@ class AccessScope
     /** @var array<string, array{brands: list<string>, outlets: list<string>}|null> */
     private array $cache = [];
 
+    /**
+     * Outlet dalam cakupan user (termasuk yang dinonaktifkan/dihapus), diurutkan menurut nama.
+     * Dipakai berulang kali dalam satu request — oleh pengecekan akses tiap menu navigasi,
+     * filter laporan, dan halaman — sehingga cukup dimuat sekali (lihat flush()).
+     *
+     * @var array<string, list<array{id: string, name: string, code: string, brand_id: string, active: bool}>>
+     */
+    private array $outletCache = [];
+
     public function __construct(private readonly TenantContext $context) {}
 
     /**
@@ -125,8 +134,57 @@ class AccessScope
         });
     }
 
+    /**
+     * @return list<array{id: string, name: string, code: string, brand_id: string, active: bool}>
+     */
+    public function outlets(User $user): array
+    {
+        $key = $this->context->requireCompanyId().':'.$user->id;
+
+        return $this->outletCache[$key] ??= $this->applyToOutletQuery(Outlet::withTrashed(), $user)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'brand_id', 'is_active', 'deleted_at'])
+            ->map(fn (Outlet $o): array => [
+                'id' => (string) $o->id,
+                'name' => (string) $o->name,
+                'code' => (string) $o->code,
+                'brand_id' => (string) $o->brand_id,
+                'active' => (bool) $o->is_active && $o->deleted_at === null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * ID seluruh outlet dalam cakupan (termasuk yang dinonaktifkan), urut nama.
+     *
+     * @return list<string>
+     */
+    public function outletIds(User $user): array
+    {
+        return array_column($this->outlets($user), 'id');
+    }
+
+    /**
+     * Pilihan outlet aktif dalam cakupan: id => "Nama (KODE)", urut nama.
+     *
+     * @return array<string, string>
+     */
+    public function activeOutletOptions(User $user, ?string $brandId = null): array
+    {
+        $options = [];
+        foreach ($this->outlets($user) as $outlet) {
+            if ($outlet['active'] && ($brandId === null || $outlet['brand_id'] === $brandId)) {
+                $options[$outlet['id']] = "{$outlet['name']} ({$outlet['code']})";
+            }
+        }
+
+        return $options;
+    }
+
     public function flush(): void
     {
         $this->cache = [];
+        $this->outletCache = [];
     }
 }

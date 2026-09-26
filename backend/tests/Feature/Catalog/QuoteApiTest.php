@@ -119,6 +119,21 @@ it('menerapkan promo otomatis per outlet dan kode promo (BR-18)', function () {
     $coded = $this->postJson('/api/v1/quotes', ($this->cart)(['promo_codes' => ['HEMAT5']]), $this->headers)->assertOk();
     expect($coded->json('data.totals'))->toMatchArray(['discount' => '5000.00', 'service_charge' => '3700.00', 'tax' => '7770.00', 'total' => '85500.00']);
     expect(collect($coded->json('data.promotions'))->pluck('name')->all())->toBe(['Kode Hemat']);
+
+    // Kontrak dengan kasir: rincian diskon (jenis, nilai, sumber) ikut dikembalikan, baik per baris
+    // maupun per transaksi, supaya perangkat bisa mengirimkannya kembali saat menyimpan pesanan.
+    // Tanpa ini promo otomatis membuat POST /pos/orders ditolak TOTAL_MISMATCH.
+    $baris = collect($r->json('data.lines'))->firstWhere('item_id', $this->croissant->id);
+    expect($baris['discounts'])->toHaveCount(1)
+        // Mesin promo sudah mengubah 10% menjadi nominal, jadi yang dikirim balik ke server
+        // adalah angka rupiah yang sama persis — bukan persentase yang dihitung ulang.
+        ->and($baris['discounts'][0]['type'])->toBe('amount')
+        ->and($baris['discounts'][0]['value'])->toBe('2500.00')
+        ->and($baris['discounts'][0]['source'])->toStartWith('promo:');
+    expect($r->json('data.order_discounts'))->toBe([]);
+    expect($coded->json('data.order_discounts'))->toHaveCount(1)
+        ->and($coded->json('data.order_discounts.0.type'))->toBe('amount')
+        ->and($coded->json('data.order_discounts.0.source'))->toStartWith('promo:');
 });
 
 it('memvalidasi pilihan modifier, varian, channel, dan ketersediaan', function () {
@@ -199,6 +214,9 @@ describe('endpoint POS', function () {
         $data = $r->json('data');
 
         expect($data['outlet']['pricing'])->toMatchArray(['tax_rate' => '10.00', 'service_charge_rate' => '5.00', 'rounding_unit' => 100]);
+        // Jumlah meja dipakai layar kasir untuk tombol pintas nomor meja (FR-POS).
+        expect($data['outlet'])->toHaveKey('table_count')
+            ->and($data['outlet']['table_count'])->toBeInt();
         $ids = collect($data['items'])->pluck('id')->all();
         expect($ids)->toContain($this->coffee->id, $this->croissant->id)->not->toContain($hidden->id, $foreign->id);
 

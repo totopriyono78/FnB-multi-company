@@ -3,6 +3,7 @@
 namespace App\Modules\Catalog\Http\Requests;
 
 use App\Modules\Catalog\Domain\Models\Item;
+use App\Modules\Shared\Application\MediaStore;
 use Closure;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -28,7 +29,17 @@ class ItemRequest extends CatalogRequest
             'name' => [$req, 'string', 'max:100'],
             'short_name' => ['sometimes', 'nullable', 'string', 'max:24'],
             'description' => ['nullable', 'string', 'max:1000'],
+            /*
+             * Foto menu. Yang diterima hanya jalur internal hasil unggahan (mis. `menu/01j….jpg`),
+             * bukan URL sembarang: nilai ini dipasang langsung sebagai `src` gambar di layar kasir,
+             * jadi URL luar berarti setiap kartu menu ikut memanggil server pihak ketiga.
+             * Berkasnya sendiri diunggah lewat back-office (Menu → Foto).
+             */
+            'image_path' => ['sometimes', 'nullable', 'string', 'max:120', 'regex:'.MediaStore::PATH_PATTERN],
             'base_price' => $item ? ['sometimes', ...array_slice(self::money(), 1)] : self::money(),
+            // Barang timbangan: kasir mengisi berat, harga = harga satuan x berat (FR-POS-05).
+            'sold_by_weight' => ['sometimes', 'boolean'],
+            'unit' => ['sometimes', 'nullable', 'string', 'max:10'],
             'kitchen_station_id' => ['nullable', 'uuid'],
             'channel_codes' => ['nullable', 'array'],
             'channel_codes.*' => ['string', Rule::exists('sales_channels', 'code')->where('company_id', $this->companyId())],

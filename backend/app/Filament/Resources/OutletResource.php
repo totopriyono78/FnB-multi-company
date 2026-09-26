@@ -109,6 +109,10 @@ class OutletResource extends Resource
                         ])->default('on_payment')->required(),
                         Toggle::make('allow_negative_stock')->label('Izinkan stok minus')->default(true)->inline(false),
                     ]),
+                    TextInput::make('table_count')
+                        ->label('Jumlah meja')
+                        ->helperText('Layar kasir memakai angka ini untuk tombol pintas nomor meja 1–N. Isi 0 bila outlet tidak memakai nomor meja.')
+                        ->numeric()->integer()->minValue(0)->maxValue(999)->default(0)->required(),
                     Section::make('Struk')->columns(2)->schema([
                         TextInput::make('receipt_settings.header')->label('Teks atas struk')->maxLength(200),
                         TextInput::make('receipt_settings.footer')->label('Teks bawah struk')->maxLength(200)->placeholder('Terima kasih, sampai jumpa lagi'),

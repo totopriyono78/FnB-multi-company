@@ -42,6 +42,9 @@ final class DemoAccounts
             'Yohanes Siregar' => '615283',
             'Putri Maharani' => '3867',
             'Hendra Gunawan' => '5172',
+            // DemoIkanBakarSeeder (outlet uji coba resto ikan bakar).
+            'Yusuf Maulana' => '4719',
+            'Siti Aminah' => '260418',
         ];
     }
 

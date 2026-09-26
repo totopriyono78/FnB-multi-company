@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Demo\DemoAccounts;
+use App\Modules\Shared\Http\Controllers\MediaController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
@@ -27,3 +28,11 @@ Route::get('/pos', function () {
 })->name('pos.web');
 
 Route::redirect('/kasir', '/pos');
+
+/*
+ * Foto menu & logo brand. Lihat MediaController untuk alasan rute ini ada
+ * (ringkasnya: menggantikan symlink public/storage yang merepotkan di Windows & PaaS).
+ */
+Route::get('/media/{folder}/{file}', [MediaController::class, 'show'])
+    ->where(['folder' => 'menu|logo', 'file' => '[A-Za-z0-9._-]+'])
+    ->name('media.show');

@@ -9,7 +9,6 @@ use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Shared\Domain\Exceptions\ConflictException;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Models\Brand;
-use App\Modules\Tenancy\Domain\Models\Outlet;
 use Closure;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -107,13 +106,7 @@ final class MenuFields
             return [];
         }
 
-        return app(AccessScope::class)
-            ->applyToOutletQuery(Outlet::query()->where('is_active', true), $user)
-            ->when($brandId !== null, fn (Builder $q) => $q->where('brand_id', $brandId))
-            ->orderBy('name')
-            ->get(['id', 'code', 'name'])
-            ->mapWithKeys(fn (Outlet $o) => [$o->id => "{$o->name} ({$o->code})"])
-            ->all();
+        return app(AccessScope::class)->activeOutletOptions($user, $brandId);
     }
 
     /** @return array<string, string> kode => nama */

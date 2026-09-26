@@ -5,6 +5,7 @@ use App\Modules\Identity\Application\StaffManager;
 use App\Modules\Identity\Domain\Models\CompanyUser;
 use App\Modules\Identity\Domain\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\Support\Factory;
 
@@ -195,6 +196,23 @@ it('mengganti PIN dengan konfirmasi', function () {
     $this->putJson("/api/v1/staff/{$member->id}/pin", ['pin' => '90a4', 'pin_confirmation' => '90a4'], $headers)->assertUnprocessable();
     $this->putJson("/api/v1/staff/{$member->id}/pin", ['pin' => '9024', 'pin_confirmation' => '9024'], $headers)
         ->assertOk()->assertJsonPath('data.has_pin', true);
+});
+
+it('tetap bisa menyunting staf aktif yang undangannya tidak pernah tercatat diterima', function () {
+    // Keadaan yang bisa muncul dari data contoh/impor: anggota sudah aktif, tetapi jejak
+    // undangannya belum ditandai diterima. Penjagaan "undangan belum diterima" hanya boleh
+    // menghalangi *pengaktifan*, bukan setiap penyimpanan — kalau tidak, ganti PIN dari
+    // back-office ditolak dengan pesan yang tidak nyambung dan kasir tak bisa masuk.
+    [, $member] = Factory::staff($this->company, ['cashier'], [$this->kemang->id]);
+    Factory::system(fn () => CompanyUser::query()->whereKey($member->id)
+        ->update(['is_active' => true, 'invited_at' => now(), 'accepted_at' => null]));
+
+    $this->patchJson("/api/v1/staff/{$member->id}", [
+        'employee_code' => 'KMG-009', 'is_active' => true, 'pin' => '551122',
+    ], asMember($this->owner, $this->company))->assertOk();
+
+    $segar = Factory::system(fn () => CompanyUser::query()->findOrFail($member->id));
+    expect(Hash::check('551122', (string) $segar->pin_hash))->toBeTrue();
 });
 
 it('menegakkan batas user paket (FR-TEN-06)', function () {

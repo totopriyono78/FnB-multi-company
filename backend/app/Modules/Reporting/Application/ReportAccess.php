@@ -44,10 +44,7 @@ class ReportAccess
             return [];
         }
 
-        /** @var list<string> $ids */
-        $ids = $this->scope->applyToOutletQuery(Outlet::withTrashed(), $user)->orderBy('name')->pluck('id')->all();
-
-        return $ids;
+        return $this->scope->outletIds($user);
     }
 
     /**

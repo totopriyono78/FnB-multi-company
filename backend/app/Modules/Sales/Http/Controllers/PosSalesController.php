@@ -194,7 +194,8 @@ class PosSalesController extends Controller
                 $error['code'] === 'INTERNAL_ERROR' => 500,
                 (bool) ($error['retryable'] ?? false) => 409,
                 in_array($error['code'], ['STAFF_NOT_ALLOWED', 'AUTHORIZATION_REQUIRED', 'AUTHORIZATION_INVALID', 'AUTHORIZATION_USED', 'DISCOUNT_LIMIT_EXCEEDED', 'REFUND_REQUIRES_MANAGER'], true) => 403,
-                in_array($error['code'], ['SHIFT_ALREADY_OPEN', 'SHIFT_CLOSED', 'DUPLICATE_RECEIPT_NO', 'ORDER_NOT_VOIDABLE', 'ORDER_NOT_REFUNDABLE', 'VOID_SHIFT_CLOSED', 'PAYMENT_INTENT_USED'], true) => 409,
+                in_array($error['code'], ['SHIFT_ALREADY_OPEN', 'SHIFT_CLOSED', 'DUPLICATE_RECEIPT_NO', 'ORDER_NOT_VOIDABLE', 'ORDER_NOT_REFUNDABLE', 'VOID_SHIFT_CLOSED', 'PAYMENT_INTENT_USED', 'OPEN_BILL_CLOSED'], true) => 409,
+                $error['code'] === 'OPEN_BILL_NOT_FOUND' => 404,
                 default => 422,
             };
 

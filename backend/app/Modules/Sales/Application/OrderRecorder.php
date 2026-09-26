@@ -17,6 +17,7 @@ use App\Modules\Payment\Application\PaymentIntentService;
 use App\Modules\Payment\Application\PaymentMethods;
 use App\Modules\Payment\Domain\Models\PaymentIntent;
 use App\Modules\Sales\Domain\Events\OrderCompleted;
+use App\Modules\Sales\Domain\Models\OpenBill;
 use App\Modules\Sales\Domain\Models\Order;
 use App\Modules\Sales\Domain\Models\OrderDiscount;
 use App\Modules\Sales\Domain\Models\OrderItem;
@@ -73,6 +74,7 @@ class OrderRecorder
             'cashier_id' => ['required', 'uuid'],
             'receipt_no' => ['required', 'string', 'max:40'],
             'queue_no' => ['nullable', 'integer', 'between:1,99999'],
+            'open_bill_id' => ['nullable', 'uuid'],
             'channel_code' => ['required', 'string', 'max:30'],
             'table_label' => ['nullable', 'string', 'max:30'],
             'customer_name' => ['nullable', 'string', 'max:80'],
@@ -214,6 +216,8 @@ class OrderRecorder
                     'id' => $line['id'],
                     'unit_price' => $line['unit_price'],
                     'qty' => $line['qty'],
+                    // Barang timbangan: tambahan dihitung sekali per baris, bukan dikali berat.
+                    'sold_by_weight' => (bool) $line['item']->sold_by_weight,
                     'modifiers' => array_map(fn ($m) => ['price' => $m['price'], 'qty' => (string) $m['qty']], $line['modifiers']),
                     'discounts' => $this->orderedDiscounts($line['discounts']),
                 ];
@@ -362,10 +366,31 @@ class OrderRecorder
                 $this->audit->log('order.cancelled_before_payment', $order, reason: $order->void_reason, authorizedBy: $order->void_authorized_by, userId: $order->voided_by);
             }
 
+            // Parkir bill menjadi transaksi resmi: ditutup di transaksi yang sama agar tidak mungkin
+            // tagihannya tertutup tanpa transaksi, atau sebaliknya tagihan tetap terbuka setelah dibayar.
+            if (isset($data['open_bill_id'])) {
+                $this->closeOpenBill((string) $data['open_bill_id'], $order, $outlet->id);
+            }
+
             DB::afterCommit(fn () => OrderCompleted::dispatch($order->company_id, $order->id, $order->business_date->format('Y-m-d'), $order->status));
 
             return $order;
         });
+    }
+
+    /** Tutup tagihan terbuka dan tautkan ke transaksi yang baru dibuat. */
+    private function closeOpenBill(string $billId, Order $order, string $outletId): void
+    {
+        /** @var OpenBill|null $bill */
+        $bill = OpenBill::query()->whereKey($billId)->lockForUpdate()->first();
+        if ($bill === null || $bill->outlet_id !== $outletId) {
+            throw new SalesException('OPEN_BILL_NOT_FOUND', 'Tagihan terbuka tidak ditemukan di outlet ini.', 404, field: 'open_bill_id');
+        }
+        if (! $bill->isOpen()) {
+            throw new SalesException('OPEN_BILL_CLOSED', 'Tagihan ini sudah dibayar sebelumnya.', 409, field: 'open_bill_id', details: ['order_id' => $bill->order_id]);
+        }
+        $bill->forceFill(['closed_at' => now(), 'order_id' => $order->id, 'updated_at' => now()])->save();
+        $this->audit->log('pos.open_bill_paid', $order, new: ['open_bill_id' => $bill->id, 'receipt_no' => $order->receipt_no]);
     }
 
     /**

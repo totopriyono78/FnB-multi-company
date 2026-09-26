@@ -1,15 +1,18 @@
 @import '/vendor/filament/filament/resources/css/theme.css';
 
 /*
- * Token desain FnB Cloud — satu-satunya sumber warna, huruf, radius, dan spasi back-office.
- * Lihat CLAUDE.md §5.2. Format warna "r g b" dipakai karena Filament 3 membaca
+ * Token desain FnB Cloud — satu-satunya sumber warna, huruf, radius, bayangan, dan spasi back-office.
+ * Lihat CLAUDE.md §5.2. Format warna "r, g, b" dipakai karena Filament 3 membaca
  * variabel --{palet}-{tingkat} sebagai rgb(var(...)).
  *
- * Aksen brand: hijau daun (#1d7a55). Netral: abu hangat (stone).
- * Mode gelap memakai abu gelap, bukan hitam pekat.
+ * Gaya mengikuti template admin Vuexy (keputusan user 24 Sep 2026): latar abu #f8f8f8,
+ * kartu putih tanpa garis dengan bayangan lembut, topbar melayang, sidebar putih dengan
+ * menu aktif bergradien + pendar, huruf Montserrat. Aksen tetap hijau daun FnB Cloud.
+ * Mode gelap memakai palet navy Vuexy (#161d31 / #283046), bukan hitam pekat.
+ * Warna status memakai rona Vuexy; tingkat 600 digelapkan agar teks tetap ≥ 4,5:1 (WCAG AA).
  */
 html:root {
-    /* Aksen */
+    /* Aksen — hijau daun */
     --primary-50: 236, 248, 242;
     --primary-100: 209, 238, 223;
     --primary-200: 164, 221, 193;
@@ -22,48 +25,109 @@ html:root {
     --primary-900: 20, 64, 48;
     --primary-950: 10, 36, 27;
 
-    /* Netral hangat */
-    --gray-50: 250, 250, 249;
-    --gray-100: 245, 245, 244;
-    --gray-200: 231, 229, 228;
-    --gray-300: 214, 211, 209;
-    --gray-400: 168, 162, 158;
-    --gray-500: 104, 98, 93;
-    --gray-600: 87, 83, 78;
-    --gray-700: 68, 64, 60;
-    --gray-800: 48, 45, 42;
-    --gray-900: 36, 33, 31;
-    --gray-950: 28, 26, 24;
+    /* Netral Vuexy: abu keunguan (terang) dan navy (gelap) */
+    --gray-50: 248, 248, 248;
+    --gray-100: 243, 242, 247;
+    --gray-200: 235, 233, 241;
+    --gray-300: 216, 214, 222;
+    --gray-400: 180, 183, 189;
+    --gray-500: 110, 107, 123;
+    --gray-600: 94, 88, 115;
+    --gray-700: 75, 70, 92;
+    --gray-800: 59, 66, 83;
+    --gray-900: 40, 48, 70;
+    --gray-950: 22, 29, 49;
 
-    /* Status */
-    --danger-50: 254, 242, 242;
-    --danger-100: 254, 226, 226;
-    --danger-400: 248, 113, 113;
-    --danger-500: 239, 68, 68;
-    --danger-600: 200, 38, 38;
-    --danger-700: 170, 28, 28;
-    --warning-50: 255, 251, 235;
-    --warning-400: 251, 191, 36;
-    --warning-500: 245, 158, 11;
-    --warning-600: 161, 84, 5;
-    --success-50: 240, 253, 244;
-    --success-400: 74, 222, 128;
-    --success-500: 34, 197, 94;
-    --success-600: 17, 102, 48;
-    --info-50: 240, 249, 255;
-    --info-400: 56, 189, 248;
-    --info-500: 14, 165, 233;
-    --info-600: 3, 105, 161;
+    /* Status (rona Vuexy) */
+    --danger-50: 253, 238, 238;
+    --danger-100: 251, 221, 221;
+    --danger-200: 247, 187, 187;
+    --danger-300: 243, 152, 153;
+    --danger-400: 240, 125, 126;
+    --danger-500: 234, 84, 85;
+    --danger-600: 196, 47, 48;
+    --danger-700: 163, 35, 36;
+    --danger-800: 128, 28, 29;
+    --danger-900: 100, 24, 25;
+    --danger-950: 60, 12, 12;
+    --warning-50: 255, 245, 236;
+    --warning-100: 255, 236, 217;
+    --warning-200: 255, 216, 179;
+    --warning-300: 255, 197, 141;
+    --warning-400: 255, 178, 105;
+    --warning-500: 255, 159, 67;
+    --warning-600: 158, 90, 12;
+    --warning-700: 128, 72, 8;
+    --warning-800: 100, 56, 7;
+    --warning-900: 80, 45, 6;
+    --warning-950: 48, 26, 3;
+    --success-50: 234, 249, 241;
+    --success-100: 212, 244, 226;
+    --success-200: 169, 233, 197;
+    --success-300: 126, 221, 168;
+    --success-400: 72, 218, 137;
+    --success-500: 40, 199, 111;
+    --success-600: 22, 128, 69;
+    --success-700: 18, 105, 57;
+    --success-800: 15, 84, 46;
+    --success-900: 12, 66, 36;
+    --success-950: 6, 38, 20;
+    --info-50: 230, 250, 253;
+    --info-100: 204, 245, 250;
+    --info-200: 153, 236, 246;
+    --info-300: 102, 226, 241;
+    --info-400: 51, 217, 237;
+    --info-500: 0, 207, 232;
+    --info-600: 0, 122, 138;
+    --info-700: 0, 98, 112;
+    --info-800: 0, 78, 89;
+    --info-900: 0, 62, 71;
+    --info-950: 0, 36, 41;
 
-    /* Tipografi, radius, spasi */
-    --fnb-font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    /* Tipografi */
+    --fnb-font-sans: 'Montserrat', Helvetica, Arial, sans-serif;
+    --fnb-text: 110, 107, 123;       /* teks isi #6e6b7b */
+    --fnb-heading: 94, 88, 115;      /* judul #5e5873 */
+
+    /* Permukaan */
+    --fnb-body-bg: 248, 248, 248;    /* #f8f8f8 */
+    --fnb-surface: 255, 255, 255;
+
+    /* Radius (Vuexy ±0,357–0,428rem) */
     --fnb-radius-sm: 4px;
-    --fnb-radius-md: 6px;
-    --fnb-radius-lg: 8px;
+    --fnb-radius-md: 5px;
+    --fnb-radius-lg: 6px;
+
+    /* Bayangan */
+    --fnb-shadow-card: 0 4px 24px 0 rgba(34, 41, 47, 0.1);
+    --fnb-shadow-card-hover: 0 4px 25px 0 rgba(34, 41, 47, 0.25);
+    --fnb-shadow-menu: 0 0 15px 0 rgba(34, 41, 47, 0.05);
+    --fnb-shadow-float: 0 5px 25px rgba(34, 41, 47, 0.1);
+    --fnb-glow-primary: 0 0 10px 1px rgba(var(--primary-600), 0.7);
+    --fnb-glow-button: 0 8px 25px -8px rgb(var(--primary-600));
+    --fnb-gradient-active: linear-gradient(118deg, rgb(var(--primary-600)), rgba(var(--primary-600), 0.7));
+
+    /* Spasi & ukuran tata letak */
     --fnb-space-1: 4px;
     --fnb-space-2: 8px;
     --fnb-space-3: 12px;
     --fnb-space-4: 16px;
+    --fnb-space-5: 21px;
+    --fnb-space-6: 28px;
+    --sidebar-width: 260px;
+}
+
+html.dark:root {
+    /* Di atas kartu navy #283046, hijau 400 bawaan hanya 4,37:1; dinaikkan satu tingkat agar tautan lolos AA. */
+    --primary-400: 110, 197, 157;
+    --fnb-text: 180, 183, 189;       /* #b4b7bd */
+    --fnb-heading: 208, 210, 214;    /* #d0d2d6 */
+    --fnb-body-bg: 22, 29, 49;       /* #161d31 */
+    --fnb-surface: 40, 48, 70;       /* #283046 */
+    --fnb-shadow-card: 0 4px 24px 0 rgba(0, 0, 0, 0.24);
+    --fnb-shadow-card-hover: 0 4px 25px 0 rgba(0, 0, 0, 0.35);
+    --fnb-shadow-menu: 0 0 15px 0 rgba(0, 0, 0, 0.1);
+    --fnb-shadow-float: 0 5px 25px rgba(0, 0, 0, 0.3);
 }
 
 /* Angka harga & jumlah selalu rata kolom. */
@@ -71,25 +135,6 @@ html:root {
 .fi-wi-stats-overview-stat-value,
 .fi-in-text {
     font-variant-numeric: tabular-nums;
-}
-
-/* Radius kecil–sedang dan bayangan tipis hanya untuk elemen melayang. */
-.fi-section,
-.fi-ta-ctn,
-.fi-wi-stats-overview-stat {
-    border-radius: var(--fnb-radius-lg);
-    box-shadow: none;
-}
-
-.fi-btn,
-.fi-input-wrp,
-.fi-badge {
-    border-radius: var(--fnb-radius-md);
-}
-
-.fi-dropdown-panel,
-.fi-modal-window {
-    border-radius: var(--fnb-radius-lg);
 }
 
 /* Fokus keyboard harus jelas terlihat (WCAG 2.4.7). */
@@ -320,14 +365,39 @@ html:root {
     padding: var(--fnb-space-2);
     text-align: left;
     font-weight: 600;
-    color: rgb(var(--gray-600));
+    color: rgb(var(--fnb-text));
     border-bottom: 1px solid rgb(var(--gray-200));
+}
+
+/* Kepala tabel ala Vuexy: latar abu muda, huruf kapital kecil tebal. */
+.fnb-receipt thead th {
+    background-color: rgb(var(--gray-100));
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 0;
+}
+
+.dark .fnb-receipt thead th {
+    background-color: rgb(52, 61, 85);
+}
+
+/* Kepala kolom boleh turun baris agar tabel sempit di dasbor tidak meluap. */
+.fnb-receipt thead th.fnb-num {
+    white-space: normal;
+}
+
+.fnb-dashboard-grid .fnb-receipt th,
+.fnb-dashboard-grid .fnb-receipt td {
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 .fnb-receipt td {
     padding: var(--fnb-space-2);
     vertical-align: top;
-    border-bottom: 1px solid rgb(var(--gray-100));
+    border-bottom: 1px solid rgb(var(--gray-200));
 }
 
 .dark .fnb-receipt th,
@@ -421,13 +491,11 @@ html:root {
 }
 
 .fnb-report-summary__item {
-    padding: var(--fnb-space-3) var(--fnb-space-4);
-    border: 1px solid rgb(var(--gray-200));
-    border-radius: var(--fnb-radius-md);
-}
-
-.dark .fnb-report-summary__item {
-    border-color: rgb(var(--gray-800));
+    padding: var(--fnb-space-4) var(--fnb-space-5);
+    border: 0;
+    border-radius: var(--fnb-radius-lg);
+    background-color: rgb(var(--fnb-surface));
+    box-shadow: var(--fnb-shadow-card);
 }
 
 .fnb-report-summary dt {
@@ -443,9 +511,9 @@ html:root {
     margin-top: var(--fnb-space-1);
     font-size: 1.25rem;
     overflow-wrap: anywhere;
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
-    color: rgb(var(--gray-900));
+    color: rgb(var(--fnb-heading));
 }
 
 .dark .fnb-report-summary dd {
@@ -504,7 +572,8 @@ html:root {
 .fnb-report-bar > span {
     display: block;
     height: 100%;
-    background: rgb(var(--primary-600));
+    border-radius: 999px;
+    background: var(--fnb-gradient-active);
 }
 
 .dark .fnb-report-bar {
@@ -533,4 +602,504 @@ html:root {
     gap: var(--fnb-space-4);
     grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
     align-items: start;
+}
+
+/* =====================================================================
+ * Lapisan gaya Vuexy untuk Filament 3.
+ * Semua nilai berasal dari token di atas; jangan menulis warna mentah di sini.
+ * ===================================================================== */
+
+/* ---- Dasar: huruf, warna teks, latar ---- */
+.fi-body {
+    font-family: var(--fnb-font-sans);
+    font-size: 0.875rem;
+    color: rgb(var(--fnb-text));
+    background-color: rgb(var(--fnb-body-bg));
+}
+
+.fi-header-heading,
+.fi-section-header-heading,
+.fi-modal-heading,
+.fi-simple-header-heading,
+.fi-wi-stats-overview-stat-value,
+.fi-ta-header-heading {
+    color: rgb(var(--fnb-heading));
+}
+
+.fi-header-heading {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.fi-section-header-heading,
+.fi-ta-header-heading {
+    font-size: 1.125rem;
+    font-weight: 500;
+}
+
+/* ---- Sidebar: panel putih + bayangan tipis ---- */
+@media (min-width: 1024px) {
+    .fi-sidebar,
+    .dark .fi-sidebar {
+        background-color: rgb(var(--fnb-surface));
+        box-shadow: var(--fnb-shadow-menu);
+    }
+}
+
+.fi-sidebar-header,
+.dark .fi-sidebar-header {
+    background-color: rgb(var(--fnb-surface));
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+    height: 4.5rem;
+}
+
+.fi-sidebar-header .fi-logo {
+    font-size: 1.27rem;
+    font-weight: 600;
+    color: rgb(var(--primary-600));
+    letter-spacing: 0.01rem;
+}
+
+.dark .fi-sidebar-header .fi-logo {
+    color: rgb(var(--primary-400));
+}
+
+.fi-sidebar-nav {
+    padding-left: 15px;
+    padding-right: 15px;
+    row-gap: var(--fnb-space-2);
+}
+
+.fi-sidebar-nav-groups,
+.fi-sidebar-group-items {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Label grup: huruf kapital kecil seperti "navigation-header" Vuexy. */
+.fi-sidebar-group-button {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.fi-sidebar-group-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.01rem;
+    color: rgb(var(--gray-500));
+}
+
+.dark .fi-sidebar-group-label {
+    color: rgb(var(--gray-400));
+}
+
+.fi-sidebar-group-items {
+    row-gap: 2px;
+}
+
+.fi-sidebar-item {
+    margin: 0;
+}
+
+.fi-sidebar-item-button {
+    padding: 10px 15px;
+    border-radius: var(--fnb-radius-sm);
+    transition: padding 0.25s ease, background-color 0.25s ease;
+}
+
+.fi-sidebar-item-label {
+    font-size: 0.94rem;
+    font-weight: 400;
+    color: rgb(var(--fnb-text));
+}
+
+.fi-sidebar-item-icon {
+    color: rgb(var(--fnb-text));
+}
+
+/* Hover: item bergeser 5px ke kanan, tanpa latar. */
+.fi-sidebar-item:not(.fi-sidebar-item-active) .fi-sidebar-item-button:hover,
+.dark .fi-sidebar-item:not(.fi-sidebar-item-active) .fi-sidebar-item-button:hover {
+    background-color: transparent;
+    padding-left: 20px;
+}
+
+/* Aktif: blok gradien aksen + pendar. */
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.dark .fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item-active .fi-sidebar-item-button:hover,
+.dark .fi-sidebar-item-active .fi-sidebar-item-button:hover {
+    background: var(--fnb-gradient-active);
+    box-shadow: var(--fnb-glow-primary);
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-label,
+.fi-sidebar-item-active .fi-sidebar-item-icon,
+.dark .fi-sidebar-item-active .fi-sidebar-item-label,
+.dark .fi-sidebar-item-active .fi-sidebar-item-icon {
+    color: rgb(255, 255, 255);
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-grouped-border > div {
+    background-color: rgb(255, 255, 255);
+}
+
+.fi-sidebar-item-button:focus-visible {
+    outline: 2px solid rgb(var(--primary-600));
+    outline-offset: 2px;
+}
+
+/* ---- Topbar melayang ---- */
+.fi-topbar {
+    padding: 13px var(--fnb-space-6) 0;
+    background: linear-gradient(
+        180deg,
+        rgba(var(--fnb-body-bg), 0.95) 44%,
+        rgba(var(--fnb-body-bg), 0.46) 73%,
+        rgba(var(--fnb-body-bg), 0)
+    );
+}
+
+.fi-topbar > nav,
+.dark .fi-topbar > nav {
+    height: 62px;
+    border-radius: var(--fnb-radius-lg);
+    background-color: rgb(var(--fnb-surface));
+    box-shadow: var(--fnb-shadow-card);
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+@media (max-width: 767px) {
+    .fi-topbar {
+        padding: var(--fnb-space-3) var(--fnb-space-4) 0;
+    }
+}
+
+/* ---- Isi halaman ---- */
+@media (min-width: 1024px) {
+    .fi-main {
+        padding-left: var(--fnb-space-6);
+        padding-right: var(--fnb-space-6);
+    }
+}
+
+.fi-breadcrumbs-item-label {
+    color: rgb(var(--fnb-text));
+}
+
+/* ---- Kartu: tanpa garis, radius 6px, bayangan lembut ---- */
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat,
+.fi-fo-tabs,
+.fi-in-tabs,
+.fi-simple-main,
+.fi-fo-repeater-item,
+.fi-wi-widget .fi-section {
+    border-radius: var(--fnb-radius-lg);
+    background-color: rgb(var(--fnb-surface));
+    box-shadow: var(--fnb-shadow-card);
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+.dark .fi-section,
+.dark .fi-ta-ctn,
+.dark .fi-wi-stats-overview-stat,
+.dark .fi-fo-tabs,
+.dark .fi-in-tabs,
+.dark .fi-simple-main,
+.dark .fi-fo-repeater-item {
+    background-color: rgb(var(--fnb-surface));
+    box-shadow: var(--fnb-shadow-card);
+}
+
+/* Section di dalam section (form bersarang) tetap bergaris agar tidak bertumpuk bayangan. */
+.fi-section .fi-section,
+.dark .fi-section .fi-section {
+    box-shadow: none;
+    border: 1px solid rgb(var(--gray-200));
+}
+
+.dark .fi-section .fi-section {
+    border-color: rgb(var(--gray-800));
+}
+
+.fi-section-header {
+    padding: var(--fnb-space-5);
+}
+
+.fi-section-content {
+    padding: var(--fnb-space-5);
+}
+
+.fi-section-content-ctn,
+.dark .fi-section-content-ctn,
+.fi-section-footer,
+.dark .fi-section-footer {
+    border-color: rgb(var(--gray-200));
+}
+
+.dark .fi-section-content-ctn,
+.dark .fi-section-footer {
+    border-color: rgb(var(--gray-800));
+}
+
+/* ---- Widget statistik ala "Statistics" Vuexy ---- */
+.fi-wi-stats-overview-stat {
+    padding: var(--fnb-space-5) var(--fnb-space-6);
+}
+
+.fi-wi-stats-overview-stat-label {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: rgb(var(--fnb-text));
+}
+
+.fi-wi-stats-overview-stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* Ikon statistik dalam lingkaran bernuansa warna (avatar Vuexy): rona 12% + ikon berwarna. */
+.fi-wi-stats-overview-stat {
+    --fnb-stat-rgb: var(--primary-600);
+}
+
+.fnb-stat--info { --fnb-stat-rgb: var(--info-600); }
+.fnb-stat--success { --fnb-stat-rgb: var(--success-600); }
+.fnb-stat--warning { --fnb-stat-rgb: var(--warning-600); }
+.fnb-stat--danger { --fnb-stat-rgb: var(--danger-600); }
+.fnb-stat--gray { --fnb-stat-rgb: var(--gray-500); }
+
+.dark .fi-wi-stats-overview-stat { --fnb-stat-rgb: var(--primary-400); }
+.dark .fnb-stat--info { --fnb-stat-rgb: var(--info-400); }
+.dark .fnb-stat--success { --fnb-stat-rgb: var(--success-400); }
+.dark .fnb-stat--warning { --fnb-stat-rgb: var(--warning-400); }
+.dark .fnb-stat--danger { --fnb-stat-rgb: var(--danger-400); }
+.dark .fnb-stat--gray { --fnb-stat-rgb: var(--gray-400); }
+
+.fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-icon,
+.dark .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-icon {
+    box-sizing: content-box;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0.6875rem;
+    margin-right: var(--fnb-space-2);
+    border-radius: 999px;
+    color: rgb(var(--fnb-stat-rgb));
+    background-color: rgba(var(--fnb-stat-rgb), 0.12);
+}
+
+a.fi-wi-stats-overview-stat {
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+a.fi-wi-stats-overview-stat:hover {
+    box-shadow: var(--fnb-shadow-card-hover);
+    transform: translateY(-2px);
+}
+
+/* ---- Tabel ---- */
+.fi-ta-header-cell,
+.fi-ta-table > thead > tr {
+    background-color: rgb(var(--gray-100));
+}
+
+.dark .fi-ta-header-cell,
+.dark .fi-ta-table > thead > tr {
+    background-color: rgb(52, 61, 85);
+}
+
+.fi-ta-header-cell-label,
+.fi-ta-header-cell .fi-ta-header-cell-sort-btn {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgb(var(--fnb-text));
+}
+
+.fi-ta-table > tbody > tr,
+.fi-ta-table {
+    border-color: rgb(var(--gray-200));
+}
+
+.dark .fi-ta-table > tbody > tr,
+.dark .fi-ta-table {
+    border-color: rgb(var(--gray-800));
+}
+
+.fi-ta-row:hover {
+    background-color: rgb(var(--gray-50));
+}
+
+.dark .fi-ta-row:hover {
+    background-color: rgba(var(--gray-950), 0.35);
+}
+
+.fi-ta-text-item-label {
+    color: rgb(var(--fnb-text));
+}
+
+/* ---- Tombol ---- */
+.fi-btn {
+    border-radius: var(--fnb-radius-md);
+    font-weight: 500;
+    letter-spacing: 0.02rem;
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.fi-btn-size-md {
+    padding: 0.6rem 1.25rem;
+}
+
+/* Tombol berwarna menyala lembut saat disorot, seperti tombol Vuexy. */
+.fi-btn.fi-btn-color-primary:not(.fi-btn-outlined):hover,
+.fi-btn.fi-color-primary:not(.fi-btn-outlined):not(.fi-ac-link-action):hover {
+    box-shadow: var(--fnb-glow-button);
+}
+
+.fi-btn.fi-color-danger:not(.fi-btn-outlined):hover {
+    box-shadow: 0 8px 25px -8px rgb(var(--danger-500));
+}
+
+.fi-btn.fi-color-success:not(.fi-btn-outlined):hover {
+    box-shadow: 0 8px 25px -8px rgb(var(--success-500));
+}
+
+.fi-btn.fi-color-warning:not(.fi-btn-outlined):hover {
+    box-shadow: 0 8px 25px -8px rgb(var(--warning-500));
+}
+
+.fi-btn.fi-color-gray:hover {
+    box-shadow: 0 8px 25px -8px rgb(var(--gray-400));
+}
+
+/* ---- Isian formulir ---- */
+.fi-input-wrp {
+    border-radius: var(--fnb-radius-md);
+    transition: box-shadow 0.25s ease;
+}
+
+.fi-input-wrp:focus-within {
+    box-shadow: 0 3px 10px 0 rgba(34, 41, 47, 0.1), 0 0 0 1px rgb(var(--primary-600));
+}
+
+.fi-fo-field-wrp-label,
+.fi-fo-field-wrp-label span {
+    font-size: 0.857rem;
+    color: rgb(var(--fnb-heading));
+}
+
+/* ---- Badge: latar rona 12% + teks berwarna (badge-light Vuexy) ---- */
+.fi-badge {
+    border-radius: var(--fnb-radius-md);
+    font-weight: 600;
+    --tw-ring-shadow: 0 0 #0000;
+    box-shadow: none;
+}
+
+/* ---- Tab: pill dengan pendar (nav-pills Vuexy) ---- */
+.fi-tabs,
+.dark .fi-tabs {
+    background: transparent;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+    gap: var(--fnb-space-2);
+}
+
+.fi-tabs-item {
+    border-radius: var(--fnb-radius-md);
+    padding: 0.6rem 1.25rem;
+}
+
+.fi-tabs-item-active,
+.dark .fi-tabs-item-active {
+    background-color: rgb(var(--primary-600));
+    box-shadow: 0 4px 18px -4px rgba(var(--primary-600), 0.65);
+}
+
+.fi-tabs-item-active .fi-tabs-item-label,
+.fi-tabs-item-active .fi-tabs-item-icon,
+.dark .fi-tabs-item-active .fi-tabs-item-label,
+.dark .fi-tabs-item-active .fi-tabs-item-icon {
+    color: rgb(255, 255, 255);
+}
+
+/* ---- Paginasi: bulat, halaman aktif menyala ---- */
+.fi-pagination-items,
+.dark .fi-pagination-items {
+    border-radius: 999px;
+    background-color: rgb(var(--gray-100));
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+.dark .fi-pagination-items {
+    background-color: rgb(var(--gray-900));
+}
+
+.fi-pagination-item,
+.fi-pagination-item-button {
+    border: 0;
+    border-radius: 999px;
+}
+
+.fi-pagination-item-active .fi-pagination-item-button,
+.dark .fi-pagination-item-active .fi-pagination-item-button {
+    background-color: rgb(var(--primary-600));
+    box-shadow: 0 4px 18px -4px rgba(var(--primary-600), 0.65);
+}
+
+.fi-pagination-item-active .fi-pagination-item-label {
+    color: rgb(255, 255, 255);
+}
+
+/* ---- Elemen melayang ---- */
+.fi-dropdown-panel,
+.fi-modal-window {
+    border-radius: var(--fnb-radius-lg);
+    box-shadow: var(--fnb-shadow-float);
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+.dark .fi-dropdown-panel,
+.dark .fi-modal-window {
+    background-color: rgb(var(--fnb-surface));
+}
+
+/* ---- Halaman login (auth Vuexy: kartu tunggal di tengah) ---- */
+.fi-simple-layout {
+    background-color: rgb(var(--fnb-body-bg));
+}
+
+.fi-simple-main {
+    padding: var(--fnb-space-6) var(--fnb-space-6);
+    max-width: 28rem;
+}
+
+@media (min-width: 640px) {
+    .fi-simple-main {
+        padding: var(--fnb-space-6) 2.25rem;
+    }
+}
+
+.fi-simple-header .fi-logo {
+    color: rgb(var(--primary-600));
+    font-weight: 600;
+}
+
+.fi-simple-header-heading {
+    font-size: 1.28rem;
+    font-weight: 500;
+}
+
+/* ---- Notifikasi ---- */
+.fi-no-notification {
+    border-radius: var(--fnb-radius-lg);
+    box-shadow: var(--fnb-shadow-float);
 }

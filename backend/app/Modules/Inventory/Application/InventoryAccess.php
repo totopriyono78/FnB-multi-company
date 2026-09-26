@@ -89,10 +89,7 @@ class InventoryAccess
             throw new AuthorizationException($purchasing ? 'Anda tidak memiliki akses ke data pembelian.' : 'Anda tidak memiliki akses ke data inventory.');
         }
 
-        /** @var list<string> $ids */
-        $ids = $this->scope->applyToOutletQuery(Outlet::withTrashed(), $user)->pluck('id')->all();
-
-        return $ids;
+        return $this->scope->outletIds($user);
     }
 
     /**

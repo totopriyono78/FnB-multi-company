@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
@@ -41,7 +42,7 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await page.screenshot({ path: `${SHOTS}/40-dashboard.png`, fullPage: true });
 
     // Laporan penjualan per outlet (FR-RPT-02/10).
-    await page.getByRole('link', { name: 'Penjualan', exact: true }).first().click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Penjualan', exact: true }).first());
     await expect(page.getByRole('heading', { name: 'Laporan Penjualan', exact: true })).toBeVisible();
     await page.getByRole('combobox', { name: 'Kelompokkan' }).selectOption({ label: 'Per outlet' });
     const table = page.getByRole('table', { name: 'Laporan Penjualan — Per outlet' });
@@ -66,7 +67,7 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(page.getByRole('table', { name: 'Laporan Penjualan — Per jam' })).toContainText('08.00–08.59');
 
     // Anti-fraud & rincian kejadian (FR-RPT-04).
-    await page.getByRole('link', { name: 'Anti-Fraud' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Anti-Fraud' }));
     await expect(page.getByRole('table', { name: 'Laporan Anti-Fraud per Pengguna' })).toContainText('Dewi Lestari');
     await expectAccessible(page, 'anti-fraud');
     await page.screenshot({ path: `${SHOTS}/42-anti-fraud.png`, fullPage: true });
@@ -74,14 +75,14 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(page.getByRole('table', { name: 'Rincian Void, Refund, Diskon Manual & Selisih Kas' })).toContainText('Croissant gosong');
 
     // Menu engineering (FR-RPT-03).
-    await page.getByRole('link', { name: 'Menu Terlaris' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Menu Terlaris' }));
     await expect(page.getByRole('table', { name: 'Menu Terlaris & Menu Engineering' })).toContainText('Kopi Susu Tepi Jalan');
     await expect(page.getByRole('table', { name: 'Saran per kelompok menu' })).toBeVisible();
     await expectAccessible(page, 'menu engineering');
     await page.screenshot({ path: `${SHOTS}/43-menu-engineering.png`, fullPage: true });
 
     // Laba kotor (FR-RPT-07).
-    await page.getByRole('link', { name: 'Laba Kotor' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Laba Kotor' }));
     await expect(page.getByRole('table', { name: 'Laporan Laba Kotor per Outlet' })).toContainText('Kopi Tepi Jalan Kemang');
     await expectAccessible(page, 'laba kotor');
     await page.screenshot({ path: `${SHOTS}/44-laba-kotor.png`, fullPage: true });
@@ -90,7 +91,7 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
 test('finance membaca laporan pajak dan membuat jadwal email', async ({ page }) => {
     await login(page, FINANCE);
 
-    await page.getByRole('link', { name: 'Pajak & Service' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Pajak & Service' }));
     const tax = page.getByRole('table', { name: 'Laporan Pajak & Service Charge' });
     await expect(tax).toContainText('PB1 10%');
     await expect(tax).toContainText('Kopi Tepi Jalan Dago');
@@ -105,8 +106,8 @@ test('finance membaca laporan pajak dan membuat jadwal email', async ({ page }) 
     expect(pdf.suggestedFilename()).toMatch(/^laporan-pajak-service-charge-\d{8}-\d{8}\.pdf$/);
 
     // Jadwal email (FR-RPT-08).
-    await page.getByRole('link', { name: 'Jadwal Email' }).click();
-    await page.getByRole('link', { name: 'Buat Jadwal' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Jadwal Email' }));
+    await klikNavigasi(page, page.getByRole('link', { name: 'Buat Jadwal' }));
     await page.getByLabel('Nama jadwal').fill('Laba kotor mingguan');
     await page.locator('.fi-fo-field-wrp', { has: page.locator('label', { hasText: /^\s*Laporan\s*\*?\s*$/ }) }).locator('.choices').first().click();
     await page.locator('.choices.is-open input[type="search"]').fill('Laba kotor');

@@ -1,0 +1,24 @@
+{
+  "name": "24-barang-timbangan-tanpa-tambahan",
+  "description": "Barang per berat tanpa tambahan: kakap 130/gram x 1.250 gram = 162.500, PB1 10%, pembulatan Rp100.",
+  "input": {
+    "config": {
+      "tax_rate": "10",
+      "tax_inclusive": false,
+      "tax_on_service_charge": true,
+      "service_charge_rate": "0",
+      "rounding_unit": 100,
+      "rounding_mode": "nearest"
+    },
+    "lines": [
+      { "id": "kakap", "unit_price": "130", "qty": "1250", "sold_by_weight": true }
+    ]
+  },
+  "expected": {
+    "totals": {
+      "subtotal": "162500.00",
+      "tax": "16250.00",
+      "total": "178800.00"
+    }
+  }
+}

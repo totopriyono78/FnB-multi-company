@@ -49,17 +49,22 @@ class AdminPanelProvider extends PanelProvider
             // Warna final ditimpa oleh token di resources/css/filament/admin/theme.css.
             ->colors([
                 'primary' => Color::hex(DesignTokens::PRIMARY),
-                'gray' => Color::Stone,
-                'danger' => Color::Red,
-                'warning' => Color::Amber,
-                'success' => Color::Green,
-                'info' => Color::Sky,
+                'gray' => Color::hex(DesignTokens::NEUTRAL_TEXT),
+                'danger' => Color::hex(DesignTokens::DANGER),
+                'warning' => Color::hex(DesignTokens::WARNING),
+                'success' => Color::hex(DesignTokens::SUCCESS),
+                'info' => Color::hex(DesignTokens::INFO),
             ])
-            ->font('Plus Jakarta Sans')
+            // Gaya Vuexy (keputusan user 24 Sep 2026): huruf Montserrat.
+            ->font('Montserrat')
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->maxContentWidth(MaxWidth::Full)
             ->sidebarCollapsibleOnDesktop()
+            // Mode SPA: pindah halaman lewat Livewire navigate — hanya isi halaman yang diambil,
+            // CSS/JS/huruf tidak dimuat ulang. Layar kasir (/pos) selalu dimuat penuh.
+            ->spa(fn (): bool => (bool) config('fnb.spa', true))
+            ->spaUrlExceptions(fn (): array => [url('/pos'), url('/pos').'*'])
             ->navigationGroups([
                 NavigationGroup::make('Organisasi'),
                 NavigationGroup::make('Menu & Harga'),

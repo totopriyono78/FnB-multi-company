@@ -69,7 +69,15 @@
             });
         };
 
+        // Dijalankan paling banyak sekali per frame: pembaruan Livewire bisa memicu ratusan mutasi sekaligus.
+        let queued = false;
+        const schedule = () => {
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(() => { queued = false; apply(); });
+        };
+
         apply();
-        new MutationObserver(apply).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
+        new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
     })();
 </script>

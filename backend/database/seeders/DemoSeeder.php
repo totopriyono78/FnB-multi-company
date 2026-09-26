@@ -70,21 +70,21 @@ class DemoSeeder extends Seeder
                 'address' => 'Jl. Kemang Raya No. 18, Bangka, Mampang Prapatan',
                 'city' => 'Jakarta Selatan', 'province' => 'DKI Jakarta', 'postal_code' => '12730',
                 'latitude' => '-6.2607130', 'longitude' => '106.8134500', 'phone' => '0217199876',
-                'tax_rate' => '10', 'rounding_unit' => 100,
+                'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 18,
                 'opening_hours' => $this->hours('07:00', '22:00'),
             ]);
             $dago = $this->outlet($kopi, 'DGO', 'Kopi Tepi Jalan Dago', [
                 'address' => 'Jl. Ir. H. Juanda No. 102, Lebakgede, Coblong',
                 'city' => 'Bandung', 'province' => 'Jawa Barat', 'postal_code' => '40132',
                 'latitude' => '-6.8845620', 'longitude' => '107.6135200', 'phone' => '0222503311',
-                'tax_rate' => '10', 'rounding_unit' => 100,
+                'tax_rate' => '10', 'rounding_unit' => 100, 'table_count' => 24,
                 'opening_hours' => $this->hours('08:00', '23:00'),
                 'business_day_cutoff' => '03:00',
             ]);
             $tebet = $this->outlet($roti, 'TBT', 'Roti Bakar 88 Tebet', [
                 'address' => 'Jl. Tebet Raya No. 45, Tebet Timur',
                 'city' => 'Jakarta Selatan', 'province' => 'DKI Jakarta', 'postal_code' => '12820',
-                'tax_rate' => '10', 'service_charge_rate' => '5', 'order_mode' => 'dine_in',
+                'tax_rate' => '10', 'service_charge_rate' => '5', 'order_mode' => 'dine_in', 'table_count' => 12,
                 'stock_deduction_trigger' => 'on_kitchen', 'rounding_unit' => 500,
                 'opening_hours' => $this->hours('16:00', '02:00'),
             ]);

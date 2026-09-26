@@ -43,6 +43,9 @@ it('menyimpan transaksi tunai lengkap dengan kembalian (FR-POS-10, FR-PAY-03)', 
         ->assertJsonPath('data.paid_total', '78500.00')
         ->assertJsonPath('data.change_amount', '21500.00')
         ->assertJsonPath('data.flags', [])
+        // Nomor meja ikut tersimpan dan dikembalikan: dipakai tiket dapur dan struk.
+        ->assertJsonPath('data.table_label', 'A3')
+        ->assertJsonPath('data.queue_no', 12)
         ->assertJsonPath('data.items.0.gross', '50000.00')
         ->assertJsonPath('data.items.1.variant_name', 'Regular')
         ->assertJsonPath('data.payments.0.tendered', '100000.00');

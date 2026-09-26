@@ -4,6 +4,7 @@ namespace App\Modules\Sales\Http\Resources;
 
 use App\Modules\Payment\Domain\Models\PaymentIntent;
 use App\Modules\Sales\Domain\Models\CashMovement;
+use App\Modules\Sales\Domain\Models\OpenBill;
 use App\Modules\Sales\Domain\Models\Order;
 use App\Modules\Sales\Domain\Models\OrderDiscount;
 use App\Modules\Sales\Domain\Models\OrderItem;
@@ -50,6 +51,35 @@ final class SalesResources
             'authorized_by' => $m->authorized_by,
             'created_at' => $m->device_created_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Tagihan terbuka / parkir bill. `totals` hanya cuplikan terakhir untuk ditampilkan di daftar;
+     * angka yang mengikat selalu dihitung ulang server saat tagihan dibuka kembali.
+     *
+     * @return array<string, mixed>
+     */
+    public static function openBill(OpenBill $bill, bool $detail = true): array
+    {
+        $data = [
+            'id' => $bill->id,
+            'outlet_id' => $bill->outlet_id,
+            'label' => $bill->label,
+            'table_label' => $bill->table_label,
+            'customer_name' => $bill->customer_name,
+            'queue_no' => $bill->queue_no,
+            'channel_code' => $bill->channel_code,
+            'business_date' => $bill->business_date->format('Y-m-d'),
+            'opened_by' => $bill->opened_by,
+            'opened_by_name' => $bill->relationLoaded('openedBy') ? $bill->openedBy?->name : null,
+            'opened_at' => $bill->opened_at->toIso8601String(),
+            'closed_at' => $bill->closed_at?->toIso8601String(),
+            'order_id' => $bill->order_id,
+            'line_count' => count($bill->lines),
+            'totals' => $bill->totals,
+        ];
+
+        return $detail ? $data + ['note' => $bill->note, 'lines' => $bill->lines] : $data;
     }
 
     /** @return array<string, mixed> */

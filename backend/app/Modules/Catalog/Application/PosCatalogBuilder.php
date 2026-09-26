@@ -12,6 +12,7 @@ use App\Modules\Catalog\Domain\Models\ModifierGroup;
 use App\Modules\Catalog\Domain\Models\OutletItemAvailability;
 use App\Modules\Catalog\Domain\Models\Promotion;
 use App\Modules\Catalog\Domain\Models\SalesChannel;
+use App\Modules\Shared\Application\MediaStore;
 use App\Modules\Tenancy\Domain\Models\Outlet;
 use Illuminate\Support\Collection;
 
@@ -21,7 +22,10 @@ use Illuminate\Support\Collection;
  */
 class PosCatalogBuilder
 {
-    public function __construct(private readonly PriceResolver $prices) {}
+    public function __construct(
+        private readonly PriceResolver $prices,
+        private readonly MediaStore $media,
+    ) {}
 
     /** @return array<string, mixed> */
     public function build(Outlet $outlet): array
@@ -60,6 +64,11 @@ class PosCatalogBuilder
             $outlet->updated_at,
         ])->filter()->max();
 
+        $tampilkanLogo = (bool) ($outlet->receipt_settings['show_logo'] ?? false);
+        if ($tampilkanLogo) {
+            $outlet->loadMissing('brand');
+        }
+
         return [
             'generated_at' => now()->toIso8601String(),
             'version' => $latest?->format('Y-m-d\TH:i:s.uP'),
@@ -68,6 +77,8 @@ class PosCatalogBuilder
                 'brand_id' => $outlet->brand_id,
                 'timezone' => $outlet->timezone,
                 'order_mode' => $outlet->order_mode,
+                // Dipakai layar kasir untuk tombol pintas nomor meja; 0 = outlet tanpa nomor meja.
+                'table_count' => (int) $outlet->table_count,
                 'pricing' => [
                     'tax_name' => $outlet->tax_name,
                     'tax_rate' => (string) $outlet->tax_rate,
@@ -76,6 +87,17 @@ class PosCatalogBuilder
                     'service_charge_rate' => (string) $outlet->service_charge_rate,
                     'rounding_unit' => $outlet->rounding_unit,
                     'rounding_mode' => $outlet->rounding_mode,
+                ],
+                /*
+                 * Pengaturan struk yang dipakai layar kasir saat mencetak. Logo diambil dari brand
+                 * outlet ini; bila outlet mematikan "Cetak logo", URL-nya tidak ikut dikirim sama
+                 * sekali supaya perangkat tidak mengunduh gambar yang tidak akan dipakai.
+                 */
+                'receipt' => [
+                    'header' => $outlet->receipt_settings['header'] ?? null,
+                    'footer' => $outlet->receipt_settings['footer'] ?? null,
+                    'show_logo' => $tampilkanLogo,
+                    'logo_url' => $tampilkanLogo ? $this->media->url($outlet->brand?->logo_path) : null,
                 ],
             ],
             'channels' => $channels->map(fn (SalesChannel $c) => [
@@ -135,6 +157,12 @@ class PosCatalogBuilder
             'name' => $item->name,
             'short_name' => $item->short_name,
             'image_path' => $item->image_path,
+            // URL siap pakai untuk tag <img> di kasir. Dibentuk di server supaya perangkat tidak
+            // perlu tahu media disimpan di disk lokal atau object storage.
+            'image_url' => $this->media->url($item->image_path),
+            // Dijual per berat: layar kasir meminta berat, bukan jumlah butir (FR-POS-05).
+            'sold_by_weight' => (bool) $item->sold_by_weight,
+            'unit' => $item->unit,
             'kitchen_station_id' => $item->kitchen_station_id,
             'channel_codes' => $item->channel_codes,
             'schedule' => $item->schedule,

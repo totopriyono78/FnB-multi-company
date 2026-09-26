@@ -12,6 +12,9 @@ class SalesByHourChart extends ChartWidget
 {
     use InteractsWithPageFilters;
 
+    /** Dirender bersama halaman: satu request, bukan satu request per widget (lebih ringan di server satu proses). */
+    protected static bool $isLazy = false;
+
     protected static ?int $sort = 1;
 
     protected static ?string $heading = 'Penjualan per jam';

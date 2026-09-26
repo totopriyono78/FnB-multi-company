@@ -27,6 +27,7 @@ use App\Modules\Purchasing\Http\Controllers\SupplierController;
 use App\Modules\Reporting\Http\Controllers\ReportController;
 use App\Modules\Reporting\Http\Controllers\ReportScheduleController;
 use App\Modules\Sales\Http\Controllers\BackofficeSalesController;
+use App\Modules\Sales\Http\Controllers\OpenBillController;
 use App\Modules\Sales\Http\Controllers\PosSalesController;
 use App\Modules\Sync\Http\Controllers\SyncController;
 use App\Modules\Tenancy\Http\Controllers\BrandController;
@@ -221,6 +222,12 @@ Route::prefix('v1')->group(function (): void {
             Route::post('pos/shifts/{shift}/close', [PosSalesController::class, 'closeShift']);
             Route::post('pos/kitchen-tickets', [PosSalesController::class, 'sendToKitchen']);
             Route::post('pos/orders', [PosSalesController::class, 'storeOrder']);
+
+            // Parkir bill: tagihan yang belum dibayar, milik outlet (FR-POS-12)
+            Route::get('pos/open-bills', [OpenBillController::class, 'index']);
+            Route::post('pos/open-bills', [OpenBillController::class, 'store']);
+            Route::get('pos/open-bills/{bill}', [OpenBillController::class, 'show']);
+            Route::delete('pos/open-bills/{bill}', [OpenBillController::class, 'destroy']);
             Route::post('pos/orders/{order}/void', [PosSalesController::class, 'voidOrder']);
             Route::post('pos/orders/{order}/refunds', [PosSalesController::class, 'refundOrder']);
 

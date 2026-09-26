@@ -22,6 +22,7 @@ use App\Modules\Identity\Application\AccessScope;
 use App\Modules\Identity\Application\TenantAwarePermissionRegistrar;
 use App\Modules\Identity\Domain\Models\CompanyUser;
 use App\Modules\Identity\Domain\Models\PersonalAccessToken;
+use App\Modules\Identity\Domain\Models\RoleScope;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Identity\Listeners\ProvisionDefaultRoles;
 use App\Modules\Identity\Policies\CompanyUserPolicy;
@@ -93,6 +94,18 @@ class ModulesServiceProvider extends ServiceProvider
         ]);
 
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        // AccessScope menyimpan cakupan & daftar outlet selama satu request; perubahan outlet atau
+        // cakupan peran di tengah request (mis. membuat outlet lalu membuka daftarnya) membuang simpanan itu.
+        $flushScope = function (): void {
+            if ($this->app->resolved(AccessScope::class)) {
+                $this->app->make(AccessScope::class)->flush();
+            }
+        };
+        foreach ([Outlet::class, RoleScope::class] as $model) {
+            $model::saved($flushScope);
+            $model::deleted($flushScope);
+        }
 
         Gate::policy(Brand::class, BrandPolicy::class);
         Gate::policy(Outlet::class, OutletPolicy::class);

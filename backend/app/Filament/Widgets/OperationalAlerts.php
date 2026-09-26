@@ -29,6 +29,9 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
  */
 class OperationalAlerts extends StatsOverviewWidget
 {
+    /** Dirender bersama halaman: satu request, bukan satu request per widget (lebih ringan di server satu proses). */
+    protected static bool $isLazy = false;
+
     protected static ?string $pollingInterval = '60s';
 
     protected function getStats(): array
@@ -55,14 +58,14 @@ class OperationalAlerts extends StatsOverviewWidget
         $outlets = $outletQuery->count();
 
         $stats = [
-            Stat::make('Outlet aktif', number_format($outlets, 0, ',', '.')),
-            Stat::make('Perangkat offline', number_format($offline, 0, ',', '.'))
+            Stat::make('Outlet aktif', number_format($outlets, 0, ',', '.'))->icon('heroicon-o-building-storefront'),
+            Stat::make('Perangkat offline', number_format($offline, 0, ',', '.'))->icon('heroicon-o-signal-slash')
                 ->description($offline > 0 ? 'Cek koneksi internet di outlet' : 'Semua perangkat terhubung')
                 ->color($offline > 0 ? 'danger' : 'success'),
-            Stat::make('Transaksi belum tersinkron', number_format($pending, 0, ',', '.'))
+            Stat::make('Transaksi belum tersinkron', number_format($pending, 0, ',', '.'))->icon('heroicon-o-arrow-path')
                 ->description($pending > 0 ? 'Terkirim otomatis saat perangkat online' : 'Tidak ada antrean')
                 ->color($pending > 0 ? 'warning' : 'success'),
-            Stat::make('PIN terkunci', number_format($lockedPins, 0, ',', '.'))
+            Stat::make('PIN terkunci', number_format($lockedPins, 0, ',', '.'))->icon('heroicon-o-lock-closed')
                 ->description($lockedPins > 0 ? 'Buka kunci di menu Staf' : 'Tidak ada')
                 ->color($lockedPins > 0 ? 'warning' : 'success'),
         ];
@@ -73,7 +76,7 @@ class OperationalAlerts extends StatsOverviewWidget
                 ->where('business_date', '>=', now()->subDays(7)->format('Y-m-d'))
                 ->whereRaw("flags <> '[]'::jsonb")
                 ->count();
-            $stats[] = Stat::make('Transaksi perlu ditinjau', number_format($flagged, 0, ',', '.'))
+            $stats[] = Stat::make('Transaksi perlu ditinjau', number_format($flagged, 0, ',', '.'))->icon('heroicon-o-flag')
                 ->description($flagged > 0 ? '7 hari terakhir · lihat menu Transaksi' : 'Tidak ada dalam 7 hari terakhir')
                 ->color($flagged > 0 ? 'warning' : 'success')
                 ->url($flagged > 0 ? OrderResource::getUrl('index', ['tableFilters' => ['flagged' => ['value' => '1']]]) : null);
@@ -81,7 +84,15 @@ class OperationalAlerts extends StatsOverviewWidget
 
         $stats = [...$stats, ...$this->inventoryStats()];
 
-        return $stats;
+        return array_map(self::tint(...), $stats);
+    }
+
+    /** Lingkaran ikon mengikuti warna status kartu (avatar bernuansa ala Vuexy). */
+    private static function tint(Stat $stat): Stat
+    {
+        $color = $stat->getDescriptionColor();
+
+        return $stat->extraAttributes(['class' => 'fnb-stat--'.(is_string($color) ? $color : 'primary')]);
     }
 
     /**
@@ -105,7 +116,7 @@ class OperationalAlerts extends StatsOverviewWidget
                 ->where('ingredients.is_active', true)
                 ->whereRaw('(stock_balances.qty < 0 OR (COALESCE(stock_balances.min_qty, ingredients.min_stock) > 0 AND stock_balances.qty < COALESCE(stock_balances.min_qty, ingredients.min_stock)))')
                 ->count();
-            $stats[] = Stat::make('Stok kritis', number_format($critical, 0, ',', '.'))
+            $stats[] = Stat::make('Stok kritis', number_format($critical, 0, ',', '.'))->icon('heroicon-o-archive-box-x-mark')
                 ->description($critical > 0 ? 'Di bawah minimum atau minus · pesan ulang' : 'Semua bahan di atas minimum')
                 ->color($critical > 0 ? 'danger' : 'success')
                 ->url($critical > 0 ? StockBalanceResource::getUrl('index', ['tableFilters' => ['low' => ['isActive' => true]]]) : null);
@@ -113,7 +124,7 @@ class OperationalAlerts extends StatsOverviewWidget
             $approvable = $user->can('inventory.approve_count') ? $outletIds : [];
             $counts = $approvable === [] ? 0 : StockCount::query()->whereIn('outlet_id', $approvable)->where('status', StockCount::SUBMITTED)->count();
             if ($counts > 0) {
-                $stats[] = Stat::make('Opname menunggu persetujuan', number_format($counts, 0, ',', '.'))
+                $stats[] = Stat::make('Opname menunggu persetujuan', number_format($counts, 0, ',', '.'))->icon('heroicon-o-clipboard-document-check')
                     ->description('Setujui agar stok disesuaikan')->color('warning')
                     ->url(StockCountResource::getUrl('index', ['tableFilters' => ['status' => ['value' => StockCount::SUBMITTED]]]));
             }
@@ -121,7 +132,7 @@ class OperationalAlerts extends StatsOverviewWidget
         if ($user->can('purchasing.approve')) {
             $pos = PurchaseOrder::query()->whereIn('outlet_id', $access->outletIds($user, true))->where('status', PurchaseOrder::SUBMITTED)->count();
             if ($pos > 0) {
-                $stats[] = Stat::make('PO menunggu persetujuan', number_format($pos, 0, ',', '.'))
+                $stats[] = Stat::make('PO menunggu persetujuan', number_format($pos, 0, ',', '.'))->icon('heroicon-o-document-text')
                     ->description('Tinjau sebelum pemasok mengirim')->color('warning')
                     ->url(PurchaseOrderResource::getUrl('index', ['tableFilters' => ['status' => ['values' => [PurchaseOrder::SUBMITTED]]]]));
             }

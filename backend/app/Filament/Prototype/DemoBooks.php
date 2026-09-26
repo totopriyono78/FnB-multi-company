@@ -26,7 +26,11 @@ class DemoBooks
         ];
     }
 
-    /** Laba rugi per entitas (Rupiah penuh). @return array<string, array<string, int>> */
+    /**
+     * Laba rugi per entitas (Rupiah penuh).
+     *
+     * @return array<string, array<string, int>>
+     */
     public static function profitLoss(): array
     {
         return [
@@ -37,7 +41,13 @@ class DemoBooks
         ];
     }
 
-    /** Neraca per entitas (Rupiah penuh). @return array<string, array<string, int>> */
+    /**
+     * Neraca per entitas (Rupiah penuh).
+
+     *
+
+     * @return array<string, array<string, int>>
+     */
     public static function balance(): array
     {
         return [
@@ -52,7 +62,13 @@ class DemoBooks
         ];
     }
 
-    /** Transaksi antar-entitas yang harus dieliminasi. @return list<array<string, mixed>> */
+    /**
+     * Transaksi antar-entitas yang harus dieliminasi.
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function eliminations(): array
     {
         return [
@@ -75,7 +91,13 @@ class DemoBooks
         ];
     }
 
-    /** Bagan akun standar (COA induk holding). @return list<array<string, mixed>> */
+    /**
+     * Bagan akun standar (COA induk holding).
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function chartOfAccounts(): array
     {
         $a = fn (string $code, string $name, int $level, string $type, bool $locked = true, ?string $note = null) => compact('code', 'name', 'level', 'type', 'locked', 'note');
@@ -201,7 +223,13 @@ class DemoBooks
         ];
     }
 
-    /** Buku besar contoh: Bank - Operasional entitas A. @return list<array<string, mixed>> */
+    /**
+     * Buku besar contoh: Bank - Operasional entitas A.
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function ledger(): array
     {
         $rows = [
@@ -229,7 +257,13 @@ class DemoBooks
         return $out;
     }
 
-    /** Dokumen pembayaran (SPPK / advis bayar / advis tagih). @return list<array<string, mixed>> */
+    /**
+     * Dokumen pembayaran (SPPK / advis bayar / advis tagih).
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function documents(): array
     {
         return [
@@ -284,7 +318,13 @@ class DemoBooks
         ];
     }
 
-    /** Jejak persetujuan dokumen pertama. @return list<array{time: string, actor: string, action: string, note: string}> */
+    /**
+     * Jejak persetujuan dokumen pertama.
+
+     *
+
+     * @return list<array{time: string, actor: string, action: string, note: string}>
+     */
     public static function documentTrail(): array
     {
         return [
@@ -295,7 +335,13 @@ class DemoBooks
         ];
     }
 
-    /** Register aset & kontrak sewa. @return array{assets: list<array<string, mixed>>, leases: list<array<string, mixed>>} */
+    /**
+     * Register aset & kontrak sewa.
+
+     *
+
+     * @return array{assets: list<array<string, mixed>>, leases: list<array<string, mixed>>}
+     */
     public static function assets(): array
     {
         return [
@@ -315,7 +361,13 @@ class DemoBooks
         ];
     }
 
-    /** Jadwal angsuran pembiayaan aset (contoh 6 bulan pertama sisa). @return list<array<string, mixed>> */
+    /**
+     * Jadwal angsuran pembiayaan aset (contoh 6 bulan pertama sisa).
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function instalments(): array
     {
         $rows = [];
@@ -338,7 +390,13 @@ class DemoBooks
         return $rows;
     }
 
-    /** Status kelengkapan entry harian per entitas. @return list<array<string, mixed>> */
+    /**
+     * Status kelengkapan entry harian per entitas.
+
+     *
+
+     * @return list<array<string, mixed>>
+     */
     public static function readiness(): array
     {
         return [

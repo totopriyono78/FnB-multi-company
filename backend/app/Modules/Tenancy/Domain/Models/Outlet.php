@@ -64,7 +64,7 @@ class Outlet extends Model
     protected $fillable = [
         'brand_id', 'code', 'name', 'address', 'city', 'province', 'postal_code', 'latitude', 'longitude',
         'phone', 'timezone', 'opening_hours', 'business_day_cutoff', 'tax_name', 'tax_rate', 'tax_inclusive',
-        'tax_on_service_charge', 'service_charge_rate', 'rounding_unit', 'rounding_mode', 'order_mode',
+        'tax_on_service_charge', 'service_charge_rate', 'rounding_unit', 'rounding_mode', 'order_mode', 'table_count',
         'stock_deduction_trigger', 'allow_negative_stock', 'npwpd', 'receipt_settings', 'is_active',
     ];
 
@@ -90,6 +90,7 @@ class Outlet extends Model
             'allow_negative_stock' => 'boolean',
             'is_active' => 'boolean',
             'rounding_unit' => 'integer',
+            'table_count' => 'integer',
         ];
     }
 

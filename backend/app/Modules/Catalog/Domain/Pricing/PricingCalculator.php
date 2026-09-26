@@ -155,19 +155,39 @@ final class PricingCalculator
         }
 
         $unit = $this->decimal($line['unit_price'] ?? '0', "lines[{$index}].unit_price");
+
+        /*
+         * Barang yang dijual per berat: `qty` adalah BERAT, bukan jumlah butir. Tambahan
+         * (mis. bumbu asam manis Rp 15.000) dikenakan SEKALI untuk baris itu, bukan dikali
+         * berat — kalau tidak, satu gurame 850 gram akan ditagih 850 x harga bumbu.
+         * Untuk barang biasa, tambahan tetap mengikuti jumlah butir seperti sebelumnya.
+         */
+        $perBerat = (bool) ($line['sold_by_weight'] ?? false);
+        $extras = BigDecimal::zero();
         foreach ($line['modifiers'] ?? [] as $m => $modifier) {
             $price = $this->decimal($modifier['price'] ?? '0', "lines[{$index}].modifiers[{$m}].price");
             $modQty = $this->decimal($modifier['qty'] ?? '1', "lines[{$index}].modifiers[{$m}].qty");
-            $unit = $unit->plus($price->multipliedBy($modQty));
+            $extras = $extras->plus($price->multipliedBy($modQty));
         }
 
+        if (! $perBerat) {
+            $unit = $unit->plus($extras);
+        }
         if ($unit->isNegative()) {
+            throw new InvalidArgumentException("lines[{$index}] memiliki harga negatif.");
+        }
+
+        $gross = $unit->multipliedBy($qty);
+        if ($perBerat) {
+            $gross = $gross->plus($extras);
+        }
+        if ($gross->isNegative()) {
             throw new InvalidArgumentException("lines[{$index}] memiliki harga negatif.");
         }
 
         return [
             'id' => (string) ($line['id'] ?? $index),
-            'gross' => $unit->multipliedBy($qty),
+            'gross' => $gross,
         ];
     }
 

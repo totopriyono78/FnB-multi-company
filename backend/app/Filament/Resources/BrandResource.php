@@ -5,7 +5,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BrandResource\Pages;
 use App\Modules\Identity\Application\AccessScope;
 use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Shared\Application\MediaStore;
 use App\Modules\Tenancy\Domain\Models\Brand;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
@@ -16,6 +18,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rules\Unique;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /** FR-TEN-04 */
 class BrandResource extends Resource
@@ -45,6 +48,22 @@ class BrandResource extends Resource
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('company_id', filament()->getTenant()?->getKey())),
             TextInput::make('name')->label('Nama brand')->required()->maxLength(100),
             Toggle::make('is_active')->label('Aktif')->default(true),
+            /*
+             * Logo dicetak di kepala struk, tetapi hanya pada outlet yang menyalakan
+             * "Cetak logo" (Outlet -> Struk). Printer struk mencetak hitam-putih, jadi logo
+             * berwarna gelap-terang tegas terbaca jauh lebih baik daripada gradasi halus.
+             */
+            FileUpload::make('logo_path')
+                ->label('Logo')
+                ->helperText('Dicetak di struk bila outlet menyalakan "Cetak logo". PNG berlatar transparan paling rapi; diperkecil otomatis ke 512 px.')
+                ->image()
+                ->maxSize((int) config('fnb.media.max_upload_kb'))
+                ->disk(fn () => app(MediaStore::class)->diskName())
+                ->directory('logo')
+                ->visibility('public')
+                ->saveUploadedFileUsing(fn (TemporaryUploadedFile $file) => app(MediaStore::class)->put($file, 'logo'))
+                ->deleteUploadedFileUsing(fn (?string $file) => app(MediaStore::class)->forget($file))
+                ->columnSpanFull(),
         ])->columns(2);
     }
 

@@ -11,6 +11,7 @@ use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\ModifierGroup;
 use App\Modules\Catalog\Domain\Models\Promotion;
 use App\Modules\Catalog\Domain\Models\SalesChannel;
+use App\Modules\Shared\Application\MediaStore;
 
 /** Pemetaan model menu ke bentuk JSON API. */
 final class CatalogResources
@@ -71,6 +72,9 @@ final class CatalogResources
             $data += [
                 'description' => $i->description,
                 'image_path' => $i->image_path,
+                'image_url' => app(MediaStore::class)->url($i->image_path),
+                'sold_by_weight' => (bool) $i->sold_by_weight,
+                'unit' => $i->unit,
                 'channel_codes' => $i->channel_codes,
                 'schedule' => $i->schedule,
                 'variants' => $i->variants->map(fn ($v) => [

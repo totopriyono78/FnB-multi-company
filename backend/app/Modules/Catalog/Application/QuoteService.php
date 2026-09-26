@@ -106,6 +106,7 @@ class QuoteService
                 'id' => $lineId,
                 'unit_price' => (string) $unit,
                 'qty' => (string) $req['qty'],
+                'sold_by_weight' => (bool) $item->sold_by_weight,
                 'modifiers' => array_map(fn ($m) => ['price' => $m['price'], 'qty' => (string) $m['qty']], $modifiers),
                 'discounts' => [],
             ];
@@ -200,6 +201,10 @@ class QuoteService
             'lines' => $lines,
             'totals' => $result['totals'],
             'discounts' => $result['discounts'],
+            // Rincian diskon tingkat transaksi apa adanya (jenis & nilai), bukan ringkasan nominal:
+            // kasir harus mengirimkannya kembali saat menyimpan pesanan agar server menghitung
+            // total yang sama. Tanpa ini promo otomatis bikin POS ditolak TOTAL_MISMATCH.
+            'order_discounts' => $orderDiscounts,
             'promotions' => $promoResult['applied'],
         ];
     }

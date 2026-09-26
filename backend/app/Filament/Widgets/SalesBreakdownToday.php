@@ -12,6 +12,9 @@ class SalesBreakdownToday extends Widget
 {
     use InteractsWithPageFilters;
 
+    /** Dirender bersama halaman: satu request, bukan satu request per widget (lebih ringan di server satu proses). */
+    protected static bool $isLazy = false;
+
     protected static ?int $sort = 2;
 
     protected static string $view = 'filament.widgets.sales-breakdown-today';

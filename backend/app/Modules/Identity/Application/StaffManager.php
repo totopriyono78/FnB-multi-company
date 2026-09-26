@@ -114,7 +114,11 @@ class StaffManager
             throw ValidationException::withMessages(['is_active' => 'Anda tidak dapat menonaktifkan akun sendiri.']);
         }
 
-        if (($data['is_active'] ?? null) === true && $member->isPendingInvitation()) {
+        // Hanya *mengaktifkan* yang dilarang. Bila anggotanya memang sudah aktif, penyuntingan lain
+        // (ganti PIN, role, kode pegawai) tidak boleh ikut ditolak — form back-office selalu
+        // mengirimkan `is_active` apa adanya, sehingga pemeriksaan tanpa syarat ini dulu membuat
+        // setiap penyimpanan gagal dengan pesan yang tidak nyambung.
+        if (($data['is_active'] ?? null) === true && ! $member->is_active && $member->isPendingInvitation()) {
             throw ValidationException::withMessages(['is_active' => 'Undangan belum diterima oleh pemilik akun.']);
         }
 

@@ -13,9 +13,11 @@ use App\Modules\Catalog\Domain\Models\ItemVariant;
 use App\Modules\Catalog\Domain\Models\KitchenStation;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Catalog\Domain\Models\ModifierGroup;
+use App\Modules\Shared\Application\MediaStore;
 use Closure;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Component;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -41,6 +43,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /** Daftar menu: item biasa & paket, varian, modifier, channel, jadwal (FR-MENU-02..07, FR-MENU-14). */
 class ItemResource extends Resource
@@ -122,7 +125,15 @@ class ItemResource extends Resource
                     ->placeholder('Tidak dikirim ke dapur'),
                 TextInput::make('barcode')->label('Barcode')->maxLength(40),
             ]),
+            Grid::make(3)->schema([
+                Toggle::make('sold_by_weight')->label('Dijual per berat')->inline(false)->live()
+                    ->helperText('Untuk barang yang ditimbang, mis. ikan. Kasir mengisi berat, harga = harga satuan x berat.'),
+                TextInput::make('unit')->label('Satuan')->maxLength(10)->default('pcs')
+                    ->helperText('Satuan yang tampil di kasir dan struk, mis. kg atau pcs.')
+                    ->required(fn (Get $get) => (bool) $get('sold_by_weight')),
+            ]),
             Textarea::make('description')->label('Deskripsi')->rows(2)->maxLength(1000),
+            self::fotoMenu(),
             Grid::make(3)->schema([
                 TextInput::make('sort_order')->label('Urutan')->integer()->minValue(0)->maxValue(32767)->default(0),
                 Toggle::make('is_active')->label('Dijual')->default(true)->inline(false),
@@ -237,6 +248,34 @@ class ItemResource extends Resource
         ];
     }
 
+    /**
+     * Foto menu yang tampil sebagai kartu di layar kasir (FR-MENU-02).
+     *
+     * Berkasnya diperkecil dua kali: sekali di browser sebelum diunggah (menghemat kuota kasir
+     * yang mengunggah dari ponsel), sekali lagi di server lewat MediaStore — yang terakhir inilah
+     * yang menentukan, karena unggahan lewat API tidak melewati browser.
+     */
+    private static function fotoMenu(): FileUpload
+    {
+        return FileUpload::make('image_path')
+            ->label('Foto menu')
+            ->helperText('JPG, PNG, atau WebP. Otomatis dipotong 4:3 dan diperkecil ke 800 x 600 — tidak perlu diedit dulu.')
+            ->image()
+            ->imageEditor()
+            ->imageCropAspectRatio('4:3')
+            ->imageResizeMode('cover')
+            ->imageResizeTargetWidth((string) config('fnb.media.item_width'))
+            ->imageResizeTargetHeight((string) config('fnb.media.item_height'))
+            ->maxSize((int) config('fnb.media.max_upload_kb'))
+            ->disk(fn () => app(MediaStore::class)->diskName())
+            ->directory('menu')
+            ->visibility('public')
+            ->saveUploadedFileUsing(fn (TemporaryUploadedFile $file) => app(MediaStore::class)->put($file, 'menu'))
+            // Berkas lama dibuang ItemWriter setelah penyimpanan berhasil; di sini hanya
+            // penghapusan yang diminta pengguna secara langsung.
+            ->deleteUploadedFileUsing(fn (?string $file) => app(MediaStore::class)->forget($file));
+    }
+
     private static function uniqueSku(Get $get, ?Item $record): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
@@ -259,15 +298,17 @@ class ItemResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nama')->searchable()->sortable()
                     ->description(fn (Item $record) => $record->sku),
-                TextColumn::make('category.name')->label('Kategori')->sortable(),
-                TextColumn::make('brand.name')->label('Brand')->toggleable(),
+                // Placeholder wajib: sel kosong dirender sebagai tautan tanpa teks, yang gagal
+                // WCAG "link-name" dan tidak terbaca pembaca layar.
+                TextColumn::make('category.name')->label('Kategori')->sortable()->placeholder('—'),
+                TextColumn::make('brand.name')->label('Brand')->toggleable()->placeholder('—'),
                 TextColumn::make('base_price')->label('Harga')->alignEnd()->sortable()
                     ->formatStateUsing(fn ($state) => MenuFields::rupiah((string) $state)),
                 TextColumn::make('variants_count')->label('Varian')->numeric()->alignEnd()->toggleable(),
                 TextColumn::make('type')->label('Jenis')->badge()
                     ->formatStateUsing(fn (string $state) => $state === Item::TYPE_BUNDLE ? 'Paket' : 'Menu')
                     ->color(fn (string $state) => $state === Item::TYPE_BUNDLE ? 'info' : 'gray'),
-                TextColumn::make('station.name')->label('Stasiun')->toggleable(),
+                TextColumn::make('station.name')->label('Stasiun')->toggleable()->placeholder('—'),
                 TextColumn::make('is_active')->label('Status')->badge()
                     ->formatStateUsing(fn (bool $state) => $state ? 'Dijual' : 'Tidak dijual')
                     ->color(fn (bool $state) => $state ? 'success' : 'gray'),

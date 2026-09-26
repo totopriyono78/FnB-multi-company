@@ -66,9 +66,7 @@ class EndOfDay extends Page implements HasForms
             return [];
         }
 
-        return app(AccessScope::class)->applyToOutletQuery(Outlet::query()->where('is_active', true), $user)
-            ->orderBy('name')->get(['id', 'name', 'code'])
-            ->mapWithKeys(fn (Outlet $o) => [$o->id => "{$o->name} ({$o->code})"])->all();
+        return app(AccessScope::class)->activeOutletOptions($user);
     }
 
     public function mount(): void

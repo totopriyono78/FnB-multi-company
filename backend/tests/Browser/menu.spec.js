@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { klikNavigasi } from './support/spa.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const OWNER = { email: 'rina@kopinusantara.test', password: 'Rahasia123' };
@@ -17,6 +18,12 @@ async function login(page, { email, password }) {
 async function expectAccessible(page, name) {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
+    // Tabel Livewire sempat kosong saat memuat ulang. Memeriksa tabel kosong menghasilkan
+    // temuan palsu ("link tanpa teks"), jadi tunggu sampai semua tautan barisnya berisi teks.
+    const baris = page.locator('.fi-ta-row');
+    if (await baris.count()) {
+        await expect(baris.first()).toContainText(/\S/);
+    }
     const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .analyze();
@@ -31,8 +38,13 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     const base = await login(page, OWNER);
 
     // Daftar menu hasil seeder
-    await page.getByRole('link', { name: 'Daftar Menu' }).click();
-    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toBeVisible();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Daftar Menu' }));
+    // Dicari lebih dulu: daftar menu berhalaman, jadi baris tertentu belum tentu ada di halaman 1
+    // begitu data contoh bertambah. Tabel ditunggu terisi dulu agar isian pencarian tidak
+    // tertimpa render pertama Livewire.
+    await page.waitForLoadState('networkidle');
+    await page.getByPlaceholder('Cari nama atau SKU').fill('kopi susu');
+    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toBeVisible({ timeout: 10_000 });
     await page.getByPlaceholder('Cari nama atau SKU').fill('paket');
     await expect(page.getByRole('cell', { name: /Paket Sarapan/ })).toBeVisible();
     await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toHaveCount(0);
@@ -45,8 +57,12 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await page.screenshot({ path: `${SHOTS}/10-menu.png`, fullPage: true });
 
     // Tambah menu baru
-    await page.getByRole('link', { name: 'Tambah Menu' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Tambah Menu' }));
+    // Form menu memuat aset unggah foto; menyentuh isian sebelum Livewire siap membuat
+    // perubahan brand tidak terkirim, sehingga pilihan kategorinya tidak pernah muncul.
+    await page.waitForLoadState('networkidle');
     await page.getByRole('combobox', { name: 'Brand' }).selectOption({ label: 'Kopi Tepi Jalan' });
+    await expect(page.locator('#data\\.category_id option', { hasText: 'Non-Kopi' })).toHaveCount(1, { timeout: 15_000 });
     await page.getByRole('combobox', { name: 'Kategori' }).selectOption({ label: 'Non-Kopi' });
     const sku = `E2E-${Date.now() % 100000}`;
     await page.getByRole('textbox', { name: /^SKU\*?$/ }).fill(sku);
@@ -60,6 +76,9 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
 
     // Halaman ubah menu dengan harga khusus & riwayat harga
     await page.goto(`${base}/menu`);
+    await page.waitForLoadState('networkidle');
+    await page.getByPlaceholder('Cari nama atau SKU').fill('kopi susu');
+    await expect(page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ })).toBeVisible({ timeout: 10_000 });
     await page.getByRole('cell', { name: /Kopi Susu Tepi Jalan/ }).click();
     await expect(page.getByRole('tab', { name: 'Varian & Modifier' })).toBeVisible();
     await page.getByRole('tab', { name: 'Varian & Modifier' }).click();
@@ -70,7 +89,7 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await page.screenshot({ path: `${SHOTS}/12-menu-ubah.png`, fullPage: true });
 
     // Promo
-    await page.getByRole('link', { name: 'Promo' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Promo' }));
     await expect(page.getByRole('cell', { name: /Happy Hour Kopi 20%/ })).toBeVisible();
     await expectAccessible(page, 'promo');
     await page.getByRole('cell', { name: /Happy Hour Kopi 20%/ }).click();
@@ -80,8 +99,12 @@ test('pemilik melihat dan mengubah menu, promo, dan simulasi harga', async ({ pa
     await page.screenshot({ path: `${SHOTS}/13-promo.png`, fullPage: true });
 
     // Simulasi harga: Kopi Susu Regular di Kemang (PB1 10%, pembulatan Rp100)
-    await page.getByRole('link', { name: 'Simulasi Harga' }).click();
+    await klikNavigasi(page, page.getByRole('link', { name: 'Simulasi Harga' }));
     await page.getByRole('combobox', { name: 'Outlet' }).selectOption({ label: 'Kopi Tepi Jalan Kemang (KMG)' });
+    // Waktu dipatok di luar jam promo (Happy Hour Kopi 14.00-17.00), supaya angka yang diuji
+    // tidak berubah tergantung jam berapa rangkaian uji ini dijalankan.
+    const hariIni = new Date().toISOString().slice(0, 10);
+    await page.getByLabel('Waktu pesanan').fill(`${hariIni}T11:00`);
     const menuSelect = page.getByRole('combobox', { name: /^Menu\*?$/ }).first();
     await menuSelect.selectOption({ label: 'Kopi Susu Tepi Jalan' });
     await page.getByRole('button', { name: 'Hitung' }).click();

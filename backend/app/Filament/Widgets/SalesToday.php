@@ -15,6 +15,9 @@ class SalesToday extends StatsOverviewWidget
 {
     use InteractsWithPageFilters;
 
+    /** Dirender bersama halaman: satu request, bukan satu request per widget (lebih ringan di server satu proses). */
+    protected static bool $isLazy = false;
+
     protected static ?int $sort = 0;
 
     protected static ?string $pollingInterval = '60s';
@@ -52,11 +55,15 @@ class SalesToday extends StatsOverviewWidget
         $url = SalesReportPage::getUrl(['dari' => $data['business_date'], 'sampai' => $data['business_date'], 'tampilan' => 'hour']);
 
         return [
-            $this->stat('Penjualan bersih', ReportTable::rupiah($today['net_sales']), $data['change']['net_sales'], $data['same_time_last_week']['net_sales'], true)->url($url),
-            $this->stat('Transaksi', ReportTable::number((string) $today['order_count']), $data['change']['order_count'], (string) $data['same_time_last_week']['order_count'], false),
-            $this->stat('Rata-rata per transaksi', ReportTable::rupiah($today['average_ticket']), $data['change']['average_ticket'], $data['same_time_last_week']['average_ticket'], true),
+            $this->stat('Penjualan bersih', ReportTable::rupiah($today['net_sales']), $data['change']['net_sales'], $data['same_time_last_week']['net_sales'], true)
+                ->icon('heroicon-o-banknotes')->extraAttributes(['class' => 'fnb-stat--primary'])->url($url),
+            $this->stat('Transaksi', ReportTable::number((string) $today['order_count']), $data['change']['order_count'], (string) $data['same_time_last_week']['order_count'], false)
+                ->icon('heroicon-o-receipt-percent')->extraAttributes(['class' => 'fnb-stat--info']),
+            $this->stat('Rata-rata per transaksi', ReportTable::rupiah($today['average_ticket']), $data['change']['average_ticket'], $data['same_time_last_week']['average_ticket'], true)
+                ->icon('heroicon-o-calculator')->extraAttributes(['class' => 'fnb-stat--warning']),
             Stat::make('Kemarin (satu hari)', ReportTable::rupiah($data['yesterday']['net_sales']))
-                ->description(ReportTable::number((string) $data['yesterday']['order_count']).' transaksi'),
+                ->description(ReportTable::number((string) $data['yesterday']['order_count']).' transaksi')
+                ->icon('heroicon-o-calendar-days')->extraAttributes(['class' => 'fnb-stat--danger']),
         ];
     }
 
