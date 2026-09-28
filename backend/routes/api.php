@@ -234,6 +234,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('payments/qris', [PosPaymentController::class, 'store']);
             Route::get('payments/{intent}', [PosPaymentController::class, 'show']);
             Route::post('payments/{intent}/cancel', [PosPaymentController::class, 'cancel']);
+            // Tagihan yang terlanjur gagal ditanyakan ulang ke gateway; wajib otorisasi supervisor.
+            Route::post('payments/{intent}/recheck', [PosPaymentController::class, 'recheck']);
             Route::post('payments/{intent}/simulate', [PosPaymentController::class, 'simulate']);
         });
     });

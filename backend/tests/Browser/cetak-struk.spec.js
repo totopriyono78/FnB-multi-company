@@ -81,3 +81,113 @@ test('pratinjau struk di layar berada di tengah, barisnya tetap rata kiri', asyn
     // supaya kolom harga yang rata kanan tidak berantakan.
     expect(ukur.perataanTeks).not.toBe('center');
 });
+
+/*
+ * Geometri kode QR di slip cetak (jalan mundur untuk outlet tanpa layar pelanggan).
+ *
+ * Yang menentukan QR cetak bisa dipindai bukan tampilannya di layar, melainkan berapa TITIK
+ * printer yang dipakai satu modul. Kepala cetak termal hanya menghitamkan titik utuh, jadi modul
+ * selebar 4,8 titik keluar sebagai campuran 4 dan 5 titik — kode yang rapi di layar tetapi gagal
+ * dipindai di kertas. Uji ini mengukur angkanya, bukan menilai dari gambar.
+ *
+ * viewBox di bawah disintesis (73 dan 97 modul) supaya kedua cabang keputusan teruji tanpa
+ * bergantung pada panjang payload gateway: 73 modul = payload QRIS ±280 karakter seperti contoh
+ * AINO, 97 modul = payload jauh lebih panjang.
+ */
+const qrSvg = (modul) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${modul} ${modul}">`
+    + `<rect width="${modul}" height="${modul}" fill="#fff"/></svg>`;
+
+test('lebar cetak QR dipatok ke jumlah titik printer yang bulat', async ({ page }) => {
+    await page.goto('/pos');
+
+    const hasil = await page.evaluate(([kecil, besar]) => {
+        const ukur = (w, markup) => { savePrefs({ w }); return ukuranQrMm(svgDari(markup)); };
+
+        return {
+            mm80: ukur(80, kecil),
+            mm58: ukur(58, kecil),
+            besar80: ukur(80, besar),
+            besar58: ukur(58, besar),
+        };
+    }, [qrSvg(73), qrSvg(97)]);
+
+    // Kertas 80 mm: isi 66 mm = 528 titik; 528/73 = 7 titik per modul -> 511 titik = 63,875 mm.
+    expect(hasil.mm80).toBeCloseTo(63.875, 3);
+    // Kertas 58 mm: isi 44 mm = 352 titik; 352/73 = 4 titik per modul -> 292 titik = 36,5 mm.
+    // Masih di atas batas minimum, dan tetap di atas ukuran cetak QRIS yang lazim (2,5 cm).
+    expect(hasil.mm58).toBeCloseTo(36.5, 3);
+    // Payload panjang di 80 mm: 528/97 = 5 titik per modul -> 485 titik = 60,625 mm.
+    expect(hasil.besar80).toBeCloseTo(60.625, 3);
+    // Payload panjang di 58 mm: hanya 3 titik per modul. Ditolak, bukan dicetak samar-samar —
+    // kertas yang keluar dengan QR tak terbaca lebih buruk daripada penolakan yang jelas.
+    expect(hasil.besar58).toBeNull();
+});
+
+test('slip QRIS memuat gambar QR, nominal, batas waktu, dan peringatan bukan bukti bayar', async ({ page }) => {
+    await page.goto('/pos');
+
+    const hasil = await page.evaluate((svg) => {
+        window.print = () => {
+            const area = document.getElementById('printSlip');
+            const box = area.querySelector('.slipQr');
+            window.__slipQr = {
+                teks: area.textContent,
+                adaSvg: !!(box && box.querySelector('svg')),
+                lebar: box ? box.style.width : '',
+            };
+        };
+
+        savePrefs({ w: 80 });
+        S.device = { outlet: { name: 'Hamzah Coffee Kaliurang' } };
+        S.intent = {
+            id: 'intent-uji', status: 'pending', amount: '78500',
+            qr_svg: svg, qr_payable: true, provider_reference: 'REF-123',
+            expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        };
+        qrisTampilkan(S.intent);
+        document.getElementById('qrisPrint').onclick();
+
+        return window.__slipQr;
+    }, qrSvg(73));
+
+    expect(hasil.adaSvg, 'QR harus ikut ke kertas sebagai gambar').toBe(true);
+    expect(hasil.lebar).toBe('63.88mm');
+    expect(hasil.teks).toContain('PEMBAYARAN QRIS');
+    expect(hasil.teks).toContain('78.500');
+    expect(hasil.teks).toContain('Berlaku sampai');
+    // Slip QR gampang disalahpahami sebagai struk. Peringatan ini wajib ada di kertas.
+    expect(hasil.teks).toContain('BUKAN bukti pembayaran');
+    expect(hasil.teks).toContain('Ref: REF-123');
+});
+
+test('tidak mencetak QR simulasi dan menolak QR yang terlalu rapat', async ({ page }) => {
+    await page.goto('/pos');
+
+    const hasil = await page.evaluate(([kecil, besar]) => {
+        let cetakan = 0;
+        window.print = () => { cetakan++; };
+        savePrefs({ w: 58 });
+        S.device = { outlet: { name: 'Uji' } };
+
+        // 1. QR simulasi: tombolnya tidak boleh tersedia sama sekali — kertas tidak dibuang
+        //    untuk kode yang pasti ditolak aplikasi bank.
+        S.intent = { id: 'a', status: 'pending', amount: '1000', qr_svg: kecil, qr_payable: false };
+        qrisTampilkan(S.intent);
+        const simulasi = {
+            tersembunyi: document.getElementById('qrisPrint').hidden,
+            nonaktif: document.getElementById('qrisPrint').disabled,
+        };
+
+        // 2. Payload terlalu panjang untuk kertas 58 mm: ditolak dengan penjelasan.
+        S.intent = { id: 'b', status: 'pending', amount: '1000', qr_svg: besar, qr_payable: true };
+        qrisTampilkan(S.intent);
+        document.getElementById('qrisPrint').onclick();
+
+        return { simulasi, cetakan, pesan: document.getElementById('payErr').textContent };
+    }, [qrSvg(73), qrSvg(97)]);
+
+    expect(hasil.simulasi.tersembunyi).toBe(true);
+    expect(hasil.simulasi.nonaktif).toBe(true);
+    expect(hasil.cetakan, 'tidak ada kertas yang keluar').toBe(0);
+    expect(hasil.pesan).toMatch(/terlalu rapat|80 mm/);
+});

@@ -7,10 +7,12 @@ use App\Modules\Payment\Application\Gateways\GatewayStatus;
 use App\Modules\Payment\Application\Gateways\SandboxGateway;
 use App\Modules\Payment\Application\PaymentIntentService;
 use App\Modules\Payment\Domain\Models\PaymentIntent;
+use App\Modules\Sales\Application\Authorizations;
 use App\Modules\Sales\Http\Resources\SalesResources;
 use App\Modules\Shared\Http\ApiResponse;
 use App\Modules\Shared\Http\Controller;
 use App\Modules\Tenancy\Domain\Models\Device;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,6 +43,36 @@ class PosPaymentController extends Controller
     public function cancel(Request $request, string $intent): JsonResponse
     {
         return ApiResponse::ok(SalesResources::intent($this->intents->cancel($this->find($request, $intent), $this->actor($request))));
+    }
+
+    /**
+     * Periksa ulang tagihan yang terlanjur gagal ke gateway (FR-PAY-05).
+     *
+     * Dijaga otorisasi supervisor seperti void: pemulihannya menyentuh uang. Yang memutuskan
+     * tetap gateway — lihat PaymentIntentService::recheck; supervisor hanya menyetujui
+     * pertanyaannya diajukan, bukan menyatakan uangnya sudah masuk.
+     */
+    public function recheck(Request $request, string $intent, Authorizations $auth): JsonResponse
+    {
+        $model = $this->find($request, $intent);
+        $device = $this->device($request);
+        $actor = $this->actor($request);
+        $reason = $request->input('reason');
+        $reason = is_string($reason) && trim($reason) !== '' ? trim($reason) : null;
+
+        $by = $actor;
+        if (! $auth->selfAuthorized($actor, 'pos.void', $device->outlet)) {
+            /** @var array<string, mixed>|null $kiriman */
+            $kiriman = $request->input('authorization');
+            [$supervisor] = $auth->verify($kiriman, 'payment_recheck', $device, CarbonImmutable::now(),
+                'authorization', 'payment_recheck:'.$model->id, [
+                    'reference_id' => $model->id,
+                    'amount' => (string) $model->amount,
+                ]);
+            $by = $supervisor;
+        }
+
+        return ApiResponse::ok(SalesResources::intent($this->intents->recheck($model, $by, $reason)));
     }
 
     /**

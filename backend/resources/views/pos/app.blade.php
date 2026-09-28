@@ -206,6 +206,16 @@
      akan merusak perataan itu. Di layar sempit kotaknya mentok selebar modal lalu menggulir. */
   .slip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;white-space:pre;line-height:1.55;overflow-x:auto;color:#2a211a;
     width:max-content;max-width:100%;margin-inline:auto}
+  /* Kotak gambar QR. Latar putih & jarak tetap dijaga karena pemindai ponsel butuh kontras
+     penuh dan quiet zone; QR di atas latar berwarna sering gagal terbaca. Lebar dibatasi agar
+     di layar kasir sempit pun tidak mendorong tombol bayar keluar layar. */
+  /* Peringatan QR simulasi: warna perhatian, bukan bahaya — ini keadaan normal di lingkungan uji. */
+  .qrsim{margin:-4px auto 10px;max-width:320px;text-align:center;font-size:11.5px;line-height:1.45;
+    color:var(--gold-ink);background:rgba(var(--gold-rgb),.12);border:1px solid rgba(var(--gold-rgb),.35);
+    border-radius:var(--r);padding:7px 9px}
+  .qrimg{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px;
+    width:max-content;max-width:100%;margin:0 auto 10px}
+  .qrimg svg{display:block;width:240px;height:240px;max-width:100%}
   .qr{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;word-break:break-all;background:var(--bg);border:1px solid var(--line);padding:10px;border-radius:var(--r);margin-bottom:10px}
   .opt{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
   .opt button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:8px 12px;font-size:12.5px;font-family:inherit;cursor:pointer}
@@ -254,6 +264,14 @@
       display:block;margin:0 auto 2mm;max-width:60%;max-height:20mm;
       object-fit:contain;filter:grayscale(1) contrast(1.4);
     }
+    /*
+     * QR pembayaran di slip. Lebarnya TIDAK diserahkan ke persentase: ukurannya dihitung di
+     * ukuranQrMm() agar satu modul jatuh pada jumlah titik printer yang bulat. Modul yang
+     * lebarnya 4,8 titik akan dirasterisasi jadi campuran 4 dan 5 titik — kode yang kelihatan
+     * baik di layar tetapi gagal dipindai di kertas.
+     */
+    body>#printSlip .slipQr{display:block;margin:1mm auto 2mm}
+    body>#printSlip .slipQr svg{display:block;width:100%;height:auto;shape-rendering:crispEdges}
   }
 </style>
 </head>
@@ -434,6 +452,19 @@
         <div style="display:flex;gap:9px">
           <button class="btn" id="testPrint">Uji cetak</button>
         </div>
+
+        <h2 style="margin-top:22px">Layar pelanggan</h2>
+        {{-- Kasir dan pelanggan berhadapan, jadi layar kasir tidak bisa dilihat pelanggan —
+             dan QRIS MPM menuntut merchant menyodorkan QR-nya. Layar kedua inilah jalurnya. --}}
+        <p class="d">Buka di monitor kedua yang menghadap pelanggan: pesanan tampil sambil diinput,
+          lalu berganti jadi kode QR besar dengan hitung mundur, lalu konfirmasi lunas.
+          Tarik jendelanya ke monitor kedua sekali saja, lalu tekan <b>F11</b> untuk layar penuh —
+          posisinya diingat peramban. Isinya dikirim langsung dari komputer ini, jadi tetap jalan
+          walau internet outlet sedang mati.</p>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="displayOpen">Buka layar pelanggan</button>
+          <span id="displayState" role="status" aria-live="polite" style="font-size:12px;color:var(--muted)"></span>
+        </div>
       </div>
 
       <aside class="cart" id="cartPanel">
@@ -500,12 +531,25 @@
       <div class="paid"><span>Uang diterima <b class="num" id="cashGiven">Rp 0</b></span><span>Kembalian <b class="num" id="cashBack">Rp 0</b></span></div>
     </div>
     <div id="qrisBox" style="display:none">
-      <p class="gh">Kode QR dari payment gateway (sandbox)</p>
-      <div class="qr" id="qrString">—</div>
-      <div style="display:flex;gap:9px;align-items:center">
+      <p class="gh">Kode QR pembayaran</p>
+      {{-- Gambar QR dirender server (SVG inline), bukan diambil lewat permintaan kedua yang bisa
+           gagal saat jaringan outlet buruk. Teks payload disembunyikan; hanya untuk penelusuran. --}}
+      <div class="qrimg" id="qrImg" style="display:none"></div>
+      {{-- QR dari driver simulasi memang bukan payload QRIS: aplikasi bank akan menolaknya.
+           Ditandai terang-terangan supaya tidak dikira kode rusak saat peragaan. --}}
+      <p class="qrsim" id="qrSim" hidden>Mode simulasi — kode ini <b>bukan QRIS sungguhan</b> dan tidak bisa dibayar dari m-banking. Pakai tombol "Simulasikan pembayaran masuk".</p>
+      <div class="qr" id="qrString" style="display:none">—</div>
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
         <button class="btn" id="qrisCreate">Buat kode QR</button>
-        <button class="btn" id="qrisSimulate" disabled>Simulasikan pembayaran masuk</button>
-        <span id="qrisState" style="font-size:12px;color:var(--muted)"></span>
+        {{-- Jalan mundur untuk outlet yang belum punya layar kedua: QR dicetak di printer struk
+             dan diserahkan ke pelanggan. Tidak pernah aktif untuk QR simulasi — kertas terbuang
+             untuk kode yang pasti ditolak aplikasi bank. --}}
+        <button class="btn" id="qrisPrint" disabled hidden>Cetak kode QR</button>
+        {{-- Muncul hanya saat tagihan terlanjur keluar dari "menunggu": pelanggan bilang sudah
+             bayar, layar kita bilang gagal. Yang memutuskan tetap jawaban gateway. --}}
+        <button class="btn" id="qrisRecheck" hidden>Periksa ulang ke AINO</button>
+        <button class="btn" id="qrisSimulate" disabled hidden>Simulasikan pembayaran masuk</button>
+        <span id="qrisState" role="status" aria-live="polite" style="font-size:12px;color:var(--muted)"></span>
       </div>
     </div>
   </div>
@@ -682,6 +726,112 @@ const nf = n => Math.round(Number(n) || 0).toLocaleString('id-ID');
 /** Jumlah baris: bilangan bulat tanpa desimal, berat sampai 3 desimal tanpa nol ekor. */
 const fmtQty = q => Number(q).toLocaleString('id-ID', { maximumFractionDigits: 3 });
 const rp = n => 'Rp ' + nf(n);
+
+/* ---------------- layar pelanggan (monitor kedua) --------------------------------------
+ * Kasir dan pelanggan berhadapan, jadi layar kasir tidak bisa dilihat pelanggan — sementara
+ * QRIS MPM justru menuntut merchant menyodorkan QR-nya. Jalurnya: satu jendela lagi di monitor
+ * kedua komputer yang sama.
+ *
+ * Penghubungnya BroadcastChannel, bukan endpoint baru. Pilihan itu bukan sekadar hemat kode:
+ * kanal ini hidup di dalam satu peramban dan tidak pernah keluar dari mesin kasir, sehingga
+ * tidak ada rute baru yang bisa disalahgunakan, tidak ada kueri lintas tenant yang mungkin
+ * bocor, dan layar pelanggan tetap menyala walau internet outlet mati. Bila kelak layar
+ * pelanggan dipasang di tablet terpisah, saat itulah endpoint berpasangan seperti KDS
+ * dibutuhkan — lengkap dengan uji akses lintas tenant.
+ *
+ * Yang disiarkan hanya milik pelanggan yang sedang berdiri di depan kasir. Tidak ada daftar
+ * transaksi lain, tidak ada nama kasir, tidak ada data outlet selain namanya.
+ */
+const DISPLAY_KANAL = 'fnb-customer-display';
+/* Denyut berkala: layar pelanggan yang dibuka belakangan, atau yang jendela kasirnya sempat
+   dimuat ulang, ikut menyusul sendiri tanpa kasir harus menyentuh apa pun. Juga jadi tanda
+   hidup — layar pelanggan kembali menyambut bila denyutnya berhenti. */
+const DISPLAY_DENYUT_MS = 6000;
+const displayCh = 'BroadcastChannel' in window ? new BroadcastChannel(DISPLAY_KANAL) : null;
+
+if (displayCh) {
+  displayCh.onmessage = e => {
+    if (!e.data || e.data.t !== 'hello') return;
+    // Jendela layar pelanggan baru dibuka dan menyapa: jawab dengan keadaan terkini supaya
+    // layarnya tidak kosong saat pelanggan sudah berdiri di depannya.
+    siarkan();
+    const st = el('displayState');
+    if (st) st.textContent = 'Layar pelanggan tersambung.';
+  };
+  setInterval(siarkan, DISPLAY_DENYUT_MS);
+}
+
+function displayModus(){
+  if (el('rcptModal').classList.contains('on') && S.lastOrder) return 'paid';
+  if (el('payModal').classList.contains('on') && S.pay === 'qris' && S.intent) {
+    // Uang sudah masuk tetapi kasir belum menekan Selesaikan: pelanggan berhak melihat
+    // konfirmasinya sekarang, bukan menunggu kasir.
+    return S.intent.status === 'paid' ? 'paid' : 'qris';
+  }
+  return S.cart.length ? 'cart' : 'idle';
+}
+
+/** Baris keranjang seperti yang dilihat pelanggan: tanpa tombol, tanpa id internal. */
+function displayBaris(){
+  const ql = (S.quote && S.quote.lines) || [];
+
+  return S.cart.map(l => {
+    const q = ql.find(x => x.id === l.lineId);
+    const mods = (q ? q.modifiers.map(m => m.name) : []).concat(q && q.variant ? [q.variant.name] : []);
+
+    return {
+      key: l.lineId,
+      name: l.name,
+      mods: mods.join(' · '),
+      qty: fmtQty(l.qty),
+      unit: l.byWeight ? l.unit : '',
+      // null berarti harga baris belum dihitung server; layar menampilkan "…", bukan Rp 0
+      // yang akan terbaca pelanggan sebagai gratis.
+      amount: q ? q.gross : null,
+    };
+  });
+}
+
+function displayLunas(){
+  if (el('rcptModal').classList.contains('on') && S.lastOrder) {
+    const o = S.lastOrder;
+    const bayar = (o.payments || [])[0] || {};
+
+    return {
+      total: o.total || 0,
+      method: (o.payments || []).map(p => METHOD_LABEL[p.method] || p.method).join(' + '),
+      change: Number(bayar.change_amount || 0) || null,
+    };
+  }
+
+  return { total: (S.intent && S.intent.amount) || 0, method: 'QRIS', change: null };
+}
+
+function siarkan(){
+  if (!displayCh) return;
+
+  const outlet = (S.device && S.device.outlet) || ((S.catalog || {}).outlet) || {};
+  const pricing = ((S.catalog || {}).outlet || {}).pricing || {};
+  const modus = displayModus();
+
+  displayCh.postMessage({
+    t: 'state',
+    mode: modus,
+    outlet: outlet.name || '',
+    tax_label: pricing.tax_name ? pricing.tax_name + ' ' + Number(pricing.tax_rate) + '%' : 'Pajak',
+    service_label: 'Layanan',
+    lines: modus === 'cart' ? displayBaris() : [],
+    totals: (S.quote && S.quote.totals) || null,
+    qr: modus === 'qris' ? {
+      svg: S.intent.status === 'pending' ? (S.intent.qr_svg || '') : '',
+      payable: S.intent.qr_payable !== false,
+      expires_at: S.intent.expires_at || null,
+      amount: S.intent.amount || null,
+      status: S.intent.status,
+    } : null,
+    paid: modus === 'paid' ? displayLunas() : null,
+  });
+}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -792,7 +942,10 @@ async function doLogin(){
 }
 el('logoutBtn').onclick = async () => {
   try { await pos('/pos/auth/logout', { method: 'POST' }); } catch (e) {}
-  localStorage.removeItem(LS.pos); S.pos = null; S.cart = []; startLogin();
+  localStorage.removeItem(LS.pos); S.pos = null; S.cart = []; S.quote = null; S.intent = null;
+  // Kasir berganti: layar pelanggan harus kembali menyambut, bukan membeku di total kasir lama.
+  siarkan();
+  startLogin();
 };
 
 /* ---------------- shift ---------------- */
@@ -1164,6 +1317,7 @@ function renderCart(){
         <button class="del" onclick="delLine(${i})"><svg class="i sm"><use href="#ic-hapus"/></svg></button>
       </div></div>`;
   }).join('') : '<div class="blank">Belum ada item.<br>Pilih menu di sebelah kiri.</div>';
+  siarkan();
 }
 
 /* ---- kirim ke dapur ---- */
@@ -1200,6 +1354,8 @@ el('payBtn').onclick = () => {
   el('payTotal').textContent = rp(S.quote.totals.total);
   el('payCount').textContent = S.cart.length;
   el('qrString').textContent = '—'; el('qrisState').textContent = ''; el('qrisSimulate').disabled = true;
+  el('qrisPrint').disabled = true; el('qrisPrint').hidden = true;
+  el('qrisRecheck').hidden = true;
   const t = Number(S.quote.totals.total);
   const opts = [...new Set([t, Math.ceil(t/50000)*50000, Math.ceil(t/100000)*100000, Math.ceil(t/100000)*100000 + 100000])];
   el('quick').innerHTML = opts.map((v, i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${v}">${nf(v)}</button>`).join('');
@@ -1258,22 +1414,131 @@ document.querySelectorAll('#ways button').forEach(b => b.onclick = () => {
   b.classList.add('on'); S.pay = b.dataset.code;
   el('cashBox').style.display = S.pay === 'cash' ? 'block' : 'none';
   el('qrisBox').style.display = S.pay === 'qris' ? 'block' : 'none';
+  if (S.pay !== 'qris') qrisBerhenti();
+  siarkan();
 });
+/* ---- QRIS ----------------------------------------------------------------
+   Kasir tidak boleh menunggu sambil menebak. Setelah QR dibuat, layar menanyakan status
+   ke server tiap beberapa detik DAN menghitung mundur ke waktu kedaluwarsa milik gateway
+   (bukan tebakan lokal). Polling berhenti sendiri begitu statusnya final atau QR mati,
+   supaya perangkat kasir tidak memanggil server selamanya di latar belakang. */
+const QRIS_POLL_MS = 3000;
+let qrisTimer = null, qrisTick = null;
+
+function qrisBerhenti(){
+  if (qrisTimer) { clearInterval(qrisTimer); qrisTimer = null; }
+  if (qrisTick) { clearInterval(qrisTick); qrisTick = null; }
+}
+
+function qrisTampilkan(intent){
+  S.intent = intent;
+  const hidup = intent.status === 'pending';
+  el('qrImg').innerHTML = hidup ? (intent.qr_svg || '') : '';
+  el('qrImg').style.display = hidup && intent.qr_svg ? 'block' : 'none';
+  el('qrSim').hidden = !(hidup && intent.qr_svg && intent.qr_payable === false);
+  el('qrString').textContent = intent.qr_string || '';
+  // Tombol simulasi hanya masuk akal untuk driver sandbox internal. Di gateway sungguhan ia
+  // tidak pernah muncul — endpoint-nya pun menolak di luar lingkungan lokal/uji.
+  el('qrisSimulate').hidden = intent.provider !== 'sandbox';
+  el('qrisSimulate').disabled = !hidup;
+  // Kertas tidak dibuang untuk QR simulasi: aplikasi bank pasti menolaknya.
+  const bisaCetak = hidup && !!intent.qr_svg && intent.qr_payable !== false;
+  // Tagihan mati tetapi pelanggan mengaku sudah membayar: satu-satunya jalan bertanya lagi.
+  el('qrisRecheck').hidden = hidup || intent.status === 'paid';
+  el('qrisPrint').hidden = !hidup || intent.qr_payable === false;
+  el('qrisPrint').disabled = !bisaCetak;
+  siarkan();
+}
+
+function qrisSisa(){
+  if (!S.intent || !S.intent.expires_at) return 0;
+  return Math.max(0, Math.round((new Date(S.intent.expires_at) - Date.now()) / 1000));
+}
+
+function qrisStatusTeks(){
+  if (!S.intent) return '';
+  if (S.intent.status === 'paid') return 'pembayaran diterima';
+  if (S.intent.status !== 'pending') {
+    return 'tagihan ' + S.intent.status + ' — bila pelanggan sudah membayar, tekan "Periksa ulang ke AINO"';
+  }
+  const d = qrisSisa();
+  if (d <= 0) return 'kode QR kedaluwarsa — buat yang baru';
+  return 'menunggu pembayaran · berlaku ' + Math.floor(d / 60) + ':' + String(d % 60).padStart(2, '0');
+}
+
+function qrisMulaiPantau(){
+  qrisBerhenti();
+  qrisTick = setInterval(() => { el('qrisState').textContent = qrisStatusTeks(); }, 1000);
+  qrisTimer = setInterval(async () => {
+    if (!S.intent) return qrisBerhenti();
+    try {
+      qrisTampilkan(await pos('/payments/' + S.intent.id));
+    } catch (e) { return; } // jaringan sedang goyah: biarkan percobaan berikutnya
+    el('qrisState').textContent = qrisStatusTeks();
+    // Berhenti saat sudah final. Kedaluwarsa dibiarkan satu putaran lagi agar pembayaran
+    // yang masuk tepat di detik terakhir tetap sempat terbaca.
+    if (S.intent.status !== 'pending' || qrisSisa() < -QRIS_POLL_MS / 1000) qrisBerhenti();
+  }, QRIS_POLL_MS);
+}
+
 el('qrisCreate').onclick = async () => {
   clearFail('payErr');
   try {
     S.orderId = S.orderId || uuid();
-    S.intent = await pos('/payments/qris', { method: 'POST', body: {
-      order_ref: S.orderId, method: 'qris', amount: sisaTagihan().toFixed(2) } });
-    el('qrString').textContent = S.intent.qr_string || '(kode QR diterima)';
-    el('qrisState').textContent = 'menunggu pembayaran';
-    el('qrisSimulate').disabled = false;
-  } catch (e) { fail('payErr', e.message); }
+    qrisTampilkan(await pos('/payments/qris', { method: 'POST', body: {
+      order_ref: S.orderId, method: 'qris', amount: sisaTagihan().toFixed(2) } }));
+    el('qrisState').textContent = qrisStatusTeks();
+    qrisMulaiPantau();
+  } catch (e) { qrisBerhenti(); fail('payErr', e.message); }
 };
+/*
+ * Pemulihan tagihan yang terlanjur gagal. Tiga hal yang sengaja dipegang di sini:
+ *
+ * 1. Kasir tidak pernah bisa menandai lunas sendiri — tombol ini hanya BERTANYA ulang ke gateway.
+ * 2. Otorisasi supervisor diminta lebih dulu bila kasirnya tidak berwenang, dengan alasan yang
+ *    ikut tercatat; ini peristiwa uang, jadi jejaknya harus menyebut siapa dan kenapa.
+ * 3. Bila gateway tetap bilang belum lunas, kasir diberi tahu apa adanya dan diminta TIDAK
+ *    meminta pelanggan membayar ulang — pembayaran ganda jauh lebih mahal daripada menunggu.
+ */
+el('qrisRecheck').onclick = async () => {
+  clearFail('payErr');
+  if (!S.intent) return;
+
+  const izin = punyaIzin('pos.void')
+    ? { authorization_id: null, reason: 'Periksa ulang pembayaran QRIS oleh kasir berwenang' }
+    : await mintaOtorisasi({
+        action: 'payment_recheck',
+        judul: 'Memeriksa ulang pembayaran QRIS ke gateway memerlukan persetujuan supervisor.',
+        reasonDefault: 'Pelanggan menyatakan sudah membayar, tagihan tertandai gagal',
+        referenceType: 'payment_intent',
+        referenceId: S.intent.id,
+        amount: String(S.intent.amount),
+      });
+  if (!izin) return;
+
+  const btn = el('qrisRecheck');
+  btn.disabled = true; btn.textContent = 'Memeriksa…';
+  try {
+    const body = { reason: izin.reason };
+    if (izin.authorization_id) body.authorization = { mode: 'online', authorization_id: izin.authorization_id };
+    qrisTampilkan(await pos('/payments/' + S.intent.id + '/recheck', { method: 'POST', body }));
+    el('qrisState').textContent = qrisStatusTeks();
+    if (S.intent.status !== 'paid') {
+      fail('payErr', 'Gateway masih menyatakan tagihan ini belum lunas. JANGAN minta pelanggan membayar ulang — '
+        + 'catat nominal dan waktunya, lalu laporkan ke AINO untuk dicocokkan.');
+    }
+  } catch (e) {
+    fail('payErr', e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Periksa ulang ke AINO';
+  }
+};
+
 el('qrisSimulate').onclick = async () => {
   try {
-    S.intent = await pos('/payments/' + S.intent.id + '/simulate', { method: 'POST', body: { status: 'paid' } });
-    el('qrisState').textContent = 'pembayaran diterima (' + S.intent.status + ')';
+    qrisTampilkan(await pos('/payments/' + S.intent.id + '/simulate', { method: 'POST', body: { status: 'paid' } }));
+    el('qrisState').textContent = qrisStatusTeks();
+    qrisBerhenti();
   } catch (e) { fail('payErr', e.message); }
 };
 
@@ -1555,16 +1820,20 @@ function kirimKePrinter(text, opsi){
   const src = pakaiLogo && rcpt.show_logo ? rcpt.logo_url : null;
 
   area.innerHTML = '';
-  const teks = document.createElement('span');
-  teks.textContent = text;
+  const isi = () => {
+    const teks = document.createElement('span');
+    teks.textContent = text;
+    area.appendChild(teks);
+    if (opsi && opsi.qrSvg) area.appendChild(kotakQr(opsi.qrSvg, opsi.qrTeks));
+  };
 
-  if (!src) { area.appendChild(teks); applyPaper(); window.print(); return; }
+  if (!src) { isi(); applyPaper(); window.print(); return; }
 
   const img = new Image();
   img.className = 'slipLogo';
   img.alt = '';
   area.appendChild(img);
-  area.appendChild(teks);
+  isi();
 
   let sudah = false;
   const cetak = () => { if (sudah) return; sudah = true; applyPaper(); window.print(); };
@@ -1574,6 +1843,111 @@ function kirimKePrinter(text, opsi){
   img.src = src;
 }
 
+/* ---------------- cetak kode QR ke printer struk --------------------------------------
+ * Jalan mundur untuk outlet yang belum punya layar pelanggan: QR dicetak lalu diserahkan.
+ *
+ * Yang menentukan berhasil-tidaknya bukan tampilannya di layar, melainkan satu angka:
+ * berapa TITIK printer yang dipakai satu modul QR. Kepala cetak termal hanya bisa menghitamkan
+ * titik utuh, jadi modul selebar 4,8 titik dirasterisasi jadi campuran 4 dan 5 titik — kode
+ * yang rapi di layar tetapi gagal dipindai di kertas. Karena itu ukurannya dipatok ke jumlah
+ * titik bulat, dan bila hasilnya di bawah batas minimum, pencetakan DITOLAK dengan penjelasan
+ * daripada mengeluarkan kertas yang tidak bisa dipakai.
+ *
+ * 203 dpi (8 titik/mm) adalah resolusi printer struk yang paling umum. Printer 180 atau 300 dpi
+ * akan menghasilkan ukuran sedikit berbeda — karena itu uji di printer sungguhan tetap wajib
+ * sebelum pilot; ini perhitungan terbaik, bukan jaminan.
+ */
+const PRINTER_TITIK_PER_MM = 8;
+const QR_MODUL_MIN_TITIK = 4;
+
+function svgDari(markup){
+  const kotak = document.createElement('div');
+  kotak.innerHTML = markup;
+
+  return kotak.querySelector('svg');
+}
+
+/** Lebar cetak QR dalam mm yang membuat satu modul jatuh pada titik printer bulat, atau null. */
+function ukuranQrMm(svg){
+  if (!svg) return null;
+  // viewBox dari QrImage = jumlah modul, quiet zone 4 modul di tiap sisi sudah termasuk.
+  const modul = Number(String(svg.getAttribute('viewBox') || '').trim().split(/\s+/)[2]);
+  if (!(modul > 0)) return null;
+
+  const isiMm = parseFloat((PAPER[prefs().w] || PAPER[80]).css) - 2 * PAPER_PAD_MM;
+  const titikPerModul = Math.floor((isiMm * PRINTER_TITIK_PER_MM) / modul);
+  if (titikPerModul < QR_MODUL_MIN_TITIK) return null;
+
+  return (modul * titikPerModul) / PRINTER_TITIK_PER_MM;
+}
+
+function kotakQr(markup, teksBawah){
+  const frag = document.createDocumentFragment();
+  const box = document.createElement('div');
+  box.className = 'slipQr';
+  box.innerHTML = markup;
+
+  const mm = ukuranQrMm(box.querySelector('svg'));
+  if (mm) box.style.width = mm.toFixed(2) + 'mm';
+  frag.appendChild(box);
+
+  if (teksBawah) {
+    const t = document.createElement('span');
+    t.textContent = teksBawah;
+    frag.appendChild(t);
+  }
+
+  return frag;
+}
+
+/** Bagian slip di atas QR. Nominal ditaruh di sini, bukan di bawah: itu yang dibaca pertama. */
+function slipQrisAtas(intent){
+  const P = slip();
+  const outlet = (S.device && S.device.outlet) || {};
+  let s = P.mid(String(outlet.name || '').toUpperCase());
+  if (S.table) s += P.mid('Meja ' + S.table);
+  s += P.rule + P.mid('PEMBAYARAN QRIS') + P.rule;
+  s += P.row('TOTAL', nf(intent.amount || sisaTagihan())) + P.rule;
+
+  return s;
+}
+
+/** Bagian slip di bawah QR: batas waktu dulu, karena itu yang membuat slip ini bisa gagal. */
+function slipQrisBawah(intent){
+  const P = slip();
+  let s = '';
+
+  if (intent.expires_at) {
+    const habis = new Date(intent.expires_at);
+    s += P.mid('Berlaku sampai ' + habis.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    s += P.wrap('Setelah lewat jam itu kode ini tidak bisa dibayar. Minta kode baru ke kasir.');
+  }
+
+  s += P.rule;
+  s += P.wrap('Pindai dengan aplikasi bank atau e-wallet yang mendukung QRIS.');
+  s += P.wrap('Slip ini BUKAN bukti pembayaran. Struk resmi dicetak setelah pembayaran masuk.');
+  if (intent.provider_reference) s += P.wrap('Ref: ' + intent.provider_reference);
+  s += P.rule;
+
+  return s;
+}
+
+el('qrisPrint').onclick = () => {
+  clearFail('payErr');
+  const intent = S.intent;
+  if (!intent || intent.status !== 'pending' || !intent.qr_svg) return;
+  if (intent.qr_payable === false) return;
+
+  if (!ukuranQrMm(svgDari(intent.qr_svg))) {
+    fail('payErr', 'Kode QR ini terlalu rapat untuk kertas ' + prefs().w + ' mm — modulnya akan kurang dari '
+      + QR_MODUL_MIN_TITIK + ' titik printer dan berisiko gagal dipindai. Pakai kertas 80 mm, '
+      + 'atau tampilkan lewat layar pelanggan.');
+    return;
+  }
+
+  kirimKePrinter(slipQrisAtas(intent), { qrSvg: intent.qr_svg, qrTeks: slipQrisBawah(intent) });
+};
+
 function showReceipt(o){
   S.lastOrder = o;
   el('rcpt').textContent = slipText(o);
@@ -1581,6 +1955,7 @@ function showReceipt(o){
   el('rcptNote').innerHTML = 'Tersimpan di server sebagai <b>' + esc(o.receipt_no) + '</b> — hari bisnis ' +
     esc(S.shift.business_date) + '. Sudah tampil di back-office (Penjualan &amp; Laporan).';
   el('rcptModal').classList.add('on');
+  siarkan();
   if (prefs().auto) setTimeout(() => kirimKePrinter(slipText(o)), 150);
 }
 
@@ -1623,6 +1998,28 @@ function renderPrintPrefs(){
 document.querySelectorAll('#paperOpt button').forEach(b => b.onclick = () => { savePrefs({ w: Number(b.dataset.w) }); renderPrintPrefs(); });
 el('autoPrint').onchange = e => savePrefs({ auto: e.target.checked });
 el('autoKitchen').onchange = e => savePrefs({ kitchen: e.target.checked });
+/* Nama jendela dipakai ulang: menekan tombolnya dua kali tidak membuka jendela kedua,
+   melainkan memunculkan kembali yang sudah ada — kasir tidak perlu menata monitor lagi. */
+el('displayOpen').onclick = () => {
+  const st = el('displayState');
+
+  if (!displayCh) {
+    st.textContent = 'Peramban ini tidak mendukung layar pelanggan (BroadcastChannel tidak ada).';
+    return;
+  }
+
+  const win = window.open('{{ route('pos.display') }}', 'fnbCustomerDisplay');
+  if (!win) {
+    st.textContent = 'Jendela diblokir peramban. Izinkan pop-up untuk alamat ini, lalu coba lagi.';
+    return;
+  }
+
+  win.focus();
+  st.textContent = 'Jendela dibuka. Tarik ke monitor kedua, lalu tekan F11 untuk layar penuh.';
+  // Jendela baru juga menyapa sendiri saat siap; siaran ini hanya mempercepat frame pertama.
+  setTimeout(siarkan, 400);
+};
+
 el('testPrint').onclick = () => {
   const P = slip();
   kirimKePrinter(
@@ -1637,6 +2034,11 @@ el('newOrderBtn').onclick = () => {
   bersihkanKeranjang();
   el('rcptModal').classList.remove('on');
   el('cartMeta').textContent = 'nomor struk otomatis';
+  // Struk lama dilupakan SETELAH modalnya ditutup, lalu disiarkan sekali lagi. Tanpa ini layar
+  // pelanggan masih menampilkan "Pembayaran diterima" milik transaksi sebelumnya sampai denyut
+  // berikutnya — pelanggan berikutnya melihat nominal orang lain.
+  S.lastOrder = null;
+  siarkan();
   refreshQuote();
 };
 
@@ -1910,10 +2312,12 @@ el('parkGo').onclick = async () => {
 };
 
 function bersihkanKeranjang(){
+  qrisBerhenti();
   S.cart = []; S.quote = null; S.orderId = null; S.intent = null; S.table = '';
   S.guest = ''; S.queue = ''; S.orderNote = ''; S.pays = [];
   S.billId = null; S.billLabel = '';
   renderTableBar(); renderDetailBar(); refreshQuote();
+  siarkan();
 }
 
 async function muatBills(){
@@ -2121,9 +2525,9 @@ function goView(t){
 }
 document.querySelectorAll('.rail button').forEach(b => b.onclick = () => goView(b.dataset.scr));
 applyPaper();
-document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.ov').classList.remove('on'));
-document.querySelectorAll('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));
-document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.ov.on').forEach(o => o.classList.remove('on')); });
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { b.closest('.ov').classList.remove('on'); siarkan(); });
+document.querySelectorAll('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) { o.classList.remove('on'); siarkan(); } }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.querySelectorAll('.ov.on').forEach(o => o.classList.remove('on')); siarkan(); } });
 el('infoBtn').onclick = () => el('infoModal').classList.add('on');
 
 function fmtTime(v){ if (!v) return '-'; const d = new Date(v);

@@ -13,6 +13,7 @@ use App\Modules\Catalog\Domain\Models\SalesChannel;
 use App\Modules\Identity\Domain\Models\CompanyUser;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Inventory\Domain\Models\Ingredient;
+use App\Modules\Payment\Domain\Models\PaymentGatewayAccount;
 use App\Modules\Purchasing\Domain\Models\Supplier;
 use App\Modules\Tenancy\Domain\CompanyStatus;
 use Carbon\CarbonImmutable;
@@ -148,6 +149,20 @@ class Company extends Model implements HasName
     public function kitchenStations(): HasMany
     {
         return $this->hasMany(KitchenStation::class);
+    }
+
+    /**
+     * Kredensial merchant payment gateway milik company ini.
+     *
+     * Dipakai Filament untuk membuat & menyaring data di panel multi-tenant: tanpa relasi ini,
+     * layar "Tambah kredensial" gagal dengan "Company does not have a relationship named
+     * [paymentGatewayAccounts]".
+     *
+     * @return HasMany<PaymentGatewayAccount, $this>
+     */
+    public function paymentGatewayAccounts(): HasMany
+    {
+        return $this->hasMany(PaymentGatewayAccount::class);
     }
 
     /** @return HasMany<SalesChannel, $this> */

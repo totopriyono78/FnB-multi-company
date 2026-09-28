@@ -2,6 +2,8 @@
 
 namespace App\Modules\Sales\Http\Resources;
 
+use App\Modules\Payment\Application\QrImage;
+use App\Modules\Payment\Application\QrisPayload;
 use App\Modules\Payment\Domain\Models\PaymentIntent;
 use App\Modules\Sales\Domain\Models\CashMovement;
 use App\Modules\Sales\Domain\Models\OpenBill;
@@ -200,6 +202,14 @@ final class SalesResources
             'amount' => $intent->amount,
             'status' => $intent->status,
             'qr_string' => $intent->status === PaymentIntent::PENDING ? $intent->qr_string : null,
+            // SVG dirender di server: layar kasir tidak perlu pustaka QR sendiri dan tidak perlu
+            // permintaan kedua yang bisa gagal saat jaringan outlet buruk.
+            'qr_svg' => $intent->status === PaymentIntent::PENDING && $intent->qr_string !== null
+                ? QrImage::svg($intent->qr_string)
+                : null,
+            // Payload QRIS yang sah bisa dibayar dari m-banking; payload tiruan driver sandbox
+            // tidak. Layar kasir memakai ini untuk menandai QR simulasi agar tidak dikira rusak.
+            'qr_payable' => $intent->qr_string !== null && QrisPayload::isValid($intent->qr_string),
             'checkout_url' => $intent->status === PaymentIntent::PENDING ? $intent->checkout_url : null,
             'expires_at' => $intent->expires_at->toIso8601String(),
             'paid_at' => $intent->paid_at?->toIso8601String(),

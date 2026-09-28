@@ -11,6 +11,7 @@ use App\Modules\Tenancy\Application\CompanyRegistrar;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\CompanyStatus;
 use App\Modules\Tenancy\Domain\DeviceStatus;
+use App\Modules\Tenancy\Domain\DeviceType;
 use App\Modules\Tenancy\Domain\Models\Brand;
 use App\Modules\Tenancy\Domain\Models\Company;
 use App\Modules\Tenancy\Domain\Models\Device;
@@ -105,12 +106,23 @@ class DemoSeeder extends Seeder
 
             $this->device($kaliurang, 'POS01', 'Kasir depan', 'pos', true);
             $this->device($kaliurang, 'POS02', 'Kasir drive-thru', 'pos', true);
-            $this->device($kaliurang, 'KDS01', 'Layar bar', 'kds', false);
             $this->device($prawirotaman, 'POS01', 'Kasir utama', 'pos', true);
             $this->device($ikanBakar, 'POS01', 'Kasir depan', 'pos', true);
             $this->device($ikanBakar, 'POS02', 'Kasir samping', 'pos', false);
             $this->device($umum, 'POS01', 'Kasir', 'pos', true);
-            $this->device($umum, 'KDS01', 'Layar dapur', 'kds', false);
+
+            /*
+             * Data demo pernah memuat perangkat "Layar bar" & "Layar dapur" bertipe kds padahal
+             * layar dapurnya memang belum dibuat, sehingga menimbulkan pertanyaan saat peragaan
+             * (keputusan user 27 Sep 2026). Berhenti membuatnya saja tidak cukup: `device()`
+             * memakai firstOrCreate, jadi baris lama akan tetap ada di basis data yang sudah
+             * pernah di-seed. Dibatasi perangkat kds yang BELUM pernah dipasangkan — perangkat
+             * yang pernah dipakai bertransaksi diacu tabel penjualan dan tidak boleh dihapus.
+             */
+            Device::query()
+                ->where('type', DeviceType::Kds)
+                ->whereNull('paired_at')
+                ->delete();
 
             // Kantor pusat.
             $this->staff($owner, $this->member('Bayu Pratama', 'bayu@gtgroup.test', 'HO-001', ['company_admin']));

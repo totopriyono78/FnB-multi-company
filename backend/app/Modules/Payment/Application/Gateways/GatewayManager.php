@@ -10,6 +10,7 @@ class GatewayManager
     /** @var array<string, class-string<PaymentGateway>> */
     private const DRIVERS = [
         'sandbox' => SandboxGateway::class,
+        'aino' => AinoGateway::class,
     ];
 
     public function default(): PaymentGateway

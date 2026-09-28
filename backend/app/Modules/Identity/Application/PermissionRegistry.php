@@ -113,6 +113,13 @@ final class PermissionRegistry
     public const SUPERVISOR_ACTIONS = [
         'void' => 'pos.void',
         'refund' => 'pos.void',
+        /*
+         * Memeriksa ulang tagihan yang terlanjur gagal ke gateway. Yang memutuskan tetap jawaban
+         * gateway — kasir tidak pernah bisa menandai lunas sendiri — tetapi pemulihannya menyentuh
+         * uang, jadi kewenangannya disamakan dengan void: siapa yang boleh membatalkan transaksi,
+         * boleh pula menyetujui pemeriksaan ulang ini.
+         */
+        'payment_recheck' => 'pos.void',
         'discount' => 'pos.discount',
         'open_drawer' => 'pos.open_drawer',
         'price_override' => 'pos.price_override',

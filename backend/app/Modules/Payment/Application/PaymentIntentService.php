@@ -13,6 +13,7 @@ use App\Modules\Tenancy\Domain\Models\Device;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -78,6 +79,15 @@ class PaymentIntentService
 
         try {
             $charge = $gateway->createCharge($intent);
+        } catch (SalesException $e) {
+            /*
+             * Kesalahan di sisi kita sendiri — mis. outlet belum diisi kredensial merchant.
+             * Pesannya sudah tepat sasaran dan mencoba lagi tidak akan menolong, jadi jangan
+             * disamarkan menjadi "gateway tidak dapat dihubungi" yang membuat kasir mengulang terus.
+             */
+            $intent->forceFill(['status' => PaymentIntent::FAILED])->save();
+
+            throw $e;
         } catch (Throwable $e) {
             report($e);
             $intent->forceFill(['status' => PaymentIntent::FAILED])->save();
@@ -89,6 +99,19 @@ class PaymentIntentService
             'qr_string' => $charge->qrString,
             'checkout_url' => $charge->checkoutUrl,
             'provider_payload' => $charge->payload,
+            /*
+             * Yang berlaku adalah YANG LEBIH DULU JATUH TEMPO antara batas gateway dan TTL kami.
+             *
+             * Sebelumnya batas gateway selalu menang, dengan alasan "gateway yang tahu kapan QR-nya
+             * mati". Alasan itu benar hanya satu arah. 28 Sep 2026 AINO mengirim expiryDate yang
+             * terbaca tujuh jam ke depan (dugaan kuat: soal zona waktu, lihat AinoGateway::kedaluwarsa),
+             * dan layar pelanggan dengan patuh menghitung mundur "429:20 lagi". Memperpendek masa
+             * berlaku yang kami tampilkan paling buruk membuat kasir membuat QR baru; memperpanjangnya
+             * membuat kami menjanjikan sesuatu yang tidak bisa kami pertanggungjawabkan.
+             */
+            'expires_at' => $charge->expiresAt !== null && $charge->expiresAt->lessThan($intent->expires_at)
+                ? $charge->expiresAt
+                : $intent->expires_at,
         ])->save();
 
         $this->audit->log('payment.intent_created', $intent, new: ['method' => $method, 'amount' => (string) $amount, 'order_ref' => $intent->order_ref], userId: $cashier->id);
@@ -130,6 +153,104 @@ class PaymentIntentService
         return $this->transition($intent, $status->status, $status->amount, $status->paidAt);
     }
 
+    /**
+     * Pemeriksaan ulang yang DISENGAJA untuk tagihan yang terlanjur keluar dari `pending`.
+     *
+     * Lahir dari kejadian 28 Sep 2026: pelanggan membayar QRIS sungguhan, driver salah membaca
+     * jawaban gateway, tagihan tertandai `failed`, dan pesanannya tidak bisa diselesaikan —
+     * uang berpindah, barang tidak. `refresh()` tidak bisa menolong karena ia sengaja berhenti
+     * bertanya begitu tagihan keluar dari `pending` (polling rutin tidak boleh menghidupkan
+     * kembali tagihan mati). Jalur ini adalah satu-satunya pintu untuk bertanya sekali lagi,
+     * dan pintunya dijaga otorisasi supervisor di lapisan HTTP.
+     *
+     * Yang memutuskan tetap gateway. Kasir maupun supervisor TIDAK PERNAH bisa menandai lunas
+     * sendiri: pemulihan hanya terjadi bila gateway menjawab lunas DAN nominalnya sama persis.
+     * Penjaga nominal tidak dilonggarkan sedikit pun di sini — justru selisih nominal adalah
+     * salah satu tersangka kejadian itu, dan menerima yang tidak cocok akan mengubah cacat
+     * pembacaan menjadi kebocoran uang.
+     *
+     * Hasilnya `paid`, bukan `paid_late`. Keduanya berbeda maksud: `paid_late` berarti dana
+     * datang setelah tagihan sah-sah dimatikan dan karena itu perlu refund manual. Di sini
+     * tagihannya mati karena kekeliruan kami, gateway menyatakan pembayarannya sah, dan
+     * pelanggan berdiri di depan kasir menunggu pesanannya. Perpindahan statusnya dicatat utuh
+     * di audit log berikut siapa yang menyetujui.
+     */
+    public function recheck(PaymentIntent $intent, User $by, ?string $reason = null): PaymentIntent
+    {
+        if ($intent->provider_reference === null) {
+            throw new SalesException(
+                'INTENT_NOT_RECHECKABLE',
+                'Tagihan ini belum pernah sampai ke gateway, jadi tidak ada yang bisa diperiksa. Buat kode QR baru.',
+                422,
+            );
+        }
+
+        if ($intent->status === PaymentIntent::PENDING) {
+            return $this->refresh($intent);
+        }
+
+        if (in_array($intent->status, [PaymentIntent::PAID, PaymentIntent::PAID_LATE], true)) {
+            return $intent;
+        }
+
+        try {
+            $status = $this->gateways->driver($intent->provider)->status($intent);
+        } catch (Throwable $e) {
+            report($e);
+
+            throw new SalesException(
+                'GATEWAY_UNAVAILABLE',
+                'Gateway tidak dapat dihubungi untuk memeriksa ulang. Coba lagi sebentar.',
+                502,
+            );
+        }
+
+        // Dicatat apa pun hasilnya: "sudah diperiksa dan gateway bilang belum lunas" adalah
+        // keterangan yang dibutuhkan kasir maupun pemeriksa, bukan hanya keberhasilannya.
+        $this->audit->log('payment.rechecked', $intent,
+            old: ['status' => $intent->status],
+            new: ['gateway_status' => $status->status, 'gateway_amount' => $status->amount],
+            userId: $by->id, reason: $reason);
+
+        if ($status->status !== GatewayStatus::PAID) {
+            return $intent;
+        }
+
+        if ($status->amount !== null && ! BigDecimal::of($status->amount)->isEqualTo(BigDecimal::of((string) $intent->amount))) {
+            Log::error('Pemeriksaan ulang: gateway menyatakan lunas dengan nominal berbeda; tidak dipulihkan.', [
+                'intent_id' => $intent->id,
+                'provider' => $intent->provider,
+                'reference' => $intent->provider_reference,
+                'nominal_tagihan' => (string) $intent->amount,
+                'nominal_gateway' => $status->amount,
+            ]);
+            $this->audit->log('payment.amount_mismatch', $intent,
+                new: ['expected' => (string) $intent->amount, 'received' => $status->amount],
+                userId: $by->id);
+
+            return $intent;
+        }
+
+        return DB::transaction(function () use ($intent, $status, $by, $reason): PaymentIntent {
+            /** @var PaymentIntent $locked */
+            $locked = PaymentIntent::query()->lockForUpdate()->findOrFail($intent->id);
+            if (in_array($locked->status, [PaymentIntent::PAID, PaymentIntent::PAID_LATE], true)) {
+                return $locked;
+            }
+
+            $sebelum = $locked->status;
+            $locked->forceFill(['status' => PaymentIntent::PAID, 'paid_at' => $status->paidAt ?? now()])->save();
+
+            $this->audit->log('payment.intent_recovered', $locked,
+                old: ['status' => $sebelum],
+                new: ['status' => PaymentIntent::PAID, 'reference' => $locked->provider_reference],
+                userId: $by->id,
+                reason: $reason ?? 'Gateway membenarkan pembayaran yang sebelumnya tertandai gagal.');
+
+            return $locked;
+        });
+    }
+
     public function cancel(PaymentIntent $intent, ?User $by = null): PaymentIntent
     {
         $intent = $this->refresh($intent);
@@ -164,6 +285,21 @@ class PaymentIntentService
                         $locked->forceFill(['status' => PaymentIntent::FAILED])->save();
                     }
                     $this->audit->log('payment.amount_mismatch', $locked, new: ['expected' => (string) $locked->amount, 'received' => $amount]);
+                    /*
+                     * Ikut ke log berkas, bukan hanya audit log di basis data. Ini peristiwa uang:
+                     * gateway bilang lunas, kami menolak karena nominalnya beda. Sebelum ini jejaknya
+                     * hanya ada di tabel audit, sehingga pembacaan log rutin tidak melihat apa pun —
+                     * persis yang terjadi 28 Sep 2026 saat sebuah pembayaran QRIS sungguhan berakhir
+                     * `failed` tanpa satu baris pun di log. Selisih satuan (rupiah vs satuan terkecil)
+                     * adalah tersangka utama, dan itu pertanyaan untuk AINO, bukan untuk ditebak.
+                     */
+                    Log::error('Gateway menyatakan lunas dengan nominal berbeda; tagihan ditolak.', [
+                        'intent_id' => $locked->id,
+                        'provider' => $locked->provider,
+                        'reference' => $locked->provider_reference,
+                        'nominal_tagihan' => (string) $locked->amount,
+                        'nominal_gateway' => $amount,
+                    ]);
 
                     return $locked;
                 }

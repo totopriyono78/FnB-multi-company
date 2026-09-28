@@ -30,6 +30,21 @@ Route::get('/pos', function () {
 Route::redirect('/kasir', '/pos');
 
 /*
+ * Layar pelanggan (FR-DEV, jenis perangkat `customer_display`).
+ *
+ * Dibuka di monitor kedua komputer kasir. Halamannya statis dan TIDAK memanggil API mana pun:
+ * isinya dikirim jendela kasir lewat BroadcastChannel, kanal antar-jendela dalam satu peramban
+ * yang tidak keluar dari mesin itu. Karena itu rute ini tidak butuh token perangkat maupun
+ * konteks tenant — tidak ada data tenant yang bisa diminta darinya. Lihat catatan panjang di
+ * resources/views/pos/display.blade.php sebelum menambahkan endpoint apa pun ke halaman ini.
+ */
+Route::get('/pos/display', function () {
+    abort_unless((bool) config('fnb.pos_web', true), 404);
+
+    return view('pos.display');
+})->name('pos.display');
+
+/*
  * Foto menu & logo brand. Lihat MediaController untuk alasan rute ini ada
  * (ringkasnya: menggantikan symlink public/storage yang merepotkan di Windows & PaaS).
  */

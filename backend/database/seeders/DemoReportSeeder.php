@@ -110,6 +110,17 @@ class DemoReportSeeder extends DemoSalesSeeder
             $local = fn (string $time) => CarbonImmutable::parse($date->format('Y-m-d').' '.$time, $outlet->timezone)->utc();
             $cashier = $cashiers[$back % count($cashiers)];
             $open = $local('06:45');
+            /*
+             * Jam buka tidak boleh jatuh di masa depan. Terdengar mustahil untuk "hari ini",
+             * tetapi tidak: seeding yang berjalan sebelum pukul 06:45 waktu outlet — misalnya
+             * deploy dini hari, yang di Railway berarti kapan saja antara 00:00 dan 06:45 WIB —
+             * membuat ShiftService menolak dengan CLOCK_AHEAD dan MENGGAGALKAN SELURUH DEPLOY,
+             * karena `db:seed` ikut dijalankan builder pada tiap rilis. Dipepet ke waktu sekarang
+             * supaya data demo hari itu sekadar kosong, bukan merobohkan rilis. Transaksi hari ini
+             * memang sudah disaring ke masa lalu beberapa baris di bawah, jadi tidak ada yang
+             * mendahului jam buka.
+             */
+            $open = $open->greaterThan(CarbonImmutable::now()) ? CarbonImmutable::now()->subMinute() : $open;
             $shift = $shifts->open($device, ['id' => (string) Str::uuid7(), 'cashier_id' => $cashier->id, 'opening_cash' => '500000', 'opened_at' => $open->toIso8601String()]);
             $this->sequence = 0;
 

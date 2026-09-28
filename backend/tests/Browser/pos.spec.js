@@ -221,6 +221,10 @@ test('kasir memakai bayar gabungan, retur berotorisasi, kas shift, dan tandai ha
     await page.locator('#payDone').click();
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
 
+    // Cetak berjalan asinkron sejak logo struk dimuat lebih dulu (ada jeda tunggu gambar),
+    // jadi modal struk bisa muncul beberapa saat sebelum window.print() terpanggil.
+    await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(0);
+
     const struk = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
     expect(struk).toContain('Tamu: Ibu Sari');
     expect(struk).toContain('Antrean 27');
@@ -391,4 +395,130 @@ test('pemilik mengunggah foto menu dan kasir melihatnya di kartu menu', async ({
     // Gambarnya benar-benar bisa diambil perangkat, bukan tautan mati.
     const status = await page.evaluate(async (url) => (await fetch(url)).status, await gambar.getAttribute('src'));
     expect(status).toBe(200);
+});
+
+test('kasir membayar QRIS: gambar QR, hitung mundur, dan status terpantau sendiri', async ({ page }) => {
+    /*
+     * Tiga hal yang tidak terlihat dari uji HTTP dan justru paling terasa di kasir:
+     * QR-nya harus berupa GAMBAR (payload teks tidak bisa dipindai pelanggan), harus ada
+     * hitung mundur ke kedaluwarsa, dan status harus terpantau sendiri tanpa kasir menekan apa pun.
+     * Dijalankan dengan driver sandbox bawaan; gateway sungguhan tidak pernah dipanggil dari uji.
+     */
+    const kode = await kodePairing(page);
+    await masukKasir(page, kode);
+    await isiKeranjang(page);
+
+    await page.locator('#payBtn').click();
+    await page.waitForTimeout(500);
+    if (await pilihMeja(page, 7)) await page.locator('#payBtn').click();
+    await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
+
+    await page.locator('#ways button[data-code="qris"]').click();
+    await expect(page.locator('#qrisBox')).toBeVisible();
+    await page.locator('#qrisCreate').click();
+
+    // Gambar QR, bukan teks payload.
+    const qr = page.locator('#qrImg svg');
+    await expect(qr).toBeVisible({ timeout: 15_000 });
+    const kotak = await qr.boundingBox();
+    expect(kotak.width, 'QR harus cukup besar untuk dipindai kamera ponsel').toBeGreaterThan(150);
+    expect(Math.abs(kotak.width - kotak.height), 'QR harus bujur sangkar').toBeLessThan(2);
+
+    await page.screenshot({ path: 'test-results/screens/33-qris-menunggu.png', fullPage: true });
+
+    // Hitung mundur berjalan dan angkanya menurun.
+    await expect(page.locator('#qrisState')).toHaveText(/berlaku \d+:\d{2}/, { timeout: 5000 });
+    const awal = await page.locator('#qrisState').textContent();
+    await page.waitForTimeout(2200);
+    expect(await page.locator('#qrisState').textContent(), 'hitung mundur harus berkurang').not.toBe(awal);
+
+    // Pembayaran masuk tanpa kasir menekan apa pun: status dipantau berkala.
+    await page.locator('#qrisSimulate').click();
+    await expect(page.locator('#qrisState')).toHaveText(/pembayaran diterima/, { timeout: 15_000 });
+    await expect(page.locator('#qrImg')).toBeHidden();
+
+    await page.screenshot({ path: 'test-results/screens/34-qris-lunas.png', fullPage: true });
+});
+
+test('layar pelanggan di monitor kedua mengikuti pesanan, QR, dan status lunas', async ({ page, context }) => {
+    /*
+     * Kasir dan pelanggan berhadapan, jadi layar kasir tidak bisa dilihat pelanggan — sementara
+     * QRIS MPM justru menuntut merchant menyodorkan QR-nya. Monitor kedua = jendela lain di
+     * peramban yang sama, disatukan BroadcastChannel. Tidak ada endpoint yang dipanggil, jadi
+     * yang diuji di sini memang keseluruhan mekanismenya, bukan tiruan.
+     */
+    const kode = await kodePairing(page);
+    await masukKasir(page, kode);
+
+    const layar = await context.newPage();
+    await layar.goto('/pos/display');
+    await expect(layar.getByRole('heading', { name: 'Selamat datang' })).toBeVisible({ timeout: 10_000 });
+
+    await isiKeranjang(page, 2);
+
+    // Item yang diinput kasir tampil di layar pelanggan — inilah gunanya layar ini di luar
+    // momen bayar: salah input tertangkap sebelum uang berpindah.
+    const namaItem = (await page.locator('#lines .ln .nm').first().textContent()).trim();
+    await expect(layar.locator('.rows')).toContainText(namaItem, { timeout: 10_000 });
+
+    // Total di kedua layar harus sama persis; beda angka di depan pelanggan adalah bug mahal.
+    const bersih = (s) => String(s).replace(/\s+/g, '');
+    const totalKasir = bersih(await page.locator('#sTotal').textContent());
+    await expect
+        .poll(async () => bersih(await layar.locator('.sum .l.big span:last-child').textContent()), { timeout: 10_000 })
+        .toBe(totalKasir);
+
+    await layar.screenshot({ path: 'test-results/screens/35-layar-pelanggan-pesanan.png', fullPage: true });
+
+    // ---- bayar QRIS ----
+    await page.locator('#payBtn').click();
+    await page.waitForTimeout(500);
+    if (await pilihMeja(page, 9)) await page.locator('#payBtn').click();
+    await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
+    await page.locator('#ways button[data-code="qris"]').click();
+    await page.locator('#qrisCreate').click();
+    await expect(page.locator('#qrImg svg')).toBeVisible({ timeout: 15_000 });
+
+    // QR yang sama tampil besar di layar pelanggan, di atas latar putih (syarat pemindai).
+    const qr = layar.locator('.qrwrap svg');
+    await expect(qr).toBeVisible({ timeout: 10_000 });
+    const kotak = await qr.boundingBox();
+    expect(kotak.width, 'QR di layar pelanggan harus jauh lebih besar daripada di layar kasir').toBeGreaterThan(200);
+
+    // Driver sandbox: payload-nya bukan QRIS, dan pelanggan harus diberi tahu — bukan dibiarkan
+    // mencoba memindai kode yang pasti ditolak aplikasi banknya.
+    await expect(layar.getByText(/bukan QRIS sungguhan/i)).toBeVisible();
+    await expect(layar.locator('#cd')).toHaveText(/Berlaku \d+:\d{2} lagi/, { timeout: 5000 });
+
+    await layar.screenshot({ path: 'test-results/screens/36-layar-pelanggan-qris.png', fullPage: true });
+
+    // Pembayaran masuk: pelanggan melihat konfirmasinya sendiri, tanpa menunggu kasir bicara.
+    await page.locator('#qrisSimulate').click();
+    await expect(layar.getByRole('heading', { name: 'Pembayaran diterima' })).toBeVisible({ timeout: 15_000 });
+    await layar.screenshot({ path: 'test-results/screens/37-layar-pelanggan-lunas.png', fullPage: true });
+
+    /*
+     * Keadaan "lunas" versi struk tersimpan diperiksa lewat keadaan layar kasir, BUKAN dengan
+     * menyelesaikan transaksi sungguhan. Alasannya spesifik: spec lain (sales.spec.js) memeriksa
+     * nomor struk tertentu pada data demo hari ini, dan setiap transaksi baru yang dibuat spec ini
+     * akan menggeser penomoran itu. Uji E2E yang berbagi satu basis data seeded sebaiknya tidak
+     * menambah baris yang dihitung spec lain.
+     */
+    await page.evaluate(() => {
+        S.lastOrder = { total: '50600', payments: [{ method: 'qris', amount: '50600', change_amount: '0' }] };
+        document.getElementById('rcptModal').classList.add('on');
+        siarkan();
+    });
+    await expect(layar.getByRole('heading', { name: 'Pembayaran diterima' })).toBeVisible({ timeout: 10_000 });
+    await expect(layar.locator('.ok .amt')).toHaveText('Rp 50.600');
+    await expect(layar.locator('.ok .meta').first()).toHaveText('QRIS');
+
+    /*
+     * Pesanan baru: layar wajib kembali menyambut, bukan membeku menampilkan total pelanggan
+     * sebelumnya. Batas waktunya sengaja LEBIH PENDEK daripada denyut berkala kasir (6 detik):
+     * kalau siaran eksplisit saat menutup struk dihapus, denyut akan menutupi cacatnya dan uji
+     * ini tetap hijau — padahal pelanggan berikutnya sempat melihat nominal orang lain.
+     */
+    await page.locator('#newOrderBtn').click();
+    await expect(layar.getByRole('heading', { name: 'Selamat datang' })).toBeVisible({ timeout: 3_000 });
 });

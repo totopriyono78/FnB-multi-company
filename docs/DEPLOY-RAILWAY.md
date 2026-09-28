@@ -149,3 +149,90 @@ terjadwal. Untuk peragaan, keduanya belum diperlukan.
   lalu `composer update`, dan pastikan Railpack sudah mendukung versi itu.
 - Ekstensi PHP baru yang dipakai paket apa pun harus dituliskan di `composer.json`
   (`"ext-nama": "*"`), bukan diasumsikan ada di image builder.
+
+---
+
+## 7. Deploy rilis 27–28 September 2026 (branding, layar pelanggan, QRIS AINO)
+
+Rilis ini menambah satu **tabel baru**, satu **dependensi baru**, satu **rute baru**, dan mengubah
+**nilai bawaan konfigurasi**. Urutan di bawah dibuat supaya tidak ada langkah yang bisa dilewati
+diam-diam.
+
+### 7.1 Sebelum push — tiga hal yang wajib diperiksa
+
+**a. `RAILPACK_SKIP_MIGRATIONS` harus KOSONG untuk rilis ini.**
+Ada migrasi baru `2026_09_27_000100_create_payment_gateway_accounts.php`. Bila variabel itu
+bernilai `1` dari deploy sebelumnya, migrasinya dilewati, tabelnya tidak terbentuk, dan layar
+**Keamanan → Payment Gateway** akan galat 500 begitu dibuka. Hapus dulu variabelnya, deploy, baru
+pasang lagi bila memang tidak ingin migrate tiap rilis.
+
+**b. Dependensi baru sudah terkunci dengan benar.**
+`bacon/bacon-qr-code v3.1.1` (perender QR) sudah ada di `composer.lock`, dan
+`platform-overrides` masih `php 8.4.1` — jadi build Railpack tidak akan mengulang kegagalan §1.
+Tidak ada ekstensi PHP baru yang dibutuhkan. Tidak ada yang perlu dikerjakan; ini hanya
+pemeriksaan agar tidak kaget.
+
+**c. Jam deploy.**
+`db:seed` ikut berjalan pada tiap rilis, dan `DemoReportSeeder` membuka shift demo pukul 06:45
+waktu outlet. Sebelum perbaikan 28 Sep 2026, deploy antara **00:00–06:45 WIB** membuat seeder
+menolak dengan `CLOCK_AHEAD` dan **seluruh rilis gagal**. Sekarang jam bukanya dipepet ke waktu
+sekarang sehingga aman kapan pun — tetapi bila Anda men-deploy dari repositori lama, hindari
+jendela itu.
+
+### 7.2 Push
+
+```bash
+cd D:\DEVELOPMENT\FB_Multi_Company
+git status                 # pastikan hanya perubahan yang Anda maksud
+git add -A
+git commit -m "Layar pelanggan, cetak slip QRIS, dan perbaikan pembacaan status AINO"
+git push origin main
+```
+
+Railway membangun sendiri begitu `main` bergerak. Yang dikerjakannya: `composer install`,
+`npm ci` + `npm run build`, `php artisan migrate --force` + `db:seed`, `storage:link`,
+`php artisan optimize`. **Tidak ada perintah artisan yang perlu Anda jalankan manual di server**
+selama migrasi tidak dilewati.
+
+### 7.3 Variabel lingkungan yang perlu ditambah/diperiksa di Railway
+
+```
+PAYMENT_GATEWAY=aino
+APP_URL=https://<layanan>.up.railway.app     # harus benar: alamat callback dirakit dari sini
+```
+
+Opsional:
+
+```
+PAYMENT_INTENT_TTL=5              # bawaannya kini 5 menit; isi hanya bila ingin lain
+PAYMENT_AINO_CALLBACK_URL=        # biarkan kosong; dirakit dari APP_URL (66 karakter, muat di batas 100 AINO)
+```
+
+### 7.4 Kredensial merchant: WAJIB diisi ulang lewat back-office server
+
+`secret_key` disimpan **terenkripsi dengan `APP_KEY`**, dan `APP_KEY` server berbeda dari mesin
+pengembang. Menyalin baris `payment_gateway_accounts` dari basis data lokal ke server akan
+menghasilkan kegagalan dekripsi, bukan kredensial yang bekerja.
+
+Jadi setelah deploy: buka **Keamanan → Payment Gateway** di server, isi merchant code & secret
+key, pilih lingkungan **Sandbox**. Butuh izin `company.manage`.
+
+### 7.5 Yang berubah perilakunya di server — periksa setelah deploy
+
+1. `/up` → 200.
+2. `/pos` → layar kasir; menu **Atur → Layar pelanggan** → tombol membuka `/pos/display`.
+3. `/pos/display` → menampilkan "Selamat datang" (tanpa login; halaman ini tidak memanggil
+   server sama sekali — lihat catatan di berkasnya).
+4. `/admin` → footer memuat "© 2026 PT. Gamatechno Indonesia", judul tab "… - FnB Cloud - Gamatechno".
+5. **Callback AINO kini benar-benar bekerja.** Di komputer pengembang, AINO tidak bisa menghubungi
+   `127.0.0.1`, sehingga polling adalah satu-satunya jalur status. Di Railway alamatnya publik,
+   jadi Finish Notify sampai ke `/api/v1/webhooks/payment/aino` dan menjadi jaring kedua di
+   samping polling. Isinya tetap diperlakukan sebagai pemicu, bukan bukti (§3 butir 1 dokumen QRIS).
+
+### 7.6 Peringatan uang
+
+Sandbox AINO memakai rel QRIS sungguhan — **transaksi uji memindahkan uang nyata**, dan di
+server callback-nya ikut hidup. Pakai nominal sekecil mungkin. Pembulatan outlet bisa dimatikan
+(Outlet → Harga → Pembulatan: "Tanpa pembulatan") untuk menguji nominal kecil, tetapi totalnya
+harus tetap rupiah bulat: Rp1 + PB1 10% = Rp1,10 akan ditolak dengan `AMOUNT_NOT_WHOLE_RUPIAH`.
+Nominal uji terkecil yang aman: harga item Rp10 → total Rp11.

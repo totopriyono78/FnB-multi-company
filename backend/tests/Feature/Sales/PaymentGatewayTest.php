@@ -44,7 +44,15 @@ function qrisOrder(Pos $pos, string $shiftId, string $receipt, string $intentId,
     ]) + ['id' => $orderId];
 }
 
-it('membuat tagihan QRIS dinamis yang berlaku 15 menit dan memakai ulang tagihan yang sama', function () {
+it('membuat tagihan QRIS dinamis sepanjang TTL yang diatur dan memakai ulang tagihan yang sama', function () {
+    /*
+     * TTL-nya dipasang di sini, bukan diambil dari bawaannya. Sebelumnya uji ini mematok angka 15
+     * dan langsung merah saat bawaannya dipendekkan jadi 5 menit (keputusan user 28 Sep 2026) —
+     * padahal yang seharusnya dijaga adalah "tagihan berlaku selama TTL yang diatur", bukan
+     * angka tertentu.
+     */
+    config()->set('payments.intent_ttl_minutes', 15);
+
     $intent = createIntent($this);
 
     expect($intent['status'])->toBe('pending')

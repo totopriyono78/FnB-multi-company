@@ -21,7 +21,7 @@ class AuthorizeActionRequest extends FormRequest
             'action' => ['required', Rule::in(array_keys(PermissionRegistry::SUPERVISOR_ACTIONS))],
             'supervisor_id' => ['required', 'uuid'],
             'pin' => ['required', 'string', 'regex:/^\d{4,6}$/'],
-            'reason' => [Rule::requiredIf(in_array($this->input('action'), ['void', 'refund', 'price_override', 'open_drawer'], true)), 'nullable', 'string', 'max:200'],
+            'reason' => [Rule::requiredIf(in_array($this->input('action'), ['void', 'refund', 'price_override', 'open_drawer', 'payment_recheck'], true)), 'nullable', 'string', 'max:200'],
             'reference_type' => ['nullable', 'string', 'max:40'],
             'reference_id' => ['nullable', 'uuid'],
             'amount' => ['nullable', 'decimal:0,2', 'min:0'],
