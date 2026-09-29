@@ -182,8 +182,21 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     // kertas 80 mm: 42 kolom
     expect(Math.max(...struk.split('\n').map((b) => b.length))).toBeLessThanOrEqual(42);
 
-    // cetak ulang pada kertas 58 mm tidak boleh melebihi 32 kolom
+    /*
+     * Keranjang wajib kosong begitu transaksinya tersimpan (temuan user 29 Sep 2026).
+     *
+     * Dulu hanya "Transaksi baru" yang membersihkannya, jadi kasir yang menutup layar struk lewat
+     * "Tutup" — seperti baris di bawah — kembali ke keranjang berisi pesanan yang baru saja dibayar,
+     * siap ditagihkan dua kali. Tombol Bayar yang mati ikut diperiksa: itu pagar terakhirnya.
+     */
     await page.locator('#rcptModal [data-close]').first().click();
+    await expect(page.locator('#lines .blank')).toBeVisible();
+    await expect(page.locator('#lines .ln')).toHaveCount(0);
+    await expect(page.locator('#payBtn')).toBeDisabled();
+    // Keterangan pesanan lama ("tiket dapur terkirim") juga tidak boleh menempel.
+    await expect(page.locator('#cartMeta')).toHaveText('nomor struk otomatis');
+
+    // cetak ulang pada kertas 58 mm tidak boleh melebihi 32 kolom
     await page.locator('.rail button[data-scr="atur"]').click();
     await page.locator('#paperOpt button[data-w="58"]').click();
     await page.locator('.rail button[data-scr="pesanan"]').click();
@@ -490,6 +503,15 @@ test('layar pelanggan di monitor kedua mengikuti pesanan, QR, dan status lunas',
     // momen bayar: salah input tertangkap sebelum uang berpindah.
     const namaItem = (await page.locator('#lines .ln .nm').first().textContent()).trim();
     await expect(layar.locator('.rows')).toContainText(namaItem, { timeout: 10_000 });
+
+    /*
+     * Ditunggu sampai kutipan harga terakhir datang sebelum totalnya dibaca. Setiap baris
+     * menampilkan "…" selama harganya belum dihitung server, jadi selama masih ada, total di
+     * layar kasir belum final — dan membandingkan foto lama dengan layar pelanggan yang sudah
+     * maju membuat uji ini merah tanpa ada yang rusak (terjadi 29 Sep 2026 saat server lambat).
+     */
+    await expect(page.locator('#lines .ln')).toHaveCount(2);
+    await expect(page.locator('#lines .amt', { hasText: '…' })).toHaveCount(0, { timeout: 10_000 });
 
     // Total di kedua layar harus sama persis; beda angka di depan pelanggan adalah bug mahal.
     const bersih = (s) => String(s).replace(/\s+/g, '');

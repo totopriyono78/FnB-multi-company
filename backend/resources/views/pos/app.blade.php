@@ -1668,6 +1668,19 @@ el('payDone').onclick = async () => {
   el('payModal').classList.remove('on');
   if (S.billId) { S.billId = null; S.billLabel = ''; muatBills(); }
   showReceipt(saved);
+  /*
+   * Keranjang dikosongkan begitu transaksinya tersimpan, bukan saat kasir menekan
+   * "Transaksi baru" (temuan user 29 Sep 2026).
+   *
+   * Dulu hanya "Transaksi baru" yang membersihkannya, sehingga kasir yang menutup layar struk
+   * lewat "Tutup" kembali ke keranjang berisi pesanan yang BARU SAJA dibayar — siap ditagihkan
+   * dua kali. Layar pelanggan lebih buruk lagi: begitu modalnya tertutup ia kembali ke modus
+   * keranjang dan memperlihatkan belanjaan tamu sebelumnya kepada tamu berikutnya.
+   *
+   * Ditaruh SESUDAH showReceipt: selama modal struk terbuka, layar pelanggan tetap pada modus
+   * "lunas", jadi pengosongan ini tidak terlihat oleh tamu.
+   */
+  bersihkanKeranjang();
   renderOrders();
 };
 
@@ -2096,9 +2109,10 @@ el('testPrint').onclick = () => {
   );
 };
 el('newOrderBtn').onclick = () => {
+  // Keranjangnya sudah kosong sejak transaksi tersimpan; ini hanya jaring pengaman bila
+  // tombol ini ditekan dari keadaan lain.
   bersihkanKeranjang();
   el('rcptModal').classList.remove('on');
-  el('cartMeta').textContent = 'nomor struk otomatis';
   // Struk lama dilupakan SETELAH modalnya ditutup, lalu disiarkan sekali lagi. Tanpa ini layar
   // pelanggan masih menampilkan "Pembayaran diterima" milik transaksi sebelumnya sampai denyut
   // berikutnya — pelanggan berikutnya melihat nominal orang lain.
@@ -2385,6 +2399,9 @@ function bersihkanKeranjang(){
   // hanya mengundang kertas yang salah keluar.
   S.lastKitchen = null;
   el('kitchenPrintBtn').hidden = true;
+  // Keterangan milik pesanan lama ("tiket dapur terkirim", nama bill) tidak boleh menempel
+  // pada pesanan berikutnya. Pemanggil yang punya keterangan sendiri menimpanya setelah ini.
+  el('cartMeta').textContent = 'nomor struk otomatis';
   renderTableBar(); renderDetailBar(); refreshQuote();
   siarkan();
 }
