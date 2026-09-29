@@ -329,4 +329,26 @@ describe('komponen Livewire', function () {
             ->assertNotified('Impor selesai');
         expect(Item::query()->where('sku', 'KS-1')->exists())->toBeTrue();
     });
+
+    /*
+     * Impor kategori lewat aksi di halamannya sendiri (diminta user 28 Sep 2026). Diuji dari
+     * jalur yang benar-benar dipakai pengguna, bukan dengan memanggil kelasnya — aturan yang
+     * diadopsi 27 Sep 2026 setelah layar kredensial gateway lolos 24 uji lalu tetap galat di
+     * tangan user. Perilaku rinci importernya ada di tests/Feature/Catalog/MenuCategoryToolsTest.
+     */
+    it('mengimpor kategori dari header aksi dengan mode periksa', function () {
+        $csv = UploadedFile::fake()->createWithContent('kategori.csv', "nama,warna,urutan\nKopi,amber,1\nPastry,pink,2\n");
+
+        Livewire::test(ListMenuCategories::class)
+            ->callAction('import', data: ['brand_id' => $this->brand->id, 'file' => $csv, 'dry_run' => true])
+            ->assertHasNoActionErrors()
+            ->assertNotified('File valid. Belum ada yang disimpan.');
+        expect(MenuCategory::query()->where('brand_id', $this->brand->id)->count())->toBe(0);
+
+        Livewire::test(ListMenuCategories::class)
+            ->callAction('import', data: ['brand_id' => $this->brand->id, 'file' => $csv, 'dry_run' => false])
+            ->assertNotified('Impor selesai');
+        expect(MenuCategory::query()->where('brand_id', $this->brand->id)->count())->toBe(2)
+            ->and(MenuCategory::query()->where('name', 'Kopi')->value('color'))->toBe('amber');
+    });
 });

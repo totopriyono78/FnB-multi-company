@@ -57,6 +57,16 @@
   .fld input{width:100%;padding:11px 12px;border:1px solid var(--line-2);border-radius:var(--r);font-size:15px;font-family:inherit;color:var(--ink-2);transition:box-shadow .25s,border-color .25s}
   .fld input:focus{outline:0;border-color:var(--accent);box-shadow:0 3px 10px 0 rgba(58,36,19,.1)}
   .fld input.code{letter-spacing:.35em;text-transform:uppercase;font-size:20px;text-align:center;font-weight:600}
+  /*
+   * `hidden` harus benar-benar menyembunyikan.
+   *
+   * Aturan bawaan peramban untuk [hidden] hanyalah `display:none` di stylesheet UA, dan stylesheet
+   * penulis selalu menang atasnya — jadi `.btn{display:inline-flex}` di bawah ini diam-diam
+   * membatalkannya. Akibatnya nyata dan sempat lolos: tombol "Cetak kode QR" dan "Periksa ulang
+   * ke AINO" tetap terpampang di panel pembayaran padahal kodenya sudah menyetel `hidden` — yang
+   * kedua bahkan mengajak kasir memulihkan tagihan yang sedang sehat-sehat saja.
+   */
+  [hidden]{display:none !important}
   .btn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:10px 14px;
     font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;
     transition:box-shadow .2s,background-color .2s,color .2s}
@@ -99,6 +109,10 @@
   .rail button:hover{color:var(--gold-2);transform:translateX(3px)}
   .rail button.on,.rail button.on:hover{color:var(--rail-active-ink);font-weight:600;background:var(--grad-gold);box-shadow:var(--glow);transform:none}
   .rail button:focus-visible{outline-color:var(--gold-2)}
+  /* Titik hijau kecil saat layar pelanggan sedang menyapa balik: kasir bisa memastikan monitor
+     kedua benar-benar hidup tanpa harus menoleh ke belakang konter. */
+  .rail button.tersambung::after{content:'';position:absolute;top:12px;right:14px;width:7px;height:7px;
+    border-radius:50%;background:#28c76f;box-shadow:0 0 0 2px rgba(40,199,111,.28)}
   .main{flex:1;display:flex;flex-direction:column;min-width:0}
   .top{height:60px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:12px 16px 0;display:flex;align-items:center;gap:16px;padding:0 18px;flex:0 0 auto}
   .top h1{margin:0;font-size:15px;font-weight:600;color:var(--ink)}
@@ -281,6 +295,7 @@
   <symbol id="ic-kasir" viewBox="0 0 24 24"><path d="M6 2.8h12v18.4l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6L6 19.6z"/><path d="M9 7.5h6M9 11h6M9 14.5h4"/></symbol>
   <symbol id="ic-pesanan" viewBox="0 0 24 24"><rect x="5" y="4.2" width="14" height="16.6" rx="1.6"/><path d="M9.2 4.2V2.9h5.6v1.3"/><path d="M8.6 9.4h6.8M8.6 13h6.8M8.6 16.6h4.2"/></symbol>
   <symbol id="ic-shift" viewBox="0 0 24 24"><rect x="2.8" y="6" width="18.4" height="12.6" rx="2"/><path d="M2.8 10.2h18.4"/><circle cx="16.6" cy="14.6" r="1.5"/></symbol>
+  <symbol id="ic-display" viewBox="0 0 24 24"><rect x="2.8" y="4.2" width="18.4" height="12.4" rx="1.8"/><path d="M9 20.4h6M12 16.6v3.8"/><path d="M7.2 8.6h6.4M7.2 11.6h4.2"/></symbol>
   <symbol id="ic-atur" viewBox="0 0 24 24"><path d="M3.6 7.4h8.2M15.4 7.4h5M3.6 16.6h5M12.2 16.6h8.2M3.6 12h3M10 12h10.4"/><circle cx="13.6" cy="7.4" r="2"/><circle cx="10.2" cy="16.6" r="2"/><circle cx="8.2" cy="12" r="2"/></symbol>
   <symbol id="ic-cari" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.6 15.6 4.4 4.4"/></symbol>
   <symbol id="ic-bill" viewBox="0 0 24 24"><path d="M6 3.4h12v17.2l-2.4-1.4-2.4 1.4-2.4-1.4-2.4 1.4-2.4-1.4z"/><path d="M9.2 8.4h5.6M9.2 12.4h5.6"/></symbol>
@@ -357,6 +372,10 @@
       <button data-scr="bill"><svg class="i"><use href="#ic-bill"/></svg>Bill<em id="billBadge" style="display:none"></em></button>
       <button data-scr="shift"><svg class="i"><use href="#ic-shift"/></svg>Shift</button>
       <div class="sep"></div>
+      {{-- Bukan layar: menekan ini membuka JENDELA lain untuk monitor kedua, jadi ia sengaja
+           tanpa data-scr dan tidak pernah tersorot sebagai menu aktif. --}}
+      <button id="displayNav" title="Buka layar pelanggan di monitor kedua">
+        <svg class="i"><use href="#ic-display"/></svg>Pelanggan</button>
       <button data-scr="atur"><svg class="i"><use href="#ic-atur"/></svg>Atur</button>
     </nav>
   </aside>
@@ -757,6 +776,8 @@ if (displayCh) {
     siarkan();
     const st = el('displayState');
     if (st) st.textContent = 'Layar pelanggan tersambung.';
+    const nav = el('displayNav');
+    if (nav) nav.classList.add('tersambung');
   };
   setInterval(siarkan, DISPLAY_DENYUT_MS);
 }
@@ -1998,27 +2019,39 @@ function renderPrintPrefs(){
 document.querySelectorAll('#paperOpt button').forEach(b => b.onclick = () => { savePrefs({ w: Number(b.dataset.w) }); renderPrintPrefs(); });
 el('autoPrint').onchange = e => savePrefs({ auto: e.target.checked });
 el('autoKitchen').onchange = e => savePrefs({ kitchen: e.target.checked });
-/* Nama jendela dipakai ulang: menekan tombolnya dua kali tidak membuka jendela kedua,
-   melainkan memunculkan kembali yang sudah ada — kasir tidak perlu menata monitor lagi. */
-el('displayOpen').onclick = () => {
+/*
+ * Membuka layar pelanggan. Dipakai dua pintu: butir menu "Pelanggan" di rail (jalur sehari-hari)
+ * dan tombol di menu Atur (tempat penjelasan panjangnya berada).
+ *
+ * Nama jendela dipakai ulang: menekan dua kali tidak membuka jendela kedua, melainkan
+ * memunculkan kembali yang sudah ada — kasir tidak perlu menata monitor lagi.
+ */
+function bukaLayarPelanggan(){
   const st = el('displayState');
+  const lapor = (pesan) => { if (st) st.textContent = pesan; };
 
   if (!displayCh) {
-    st.textContent = 'Peramban ini tidak mendukung layar pelanggan (BroadcastChannel tidak ada).';
+    lapor('Peramban ini tidak mendukung layar pelanggan (BroadcastChannel tidak ada).');
+    alert('Peramban ini tidak mendukung layar pelanggan.');
     return;
   }
 
   const win = window.open('{{ route('pos.display') }}', 'fnbCustomerDisplay');
   if (!win) {
-    st.textContent = 'Jendela diblokir peramban. Izinkan pop-up untuk alamat ini, lalu coba lagi.';
+    // Pemblokir pop-up adalah penyebab tersering, dan kasir tidak sedang melihat menu Atur
+    // ketika ia menekan tombol di rail — jadi kabarnya harus sampai di mana pun ia berada.
+    lapor('Jendela diblokir peramban. Izinkan pop-up untuk alamat ini, lalu coba lagi.');
+    alert('Jendela layar pelanggan diblokir peramban. Izinkan pop-up untuk alamat ini, lalu coba lagi.');
     return;
   }
 
   win.focus();
-  st.textContent = 'Jendela dibuka. Tarik ke monitor kedua, lalu tekan F11 untuk layar penuh.';
+  lapor('Jendela dibuka. Tarik ke monitor kedua, lalu tekan F11 untuk layar penuh.');
   // Jendela baru juga menyapa sendiri saat siap; siaran ini hanya mempercepat frame pertama.
   setTimeout(siarkan, 400);
-};
+}
+
+el('displayOpen').onclick = () => bukaLayarPelanggan();
 
 el('testPrint').onclick = () => {
   const P = slip();
@@ -2523,7 +2556,8 @@ function goView(t){
   if (t === 'bill') muatBills();
   if (t === 'atur') { renderDevice(); renderPrintPrefs(); renderSoldOut(); }
 }
-document.querySelectorAll('.rail button').forEach(b => b.onclick = () => goView(b.dataset.scr));
+document.querySelectorAll('.rail button[data-scr]').forEach(b => b.onclick = () => goView(b.dataset.scr));
+el('displayNav').onclick = () => bukaLayarPelanggan();
 applyPaper();
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { b.closest('.ov').classList.remove('on'); siarkan(); });
 document.querySelectorAll('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) { o.classList.remove('on'); siarkan(); } }));

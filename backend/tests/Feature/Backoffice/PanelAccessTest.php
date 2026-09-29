@@ -3,11 +3,14 @@
 use App\Filament\Resources\BrandResource\Pages\CreateBrand;
 use App\Filament\Resources\BrandResource\Pages\ListBrands;
 use App\Filament\Resources\DeviceResource\Pages\ListDevices;
+use App\Filament\Resources\OutletResource\Pages\CreateOutlet;
+use App\Filament\Resources\OutletResource\Pages\EditOutlet;
 use App\Filament\Resources\OutletResource\Pages\ListOutlets;
 use App\Filament\Widgets\OperationalAlerts;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Models\Brand;
 use App\Modules\Tenancy\Domain\Models\Device;
+use App\Modules\Tenancy\Domain\Models\Outlet;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
 use Tests\Support\Factory;
@@ -93,6 +96,19 @@ describe('komponen Livewire', function () {
             ->assertHasFormErrors(['code' => 'unique']);
     });
 
+    it('membuat outlet pertama untuk brand yang baru dibuat', function () {
+        // Regresi: aturan exists pada brand_id dulu mengecek outlets.brand_id, sehingga brand
+        // yang belum punya outlet selalu ditolak "Brand yang dipilih tidak ditemukan".
+        $brand = Brand::query()->create(['code' => 'BRA', 'name' => 'Brand A']);
+
+        Livewire::test(CreateOutlet::class)
+            ->fillForm(['brand_id' => $brand->id, 'code' => 'bra01', 'name' => 'Brand A Kemang'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(Outlet::query()->where('brand_id', $brand->id)->where('code', 'BRA01')->exists())->toBeTrue();
+    });
+
     it('membatasi daftar outlet, perangkat, dan brand untuk manajer outlet (FR-AUTH-06)', function () {
         $brandA = Factory::brand($this->company, ['code' => 'KTJ']);
         $brandB = Factory::brand($this->company, ['code' => 'RB88']);
@@ -145,5 +161,40 @@ describe('komponen Livewire', function () {
         Livewire::test(ListDevices::class)
             ->assertCanSeeTableRecords([$device])
             ->assertSee('Online');
+    });
+    it('menolak brand nonaktif untuk outlet BARU', function () {
+        // Syarat is_active tetap berlaku saat membuat: Select tidak menawarkannya, jadi nilai
+        // seperti ini hanya bisa datang dari kiriman yang dirakit tangan.
+        $brand = Brand::query()->create(['code' => 'OFF', 'name' => 'Brand Nonaktif', 'is_active' => false]);
+
+        Livewire::test(CreateOutlet::class)
+            ->fillForm(['brand_id' => $brand->id, 'code' => 'off01', 'name' => 'Outlet Nonaktif'])
+            ->call('create')
+            ->assertHasFormErrors(['brand_id']);
+
+        expect(Outlet::query()->where('code', 'OFF01')->exists())->toBeFalse();
+    });
+
+    it('masih bisa menyimpan outlet ketika brand-nya sudah dinonaktifkan', function () {
+        /*
+         * Perangkap yang tidak kelihatan saat membuat, hanya saat MENGUBAH: `is_active` ikut jadi
+         * syarat pada aturan brand_id, sedangkan brand bisa dinonaktifkan kapan saja setelah
+         * outletnya berdiri. Bila outlet lama lalu diubah — sekadar mengganti alamat atau jam buka —
+         * validasi brand_id ikut berjalan dan menolak, padahal brand-nya memang tidak diubah.
+         */
+        $brand = Brand::query()->create(['code' => 'LAMA', 'name' => 'Brand Lama']);
+        $outlet = Outlet::query()->create([
+            'brand_id' => $brand->id, 'code' => 'LMA01', 'name' => 'Outlet Lama',
+            'timezone' => 'Asia/Jakarta',
+        ]);
+
+        $brand->update(['is_active' => false]);
+
+        Livewire::test(EditOutlet::class, ['record' => $outlet->id])
+            ->fillForm(['name' => 'Outlet Lama (pindah alamat)'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        expect($outlet->refresh()->name)->toBe('Outlet Lama (pindah alamat)');
     });
 });

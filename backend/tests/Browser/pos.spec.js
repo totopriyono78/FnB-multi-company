@@ -417,6 +417,15 @@ test('kasir membayar QRIS: gambar QR, hitung mundur, dan status terpantau sendir
     await expect(page.locator('#qrisBox')).toBeVisible();
     await page.locator('#qrisCreate').click();
 
+    /*
+     * Tombol yang disetel `hidden` harus benar-benar hilang. Terdengar sepele, tetapi sempat
+     * gagal: `.btn{display:inline-flex}` mengalahkan aturan [hidden] bawaan peramban, sehingga
+     * "Cetak kode QR" dan "Periksa ulang ke AINO" tetap terpampang — yang kedua mengajak kasir
+     * memulihkan tagihan yang sedang menunggu pembayaran dengan wajar.
+     */
+    await expect(page.locator('#qrisRecheck')).toBeHidden();
+    await expect(page.locator('#qrisPrint')).toBeHidden();
+
     // Gambar QR, bukan teks payload.
     const qr = page.locator('#qrImg svg');
     await expect(qr).toBeVisible({ timeout: 15_000 });
@@ -450,9 +459,20 @@ test('layar pelanggan di monitor kedua mengikuti pesanan, QR, dan status lunas',
     const kode = await kodePairing(page);
     await masukKasir(page, kode);
 
-    const layar = await context.newPage();
-    await layar.goto('/pos/display');
+    /*
+     * Dibuka lewat butir menu "Pelanggan" di rail — jalur yang benar-benar dipakai kasir,
+     * bukan dengan mengetik alamatnya. Jendelanya ditangkap sebagai popup, persis seperti yang
+     * terjadi di komputer kasir.
+     */
+    const [layar] = await Promise.all([
+        context.waitForEvent('page'),
+        page.locator('#displayNav').click(),
+    ]);
+    await layar.waitForLoadState();
     await expect(layar.getByRole('heading', { name: 'Selamat datang' })).toBeVisible({ timeout: 10_000 });
+
+    // Kasir bisa memastikan monitor kedua hidup tanpa menoleh: titik hijau di butir menunya.
+    await expect(page.locator('#displayNav')).toHaveClass(/tersambung/, { timeout: 10_000 });
 
     await isiKeranjang(page, 2);
 

@@ -7,24 +7,17 @@ use App\Modules\Catalog\Domain\Models\KitchenStation;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
 use App\Modules\Tenancy\Domain\Models\Brand;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
-use OpenSpout\Common\Entity\Cell\StringCell;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Reader\CSV\Options as CsvOptions;
-use OpenSpout\Reader\CSV\Reader as CsvReader;
-use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 /**
  * Impor/ekspor menu via Excel atau CSV (FR-MENU-09).
  *
- * Kolom: kategori, sku, nama, nama_singkat, harga, varian, stasiun, barcode, deskripsi, aktif.
+ * Kolom: kategori, sku, nama, nama_singkat, harga, varian, stasiun, barcode, deskripsi, urutan, aktif.
  * Varian ditulis "Regular=18000; Large=22000". Impor bersifat semua-atau-tidak-sama-sekali.
  */
 class MenuSpreadsheet
 {
-    public const HEADERS = ['kategori', 'sku', 'nama', 'nama_singkat', 'harga', 'varian', 'stasiun', 'barcode', 'deskripsi', 'aktif'];
+    public const HEADERS = ['kategori', 'sku', 'nama', 'nama_singkat', 'harga', 'varian', 'stasiun', 'barcode', 'deskripsi', 'urutan', 'aktif'];
 
     public const MAX_ROWS = 5000;
 
@@ -35,7 +28,7 @@ class MenuSpreadsheet
      */
     public function import(Brand $brand, string $path, string $extension, bool $dryRun = false): array
     {
-        $rows = $this->read($path, $extension);
+        $rows = SpreadsheetIo::read($path, $extension, ['kategori', 'sku', 'nama', 'harga'], self::MAX_ROWS);
         $errors = [];
         $parsed = [];
         $skus = [];
@@ -105,6 +98,10 @@ class MenuSpreadsheet
                     'kitchen_station_id' => $item['stasiun'] === null ? null : $stations[mb_strtolower($item['stasiun'])],
                     'barcode' => $item['barcode'],
                     'description' => $item['deskripsi'],
+                    // Tanpa tanda kurung, `$current?->sort_order` menjadi operand KANAN dari `??`
+                    // pertama dan tetap dievaluasi walau $current null — dan `??` hanya meredam
+                    // galat di operand kiri, bukan kanan. Menu baru akan menabrak galat di situ.
+                    'sort_order' => $item['urutan'] ?? ($current === null ? 0 : $current->sort_order),
                     'is_active' => $item['aktif'],
                     'variants' => $this->mergeVariants($current, $item['varian']),
                 ];
@@ -125,15 +122,10 @@ class MenuSpreadsheet
     /** Tulis file Excel menu satu brand; mengembalikan path file sementara. */
     public function export(Brand $brand): string
     {
-        $base = tempnam(sys_get_temp_dir(), 'menu');
-        if ($base === false) {
-            throw new \RuntimeException('Tidak dapat membuat file sementara.');
-        }
-        @unlink($base);
-        $path = $base.'.xlsx';
+        $path = SpreadsheetIo::tempXlsx('menu');
         $writer = new XlsxWriter;
         $writer->openToFile($path);
-        $writer->addRow(self::textRow(self::HEADERS));
+        $writer->addRow(SpreadsheetIo::textRow(self::HEADERS));
 
         Item::query()
             ->with(['category', 'station', 'variants'])
@@ -143,7 +135,7 @@ class MenuSpreadsheet
             ->chunk(500, function ($items) use ($writer): void {
                 foreach ($items as $item) {
                     /** @var Item $item */
-                    $writer->addRow(self::textRow([
+                    $writer->addRow(SpreadsheetIo::textRow([
                         $item->category->name,
                         $item->sku,
                         $item->name,
@@ -153,6 +145,7 @@ class MenuSpreadsheet
                         $item->station->code ?? '',
                         $item->barcode ?? '',
                         $item->description ?? '',
+                        (string) $item->sort_order,
                         $item->is_active ? 'ya' : 'tidak',
                     ]));
                 }
@@ -164,71 +157,8 @@ class MenuSpreadsheet
     }
 
     /**
-     * Semua sel ditulis sebagai teks agar nilai seperti "=HYPERLINK(...)" tidak menjadi rumus (CSV/formula injection).
-     *
-     * @param  list<string>  $values
-     */
-    private static function textRow(array $values): Row
-    {
-        return new Row(array_map(fn (string $v) => new StringCell($v, null), $values));
-    }
-
-    /**
-     * @return list<array<string, string|null>>
-     */
-    private function read(string $path, string $extension): array
-    {
-        $extension = strtolower($extension);
-        if ($extension === 'csv' || $extension === 'txt') {
-            $options = new CsvOptions;
-            $options->FIELD_DELIMITER = $this->detectDelimiter($path);
-            $reader = new CsvReader($options);
-        } elseif ($extension === 'xlsx') {
-            $reader = new XlsxReader;
-        } else {
-            throw ValidationException::withMessages(['file' => 'Format file harus .xlsx atau .csv.']);
-        }
-
-        $reader->open($path);
-        $headers = null;
-        $rows = [];
-        foreach ($reader->getSheetIterator() as $sheet) {
-            foreach ($sheet->getRowIterator() as $row) {
-                $values = array_map(fn ($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : trim((string) $v), $row->toArray());
-                if ($headers === null) {
-                    $values[0] = preg_replace('/^\xEF\xBB\xBF/', '', $values[0] ?? '');
-                    $headers = array_map(fn ($h) => Str::snake(mb_strtolower(trim((string) $h))), $values);
-                    $missing = array_diff(['kategori', 'sku', 'nama', 'harga'], $headers);
-                    if ($missing !== []) {
-                        $reader->close();
-                        throw ValidationException::withMessages(['file' => 'Kolom wajib tidak ditemukan: '.implode(', ', $missing).'. Unduh template dari menu Ekspor.']);
-                    }
-
-                    continue;
-                }
-                if (implode('', $values) === '') {
-                    continue;
-                }
-                if (count($rows) >= self::MAX_ROWS) {
-                    $reader->close();
-                    throw ValidationException::withMessages(['file' => 'Maksimal '.self::MAX_ROWS.' baris per impor.']);
-                }
-                $rows[] = array_combine($headers, array_pad(array_slice($values, 0, count($headers)), count($headers), ''));
-            }
-            break; // hanya sheet pertama
-        }
-        $reader->close();
-
-        if ($headers === null) {
-            throw ValidationException::withMessages(['file' => 'File kosong.']);
-        }
-
-        return $rows;
-    }
-
-    /**
      * @param  array<string, string|null>  $row
-     * @return array{kategori: string, sku: string, nama: string, nama_singkat: string|null, harga: string, varian: list<array{name: string, price: string}>, stasiun: string|null, barcode: string|null, deskripsi: string|null, aktif: bool}
+     * @return array{kategori: string, sku: string, nama: string, nama_singkat: string|null, harga: string, varian: list<array{name: string, price: string}>, stasiun: string|null, barcode: string|null, deskripsi: string|null, urutan: int|null, aktif: bool}
      */
     private function parseRow(array $row): array
     {
@@ -260,6 +190,19 @@ class MenuSpreadsheet
             $variants[] = ['name' => $name, 'price' => $this->money($price, "harga varian {$name}")];
         }
 
+        /*
+         * Urutan tampil di layar kasir (diminta user 28 Sep 2026). Kolomnya OPSIONAL dan kosong
+         * berarti "jangan ubah" — bukan 0. Kalau kosong diartikan 0, satu impor pembaruan harga
+         * dengan berkas tanpa kolom urutan akan meratakan susunan tombol yang sudah ditata rapi.
+         */
+        $order = $get('urutan');
+        if ($order !== null) {
+            if (! preg_match('/^\d{1,5}$/', $order) || (int) $order > 32767) {
+                throw new \InvalidArgumentException("Urutan \"{$order}\" harus bilangan bulat 0–32767.");
+            }
+            $order = (int) $order;
+        }
+
         $active = mb_strtolower((string) ($get('aktif') ?? 'ya'));
         if (! in_array($active, ['ya', 'tidak', '1', '0', 'y', 'n', 'true', 'false', 'aktif', 'nonaktif'], true)) {
             throw new \InvalidArgumentException('Kolom aktif diisi "ya" atau "tidak".');
@@ -275,6 +218,7 @@ class MenuSpreadsheet
             'stasiun' => $get('stasiun'),
             'barcode' => $get('barcode'),
             'deskripsi' => $get('deskripsi') === null ? null : mb_substr((string) $get('deskripsi'), 0, 1000),
+            'urutan' => $order,
             'aktif' => in_array($active, ['ya', '1', 'y', 'true', 'aktif'], true),
         ];
     }
@@ -319,16 +263,5 @@ class MenuSpreadsheet
     private function plainNumber(string $value): string
     {
         return str_ends_with($value, '.00') ? substr($value, 0, -3) : $value;
-    }
-
-    private function detectDelimiter(string $path): string
-    {
-        $handle = fopen($path, 'r');
-        $first = $handle === false ? '' : (string) fgets($handle);
-        if ($handle !== false) {
-            fclose($handle);
-        }
-
-        return substr_count($first, ';') > substr_count($first, ',') ? ';' : ',';
     }
 }

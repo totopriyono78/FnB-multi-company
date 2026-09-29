@@ -52,7 +52,25 @@ class OutletResource extends Resource
                         Select::make('brand_id')->label('Brand')
                             ->relationship('brand', 'name', fn (Builder $query) => self::scopeBrands($query->where('is_active', true)))
                             ->required()->preload()
-                            ->exists(modifyRuleUsing: fn (Exists $rule) => $rule->where('company_id', $tenantId())),
+                            // Tabel & kolom wajib disebut: tanpa itu Filament memakai model form (outlets.brand_id),
+                            // sehingga brand baru yang belum punya outlet selalu dianggap "tidak ditemukan".
+                            ->exists(table: Brand::class, column: 'id', modifyRuleUsing: function (Exists $rule, ?Outlet $record) use ($tenantId): Exists {
+                                $rule->where('company_id', $tenantId())->whereNull('deleted_at');
+
+                                /*
+                                 * `is_active` hanya berlaku saat MEMBUAT. Select memang tidak pernah
+                                 * menawarkan brand nonaktif, jadi untuk outlet baru syarat ini menutup
+                                 * celah kiriman HTTP yang dirakit tangan. Tetapi brand bisa dinonaktifkan
+                                 * kapan saja setelah outletnya berdiri — kalau syaratnya ikut berlaku saat
+                                 * mengubah, outlet lama tidak bisa disimpan lagi sama sekali, bahkan untuk
+                                 * mengganti alamat atau jam buka yang tidak ada hubungannya dengan brand.
+                                 */
+                                if ($record === null) {
+                                    $rule->where('is_active', true);
+                                }
+
+                                return $rule;
+                            }),
                         TextInput::make('code')->label('Kode outlet')->required()->maxLength(10)
                             ->regex('/^[A-Z0-9]+$/')
                             ->mutateStateForValidationUsing(fn (?string $state) => strtoupper(trim((string) $state)))

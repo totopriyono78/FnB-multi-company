@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Audit\Domain\AuditLog;
+use App\Modules\Catalog\Application\MenuSpreadsheet;
 use App\Modules\Catalog\Domain\Models\Item;
 use App\Modules\Catalog\Domain\Models\ItemPrice;
 use App\Modules\Catalog\Domain\Models\ItemPriceHistory;
@@ -112,7 +113,9 @@ it('mengekspor menu ke Excel yang dapat diimpor kembali', function () {
     }
     $reader->close();
 
-    expect($rows[0])->toBe(['kategori', 'sku', 'nama', 'nama_singkat', 'harga', 'varian', 'stasiun', 'barcode', 'deskripsi', 'aktif'])
+    // Diambil dari konstantanya, bukan disalin: kolom baru (mis. `urutan`, 28 Sep 2026) tidak
+    // boleh membuat uji ini merah hanya karena daftarnya ditulis dua kali.
+    expect($rows[0])->toBe(MenuSpreadsheet::HEADERS)
         ->and($rows[1][1])->toBe('KSA-01')
         ->and($rows[1][2])->toBe('=HYPERLINK("x")') // disimpan sebagai teks, bukan rumus
         ->and($rows[1][5])->toBe('Regular=18000; Large=22000.50');
@@ -183,4 +186,40 @@ it('menyalin harga & ketersediaan antar outlet (FR-MENU-10)', function () {
     [$om] = Factory::staff($this->company, ['outlet_manager'], [$kemang->id]);
     $this->postJson('/api/v1/menu/copy-outlet', ['from_outlet_id' => $kemang->id, 'to_outlet_id' => $dago->id], asMember($om, $this->company))
         ->assertForbidden();
+});
+
+it('mengatur urutan tampil menu dan tidak meratakannya saat kolomnya kosong', function () {
+    /*
+     * Kolom `urutan` diminta user 28 Sep 2026: tanpa itu seluruh menu hasil impor masuk dengan
+     * urutan 0 dan tampil berdasarkan nama, sehingga menu terlaris tidak bisa ditaruh di depan.
+     *
+     * Bagian keduanya yang lebih penting: kolom yang KOSONG berarti "jangan ubah". Kalau kosong
+     * diartikan 0, satu impor pembaruan harga dengan berkas tanpa kolom urutan akan meratakan
+     * susunan tombol POS yang sudah ditata tangan.
+     */
+    $this->post('/api/v1/items/import', ['brand_id' => $this->brand->id, 'file' => csvUpload(
+        "kategori,sku,nama,harga,urutan\nKopi,KSA-01,Kopi Susu,18000,3\nKopi,AMR-01,Americano,15000,\n"
+    )], $this->headers)->assertOk()->assertJsonPath('data.created', 2);
+
+    $susu = fn () => Factory::tenant($this->company, fn () => Item::query()->where('sku', 'KSA-01')->firstOrFail());
+    expect($susu()->sort_order)->toBe(3)
+        // Menu baru tanpa kolom urutan tetap boleh dibuat — nilainya 0, bukan galat.
+        ->and(Factory::tenant($this->company, fn () => Item::query()->where('sku', 'AMR-01')->firstOrFail())->sort_order)->toBe(0);
+
+    // Impor pembaruan harga tanpa kolom urutan sama sekali: susunan bertahan.
+    $this->post('/api/v1/items/import', ['brand_id' => $this->brand->id, 'file' => csvUpload(
+        "kategori,sku,nama,harga\nKopi,KSA-01,Kopi Susu,19000\n"
+    )], $this->headers)->assertOk()->assertJsonPath('data.updated', 1);
+
+    expect($susu()->sort_order)->toBe(3)->and((string) $susu()->base_price)->toBe('19000.00');
+
+    // Urutan yang bukan angka ditolak dengan nomor barisnya (422, seperti kesalahan baris lain).
+    $this->post('/api/v1/items/import', ['brand_id' => $this->brand->id, 'file' => csvUpload(
+        "kategori,sku,nama,harga,urutan\nKopi,KSA-01,Kopi Susu,19000,paling depan\n"
+    )], $this->headers)
+        ->assertStatus(422)
+        ->assertJsonPath('errors.0.message', 'Baris 2: Urutan "paling depan" harus bilangan bulat 0–32767.');
+
+    // Ditolak berarti tidak tersimpan: harga lama bertahan.
+    expect((string) $susu()->base_price)->toBe('19000.00');
 });

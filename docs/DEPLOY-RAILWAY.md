@@ -236,3 +236,66 @@ server callback-nya ikut hidup. Pakai nominal sekecil mungkin. Pembulatan outlet
 (Outlet → Harga → Pembulatan: "Tanpa pembulatan") untuk menguji nominal kecil, tetapi totalnya
 harus tetap rupiah bulat: Rp1 + PB1 10% = Rp1,10 akan ditolak dengan `AMOUNT_NOT_WHOLE_RUPIAH`.
 Nominal uji terkecil yang aman: harga item Rp10 → total Rp11.
+
+### 7.7 Build gagal: `composer install` time-out saat `git clone` (28 Sep 2026)
+
+Gejalanya di log build:
+
+```
+- Syncing pestphp/pest-plugin (v3.0.0) into cache
+- Syncing voku/portable-ascii (2.1.1) into cache
+  … 162 baris serupa …
+The process "'git' 'clone' '--mirror' '--' 'https://github.com/phpstan/phpstan.git' …"
+  exceeded the timeout of 300 seconds.
+```
+
+**Kata kuncinya "Syncing … into cache", bukan "Downloading".** Itu artinya composer memasang
+tiap paket dari **source** (git clone satu per satu), bukan dari arsip zip. Untuk 162 paket itu
+lambat sekali, dan `phpstan` — yang riwayat git-nya besar — menembus batas 300 detik.
+
+Penyebabnya bukan Railway, melainkan **`composer.lock` yang tidak punya satu pun entri `dist`**.
+Periksa sendiri:
+
+```bash
+php -r "$l=json_decode(file_get_contents('backend/composer.lock'),true);
+$a=array_merge($l['packages'],$l['packages-dev']);
+$t=array_filter($a,fn($p)=>empty($p['dist']['url']));
+echo count($t),' dari ',count($a),\" paket tanpa dist\n\";"
+```
+
+Lock yang sehat punya **dist DAN source** untuk tiap paket; composer memakai dist (zip, cepat)
+dan hanya jatuh ke source bila dist tidak ada. Lock tanpa dist biasanya lahir dari `composer
+update`/`install` yang dijalankan dengan `--prefer-source`, atau di jaringan yang memblokir
+`api.github.com` / `codeload.github.com` sehingga composer tidak bisa mencatat alamat zip-nya.
+
+**Penawar cepat (sudah dipasang di repositori):** `config.process-timeout: 1800` di
+`backend/composer.json`. Build tetap lambat karena tetap meng-clone, tetapi tidak lagi
+digugurkan di detik ke-300. Nilai ini tidak mengubah `content-hash`, jadi `composer.lock`
+tidak ikut basi (`composer validate` tetap bersih). Alternatif tanpa menyentuh kode: tambahkan
+variabel Railway `COMPOSER_PROCESS_TIMEOUT=1800`.
+
+**Penawar sesungguhnya — kembalikan `dist` ke lock, dan ini harus dikerjakan di mesin yang
+internetnya normal** (tidak bisa dari ruang kerja cloud yang egress-nya dibatasi):
+
+```bash
+cd D:\DEVELOPMENT\FB_Multi_Company\backend
+composer diagnose                      # pastikan api.github.com terjangkau & tidak kena rate limit
+composer update --prefer-dist          # tulis ulang lock, kali ini dengan dist
+```
+
+Bila `composer diagnose` menyebut rate limit GitHub, pasang token dulu — tanpa itu composer
+tidak bisa membaca alamat zip dan akan kembali menulis lock tanpa dist:
+
+```bash
+composer config --global github-oauth.github.com <token>
+```
+
+Sesudahnya **periksa dua hal sebelum commit**:
+
+1. Perintah pemeriksa di atas harus melaporkan `0 dari 162 paket tanpa dist`.
+2. `git diff backend/composer.lock` — bila ada paket yang ikut naik versi, itu keputusan
+   tersendiri: jalankan `composer install` lalu gerbang mutu (Pint, Larastan, Pest, Playwright)
+   sebelum mendorongnya ke server.
+
+Setelah dist kembali, build Railway turun dari belasan menit menjadi satu–dua menit, dan batas
+time-out 1800 detik itu tidak lagi terpakai.
