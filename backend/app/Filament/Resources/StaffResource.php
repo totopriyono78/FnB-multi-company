@@ -16,6 +16,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -25,6 +26,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 /** Kelola staf, role, cakupan, dan PIN (FR-AUTH-03, FR-AUTH-05, FR-AUTH-06, FR-AUTH-09). */
 class StaffResource extends Resource
@@ -63,10 +65,33 @@ class StaffResource extends Resource
                 TextInput::make('name')->label('Nama lengkap')->required()->maxLength(100),
                 TextInput::make('email')->label('Email')->email()->required()->maxLength(255)
                     ->disabledOn('edit')
-                    ->helperText('Staf baru menerima email untuk membuat password.'),
+                    ->helperText('Dipakai untuk masuk ke back-office.'),
                 TextInput::make('phone')->label('Nomor HP')->tel()->placeholder('0812 3456 7890')->disabledOn('edit'),
                 TextInput::make('employee_code')->label('Kode karyawan')->maxLength(20),
                 Toggle::make('is_active')->label('Aktif')->default(true)->hiddenOn('create'),
+            ]),
+            /*
+             * Password back-office, terpisah dari PIN kasir di bawah — keduanya kerap tertukar.
+             * PIN dipakai di layar kasir, password dipakai di halaman ini.
+             *
+             * Dua jalur tersedia dan keduanya sah (keputusan user 29 Sep 2026). Admin mengisi
+             * password awal — satu-satunya jalur yang tidak menuntut SMTP berjalan — atau
+             * mengosongkannya sehingga stafnya sendiri yang membuat password lewat tautan email.
+             */
+            Section::make('Password back-office')->columns(2)->schema([
+                TextInput::make('password')->label('Password awal')
+                    ->password()->revealable()->autocomplete('new-password')
+                    ->rule(PasswordRule::min(8)->letters()->numbers())
+                    ->confirmed()
+                    ->live(onBlur: true)
+                    ->helperText(fn (string $operation) => $operation === 'edit'
+                        ? 'Isi hanya bila ingin mengatur ulang password staf. Sesi aktifnya akan diakhiri dan ia wajib membuat password baru saat masuk.'
+                        : 'Staf wajib menggantinya saat pertama kali masuk. Kosongkan bila ingin ia membuat sendiri lewat tautan email — cara itu menuntut pengaturan SMTP yang aktif.'),
+                TextInput::make('password_confirmation')->label('Ulangi password')
+                    ->password()->revealable()->autocomplete('new-password')
+                    ->required(fn (Get $get): bool => filled($get('password')))
+                    // Hanya untuk dicocokkan; tidak ikut dikirim ke StaffManager.
+                    ->dehydrated(false),
             ]),
             Section::make('Hak akses')->columns(2)->schema([
                 CheckboxList::make('roles')->label('Role')->required()->options(fn () => self::roleOptions())->columns(2),
@@ -110,6 +135,14 @@ class StaffResource extends Resource
                     ->getStateUsing(fn (CompanyUser $record) => $record->user->roles->pluck('label')->all()),
                 TextColumn::make('pin_hash')->label('PIN')
                     ->getStateUsing(fn (CompanyUser $record) => $record->hasPin() ? 'Sudah diatur' : 'Belum ada'),
+                // Menjawab pertanyaan yang paling sering muncul setelah staf dibuat: "kenapa dia
+                // belum bisa masuk?" — password yang belum pernah dipakai terlihat di sini.
+                TextColumn::make('user.must_change_password')->label('Password')->toggleable()
+                    ->getStateUsing(fn (CompanyUser $record) => match (true) {
+                        $record->user->must_change_password => 'Wajib diganti',
+                        $record->user->last_login_at === null => 'Belum pernah masuk',
+                        default => 'Aktif',
+                    }),
                 TextColumn::make('pin_locked_until')->label('Status PIN')
                     ->getStateUsing(fn (CompanyUser $record) => $record->isPinLocked() ? 'Terkunci' : null)
                     ->badge()->color('danger')->placeholder('-'),

@@ -37,6 +37,7 @@ class EditStaff extends EditRecord
             'scope_outlets' => $member->scopes->where('scope_type', RoleScope::OUTLET)->pluck('scope_id')->values()->all(),
             'scope_brands' => $member->scopes->where('scope_type', RoleScope::BRAND)->pluck('scope_id')->values()->all(),
             'pin' => null,
+            'password' => null,
         ];
     }
 
@@ -55,6 +56,9 @@ class EditStaff extends EditRecord
         ];
         if (! empty($data['pin'])) {
             $payload['pin'] = $data['pin'];
+        }
+        if (! empty($data['password'])) {
+            $payload['password'] = $data['password'];
         }
 
         try {

@@ -44,8 +44,10 @@ class StaffManager
         $this->limits->ensureCanAddUser();
         $this->guardAssignment($actor, $data['roles'], $data['scopes'] ?? []);
 
-        return DB::transaction(function () use ($data): CompanyUser {
-            [$user, $isNew] = $this->context->runAsSystem(function () use ($data): array {
+        $password = empty($data['password']) ? null : (string) $data['password'];
+
+        return DB::transaction(function () use ($data, $password): CompanyUser {
+            [$user, $isNew] = $this->context->runAsSystem(function () use ($data, $password): array {
                 $existing = User::query()->where('email', $data['email'])->first();
                 if ($existing !== null) {
                     return [$existing, false];
@@ -55,13 +57,32 @@ class StaffManager
                     throw ValidationException::withMessages(['phone' => 'Nomor HP sudah dipakai akun lain.']);
                 }
 
-                return [User::query()->create([
+                $user = new User([
                     'name' => $data['name'],
                     'email' => $data['email'],
                     'phone' => $data['phone'] ?? null,
-                    'password' => Str::password(24),
-                ]), true];
+                    // Tanpa password dari admin, akun tetap lahir dengan password acak yang tidak
+                    // diketahui siapa pun; satu-satunya jalan masuk adalah tautan reset di bawah.
+                    'password' => $password ?? Str::password(24),
+                ]);
+                $user->must_change_password = $password !== null;
+                $user->save();
+
+                return [$user, true];
             });
+
+            /*
+             * Password hanya boleh diberikan untuk akun yang memang baru lahir di sini.
+             * Email yang sudah terdaftar berarti akunnya milik orang lain — mungkin staf di
+             * company lain — dan membiarkan admin menetapkan passwordnya sama saja dengan
+             * menyerahkan akun itu. Undangan tetap jalan; pemiliknya yang memutuskan.
+             */
+            if (! $isNew && $password !== null) {
+                throw ValidationException::withMessages([
+                    'password' => 'Email ini sudah punya akun. Passwordnya dikelola pemiliknya sendiri, '
+                        .'jadi kosongkan kolom password — pemilik akun akan menerima undangan.',
+                ]);
+            }
 
             if (CompanyUser::query()->where('user_id', $user->id)->exists()) {
                 throw ValidationException::withMessages(['email' => 'User ini sudah terdaftar atau sudah diundang ke company.']);
@@ -82,7 +103,10 @@ class StaffManager
                 $this->pins->setPin($member, $data['pin']);
             }
 
-            if ($isNew) {
+            if ($isNew && $password !== null) {
+                // Nilainya tidak ikut dicatat; yang dicatat hanya bahwa admin-lah yang mengaturnya.
+                $this->audit->log('user.password_set', $member, metadata: ['initial' => true]);
+            } elseif ($isNew) {
                 // Staf baru membuat password sendiri lewat tautan reset.
                 $this->context->runAsSystem(fn () => Password::sendResetLink(['email' => $user->email]));
             } else {
@@ -126,6 +150,17 @@ class StaffManager
             throw ValidationException::withMessages(['name' => 'Nama akun ini dikelola pemiliknya sendiri dan tidak dapat diubah dari company Anda.']);
         }
 
+        /*
+         * Penjagaan yang sama seperti nama, dengan taruhan yang jauh lebih besar: akun yang juga
+         * dipakai di company lain tidak boleh dapat password baru dari sini, karena itu berarti
+         * satu company bisa masuk ke data company lain lewat akun orang yang sama.
+         */
+        if (! empty($data['password']) && ! $this->ownsIdentity($member)) {
+            throw ValidationException::withMessages([
+                'password' => 'Akun ini juga dipakai di company lain, jadi passwordnya hanya dapat diubah pemiliknya sendiri.',
+            ]);
+        }
+
         return DB::transaction(function () use ($member, $data): CompanyUser {
             if (isset($data['name']) && $data['name'] !== $member->user->name) {
                 $this->context->runAsSystem(fn () => $member->user->update(['name' => $data['name']]));
@@ -145,12 +180,30 @@ class StaffManager
                 $this->pins->setPin($member, $data['pin']);
             }
 
+            if (! empty($data['password'])) {
+                $this->setPassword($member, (string) $data['password']);
+            }
+
             if (($data['is_active'] ?? true) === false) {
                 $this->revokeSessions($member);
             }
 
             return $member->refresh()->load(['user.roles', 'scopes']);
         });
+    }
+
+    /**
+     * Memberi password baru kepada staf yang lupa passwordnya.
+     *
+     * Sesi lama sengaja diakhiri. Alasan admin mengatur ulang password biasanya justru karena
+     * akunnya bermasalah, dan password baru tidak ada gunanya bila sesi yang lama masih hidup.
+     */
+    private function setPassword(CompanyUser $member, string $password): void
+    {
+        $this->context->runAsSystem(fn () => $member->user->setAdminIssuedPassword($password));
+
+        $this->audit->log('user.password_set', $member, metadata: ['initial' => false]);
+        $this->revokeSessions($member);
     }
 
     /**

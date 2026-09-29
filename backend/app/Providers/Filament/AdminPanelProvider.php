@@ -8,6 +8,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\EditCompanyProfile;
 use App\Filament\Pages\Tenancy\RegisterCompany;
+use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\SetFilamentTenant;
 use App\Modules\Tenancy\Domain\Models\Company;
 use Filament\Http\Middleware\Authenticate;
@@ -138,6 +139,8 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(PanelsRenderHook::FOOTER, fn (): View => view('filament.footer'))
             ->authMiddleware([
                 Authenticate::class,
+                // Sesudah Authenticate: penanda yang diperiksanya ada pada pengguna yang sudah masuk.
+                ForcePasswordChange::class,
             ]);
     }
 

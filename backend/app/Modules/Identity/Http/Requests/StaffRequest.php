@@ -7,6 +7,7 @@ use App\Modules\Identity\Domain\Models\CompanyUser;
 use App\Modules\Tenancy\Application\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class StaffRequest extends FormRequest
 {
@@ -37,6 +38,13 @@ class StaffRequest extends FormRequest
             'scopes.outlets' => ['sometimes', 'array'],
             'scopes.outlets.*' => ['uuid', Rule::exists('outlets', 'id')->where('company_id', $companyId)],
             'pin' => ['sometimes', 'string', 'regex:/^\d{4,6}$/'],
+            /*
+             * Opsional di kedua operasi. Dikosongkan saat menambah staf berarti password dibuat
+             * sendiri oleh stafnya lewat tautan email — jalur lama, dan satu-satunya jalur bila
+             * emailnya sudah punya akun. Diisi berarti admin yang memberi password awal, dan
+             * stafnya wajib menggantinya saat login pertama.
+             */
+            'password' => ['sometimes', 'nullable', 'string', PasswordRule::min(8)->letters()->numbers()],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

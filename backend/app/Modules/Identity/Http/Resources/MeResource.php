@@ -20,6 +20,9 @@ class MeResource extends JsonResource
             'phone' => $this->phone,
             'locale' => $this->locale,
             'is_platform_admin' => $this->is_platform_admin,
+            // Password buatan admin. Klien yang menampilkannya sebaiknya menuntun pengguna
+            // mengganti password lebih dulu, seperti yang dilakukan panel back-office.
+            'must_change_password' => $this->must_change_password,
             'email_verified' => $this->email_verified_at !== null,
             'companies' => $this->accessibleCompanies()->map(fn (Company $c) => [
                 'id' => $c->id,
