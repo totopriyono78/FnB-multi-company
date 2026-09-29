@@ -114,6 +114,13 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     const kode = await kodePairing(page);
     await catatCetakan(page);
 
+    /*
+     * Denyut perangkat dihitung sejak halaman pertama dibuka. Tanpa denyut, back-office menandai
+     * kasir yang sedang berjualan sebagai offline setelah tiga menit (temuan user 30 Sep 2026).
+     */
+    const denyutan = [];
+    page.on('request', (r) => { if (r.url().includes('/devices/heartbeat')) denyutan.push(r.method()); });
+
     await page.goto('/pos');
     await page.locator('#pairCode').fill(kode);
     await page.locator('#pairBtn').click();
@@ -196,7 +203,24 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     // Keterangan pesanan lama ("tiket dapur terkirim") juga tidak boleh menempel.
     await expect(page.locator('#cartMeta')).toHaveText('nomor struk otomatis');
 
-    // cetak ulang pada kertas 58 mm tidak boleh melebihi 32 kolom
+    expect(denyutan.length, 'perangkat harus mengabari server bahwa ia hidup').toBeGreaterThan(0);
+    expect(denyutan[0]).toBe('POST');
+
+    /*
+     * Transaksi harus tetap ada setelah aplikasinya dibuka ulang (temuan user 30 Sep 2026).
+     *
+     * Daftar "Pesanan" dulu hanya hidup di memori peramban: kasir yang menutup aplikasi lalu
+     * masuk lagi mendapati daftarnya kosong dan membacanya sebagai "transaksi saya hilang" —
+     * padahal yang hilang adalah cetak ulang, void, dan retur atas transaksi yang aman di server.
+     */
+    const nomorStruk = struk.match(/KLU-POS01-\d{6}-\d{4}/)[0];
+    await page.reload();
+    await expect(page.locator('#grid .card').first()).toBeVisible({ timeout: 15_000 });
+    await page.locator('.rail button[data-scr="pesanan"]').click();
+    await expect(page.locator('#orderRows')).toContainText(nomorStruk, { timeout: 10_000 });
+
+    // cetak ulang pada kertas 58 mm tidak boleh melebihi 32 kolom — sekarang dari daftar
+    // yang baru saja diambil server, bukan dari sisa keadaan peramban.
     await page.locator('.rail button[data-scr="atur"]').click();
     await page.locator('#paperOpt button[data-w="58"]').click();
     await page.locator('.rail button[data-scr="pesanan"]').click();

@@ -412,7 +412,8 @@
 
       <div class="scr" id="view-pesanan">
         <h2>Transaksi perangkat ini</h2>
-        <p class="d">Transaksi yang dibuat dari perangkat ini pada sesi ini. Void memerlukan otorisasi supervisor.</p>
+        <p class="d">Transaksi shift yang sedang berjalan di perangkat ini, diambil dari server — tetap ada
+          walau aplikasi ditutup dan dibuka kembali. Maksimal 200 yang terbaru. Void memerlukan otorisasi supervisor.</p>
         <table class="t"><thead><tr><th>No. struk</th><th>Waktu</th><th>Tipe</th><th class="n">Total</th><th>Status</th><th></th></tr></thead>
           <tbody id="orderRows"><tr><td colspan="6" style="color:var(--muted)">Belum ada transaksi.</td></tr></tbody></table>
       </div>
@@ -902,9 +903,10 @@ el('pairBtn').onclick = async () => {
   clearFail('pairErr');
   el('pairBtn').disabled = true;
   try {
-    const d = await api('/devices/pair', { method: 'POST', body: { code, platform: 'web', app_version: '0.1.0' } });
+    const d = await api('/devices/pair', { method: 'POST', body: { code, platform: 'web', app_version: APP_VERSION } });
     S.device = { token: d.token, company_id: d.company_id, device: d.device, outlet: d.outlet };
     localStorage.setItem(LS.dev, JSON.stringify(S.device));
+    mulaiDenyut();
     await startLogin();
   } catch (e) { fail('pairErr', e.message); }
   finally { el('pairBtn').disabled = false; }
@@ -912,6 +914,62 @@ el('pairBtn').onclick = async () => {
 function unpair(){ localStorage.removeItem(LS.dev); localStorage.removeItem(LS.pos); location.reload(); }
 el('unpairBtn').onclick = unpair;
 el('unpairBtn2').onclick = unpair;
+
+/* ---------------- denyut perangkat (FR-DEV-02) -------------------------------------------
+ * Back-office menandai perangkat offline bila tidak terdengar selama
+ * config('fnb.devices.offline_after_seconds') = 180 detik. Endpointnya sudah lama ada, tetapi
+ * layar kasir tidak pernah memanggilnya (temuan user 30 Sep 2026): pemasangan mengisi
+ * last_seen_at satu kali, lalu tiga menit kemudian perangkat tampak mati selamanya walau
+ * kasirnya sedang berjualan.
+ *
+ * Indikator di kepala layar ikut diperbaiki. Dulu ia membaca navigator.onLine, yang hanya tahu
+ * ada sambungan jaringan — bukan apakah server benar-benar mendengar perangkat ini. Itulah
+ * sebabnya layar kasir menulis "Terhubung" sementara back-office menyebutnya offline: keduanya
+ * benar menurut ukurannya masing-masing, dan yang salah adalah ukuran di layar kasir.
+ *
+ * Selang 60 detik = sepertiga ambang offline, jadi satu denyut yang meleset tidak langsung
+ * membuat perangkat tampak mati.
+ */
+const APP_VERSION = '0.1.0';
+const DENYUT_DETIK = 60;
+let denyutTimer = null;
+
+function setelNet(kelas, teks){ el('hDot').className = kelas; el('hNet').textContent = teks; }
+
+/** Perangkat dicabut dari back-office: data lokalnya dihapus, bukan sekadar diberi tahu. */
+function wipeLokal(){
+  clearInterval(denyutTimer);
+  denyutTimer = null;
+  try { localStorage.removeItem(LS.dev); localStorage.removeItem(LS.pos); } catch (e) {}
+  // Lewat alamat, bukan variabel: seluruh keadaan layar ikut dibuang bersama pemuatan ulang.
+  location.replace(location.pathname + '?dicabut=1');
+}
+
+async function denyut(){
+  if (!S.device || !S.device.token) return;
+  try {
+    const r = await dev('/devices/heartbeat', { method: 'POST', body: {
+      app_version: APP_VERSION,
+      // Layar kasir web belum punya antrean offline, jadi angkanya memang nol — bukan tebakan.
+      pending_sync_count: 0,
+    }});
+    setelNet('dot', 'Terhubung');
+    if (r && r.wipe) wipeLokal();
+  } catch (e) {
+    /*
+     * Hanya penolakan yang tegas yang menghapus data. Jaringan yang putus sebentar tidak boleh
+     * memaksa outlet memasangkan perangkatnya ulang di tengah jam sibuk.
+     */
+    if (e.code === 'DEVICE_REVOKED') { wipeLokal(); return; }
+    setelNet('dot red', 'Server tak terjangkau');
+  }
+}
+
+function mulaiDenyut(){
+  clearInterval(denyutTimer);
+  denyut();
+  denyutTimer = setInterval(denyut, DENYUT_DETIK * 1000);
+}
 
 /* ---------------- login kasir ---------------- */
 let pinBuf = '', chosen = null;
@@ -1020,8 +1078,27 @@ async function enterSale(){
   updateHeader();
   if (!S.catalog) { await loadCatalog(); }
   await syncSequence();
+  await muatPesananShift();
   renderChannels(); renderTabs(); renderGrid(); renderCart(); renderTotals(null); renderDevice();
   goView('kasir');
+}
+
+/**
+ * Mengisi panel "Pesanan" dari server (temuan user 30 Sep 2026).
+ *
+ * Daftar ini dulu hanya bertambah dari transaksi yang dibuat pada sesi peramban yang sedang
+ * berjalan, jadi menutup aplikasi — atau memasangkan perangkat ulang — membuatnya kosong.
+ * Bagi kasir itu terbaca sebagai "transaksi saya hilang", padahal datanya aman di server:
+ * yang hilang hanya cetak ulang, void, dan retur dari layar kasir.
+ *
+ * Gagal memuat tidak boleh menghalangi penjualan — kasir tetap bisa berjualan tanpa daftar ini,
+ * dan transaksi baru tetap masuk ke daftar sebagaimana sebelumnya.
+ */
+async function muatPesananShift(){
+  if (!S.shift || !S.shift.id) { S.orders = []; return; }
+  try { S.orders = await pos('/pos/shifts/' + S.shift.id + '/orders'); }
+  catch (e) { S.orders = []; }
+  renderOrders();
 }
 async function loadCatalog(){
   S.catalog = await pos('/pos/catalog');
@@ -2621,14 +2698,25 @@ function fmtTime(v){ if (!v) return '-'; const d = new Date(v);
   return isNaN(d) ? String(v) : d.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }); }
 const tick = () => el('clock').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
 tick(); setInterval(tick, 10000);
-window.addEventListener('online', () => { el('hDot').className = 'dot'; el('hNet').textContent = 'Terhubung'; });
-window.addEventListener('offline', () => { el('hDot').className = 'dot red'; el('hNet').textContent = 'Tidak terhubung'; });
+// Jaringan pulih: jangan menunggu denyut berikutnya, back-office masih menganggap perangkat mati.
+window.addEventListener('online', () => denyut());
+window.addEventListener('offline', () => setelNet('dot red', 'Tidak terhubung'));
 
 /* ---------------- mulai ---------------- */
 (async function boot(){
   const d = localStorage.getItem(LS.dev);
-  if (!d) { show('scr-pair'); el('pairCode').focus(); return; }
+  if (!d) {
+    show('scr-pair'); el('pairCode').focus();
+    // Ditinggalkan oleh wipeLokal(): tanpa keterangan ini, perangkat yang dicabut dari
+    // back-office tiba-tiba kembali ke layar pemasangan tanpa sebab yang terlihat.
+    if (new URLSearchParams(location.search).has('dicabut')) {
+      fail('pairErr', 'Perangkat ini dinonaktifkan dari back-office. Data lokalnya sudah dihapus; '
+        + 'minta kode pemasangan baru bila memang akan dipakai lagi.');
+    }
+    return;
+  }
   S.device = JSON.parse(d);
+  mulaiDenyut();
   const p = localStorage.getItem(LS.pos);
   if (p) {
     S.pos = JSON.parse(p);

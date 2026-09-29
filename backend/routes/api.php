@@ -208,6 +208,9 @@ Route::prefix('v1')->group(function (): void {
             Route::get('sync/pull', [SyncController::class, 'pull'])->middleware('throttle:sync');
             Route::get('pos/shifts/current', [PosSalesController::class, 'currentShift']);
             Route::get('pos/shifts/{shift}/report', [PosSalesController::class, 'shiftReport']);
+            // Mengisi panel "Pesanan" setiap kali layar kasir dibuka; sebelumnya daftar itu
+            // hanya hidup di memori peramban dan hilang saat aplikasinya ditutup.
+            Route::get('pos/shifts/{shift}/orders', [PosSalesController::class, 'shiftOrders']);
             Route::get('pos/orders', [PosSalesController::class, 'findOrders']);
             Route::get('pos/orders/{order}', [PosSalesController::class, 'showOrder']);
         });

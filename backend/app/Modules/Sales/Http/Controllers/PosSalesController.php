@@ -24,6 +24,14 @@ use Illuminate\Support\Str;
  */
 class PosSalesController extends Controller
 {
+    /**
+     * Batas baris pada daftar transaksi shift. Panel "Pesanan" adalah tabel polos tanpa halaman,
+     * dan shift yang sampai melewati angka ini sudah jauh di luar kelaziman satu shift kasir.
+     * Yang terbaru didahulukan, jadi yang terpotong adalah yang paling kecil kemungkinannya
+     * dicetak ulang atau di-void.
+     */
+    private const SHIFT_ORDERS_LIMIT = 200;
+
     /** @var list<string> field waktu yang diisi server pada permintaan ini */
     private array $serverFilled = [];
 
@@ -96,6 +104,34 @@ class PosSalesController extends Controller
         $shift = Shift::query()->whereKey($shiftId)->where('device_id', $this->device($request)->id)->firstOrFail();
 
         return ApiResponse::ok(SalesResources::shift($shift) + ['report' => $shift->summary ?? $report->build($shift)]);
+    }
+
+    /**
+     * Transaksi shift berjalan di perangkat ini (temuan user 30 Sep 2026).
+     *
+     * Panel "Pesanan" di layar kasir dulu hanya diisi dari memori peramban, jadi begitu
+     * aplikasinya ditutup — atau perangkatnya dipasangkan ulang — daftarnya kosong dan kasir
+     * kehilangan cetak ulang, void, dan retur atas transaksi yang jelas-jelas tersimpan di server.
+     *
+     * Dibatasi ke shift, bukan ke hari bisnis: void dan retur mengubah kas shift, jadi daftar yang
+     * dapat ditindaklanjuti kasir harus sama cakupannya dengan laporan penutupan shiftnya.
+     *
+     * `business_date` ikut disaring supaya kueri jatuh ke satu partisi; shift selalu milik satu
+     * hari bisnis, jadi penyaringan ini tidak membuang satu baris pun.
+     */
+    public function shiftOrders(Request $request, string $shiftId): JsonResponse
+    {
+        $shift = Shift::query()->whereKey($shiftId)->where('device_id', $this->device($request)->id)->firstOrFail();
+
+        $orders = Order::query()
+            ->where('shift_id', $shift->id)
+            ->where('business_date', $shift->business_date)
+            ->orderByDesc('completed_at')
+            ->orderByDesc('created_at')
+            ->limit(self::SHIFT_ORDERS_LIMIT)
+            ->get();
+
+        return ApiResponse::ok($orders->map(fn (Order $o) => SalesResources::order($o, false))->values());
     }
 
     public function storeOrder(Request $request): JsonResponse
