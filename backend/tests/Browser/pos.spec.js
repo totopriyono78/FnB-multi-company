@@ -151,8 +151,14 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     await page.locator('#tableGrid button[data-t="7"]').click();
     await expect(page.locator('#tableText')).toHaveText(/Meja\s*7/);
 
-    // tiket dapur ikut tercetak
+    /*
+     * Tiket dapur dicetak lewat tombolnya, bukan otomatis (temuan tim penguji 29 Sep 2026):
+     * cetak otomatis kini mati dari sananya karena di komputer tanpa printer, dialog cetak yang
+     * terbuka sendiri mengunci layar kasir. Nilai bawaannya dijaga di cetak-struk.spec.js.
+     */
     await page.locator('#kitchenBtn').click();
+    await expect(page.locator('#kitchenPrintBtn')).toBeVisible({ timeout: 10_000 });
+    await page.locator('#kitchenPrintBtn').click();
     await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(0);
     const tiket = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
     expect(tiket).toContain('TIKET DAPUR');
@@ -166,6 +172,8 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
     await page.locator('#payDone').click();
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
 
+    await page.locator('#printBtn').click();
+    await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(1);
     const struk = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
     expect(struk).toMatch(/KLU-POS01-\d{6}-\d{4}/);
     expect(struk).toContain('TOTAL');
@@ -222,7 +230,8 @@ test('kasir memakai bayar gabungan, retur berotorisasi, kas shift, dan tandai ha
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
 
     // Cetak berjalan asinkron sejak logo struk dimuat lebih dulu (ada jeda tunggu gambar),
-    // jadi modal struk bisa muncul beberapa saat sebelum window.print() terpanggil.
+    // jadi kertasnya keluar beberapa saat setelah tombol Cetak ditekan.
+    await page.locator('#printBtn').click();
     await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(0);
 
     const struk = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
@@ -335,7 +344,8 @@ test('kasir menimbang ikan, memarkir bill, melayani tamu lain, lalu menagih', as
     await page.locator('#payDone').click();
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
 
-    // Cetak otomatis berjalan sesaat setelah struk tampil; tunggu kertasnya keluar dulu.
+    // Kertas keluar sesaat setelah tombol Cetak ditekan; tunggu dulu.
+    await page.locator('#printBtn').click();
     await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(0);
     const struk = await page.evaluate(() => window.__cetak[window.__cetak.length - 1]);
     expect(struk).toContain('1,35 kg x 120.000');

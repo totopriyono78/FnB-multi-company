@@ -77,6 +77,27 @@ it('menautkan favicon di halaman tanpa login', function (string $path) {
     'layar kasir' => ['/pos'],
 ]);
 
+it('menautkan favicon dengan skema https di balik proxy yang mengakhiri TLS', function () {
+    /*
+     * Temuan tim penguji 29 Sep 2026: di produksi favicon dipanggil lewat http:// pada halaman
+     * https, dan peramban memblokirnya sebagai mixed content.
+     *
+     * Sebabnya waktu: `asset()` dulu dipanggil langsung saat panel didaftarkan, dan pendaftaran
+     * provider terjadi sebelum middleware TrustProxies sempat membaca X-Forwarded-Proto — jadi
+     * alamatnya lahir dengan skema mentah dari kontainer. Aset Filament lain selamat karena baru
+     * dirakit saat halaman dirender.
+     *
+     * Header di bawah meniru Railway: TLS berakhir di proxy, kontainer dihubungi lewat http.
+     */
+    $response = $this->get('/admin/login', ['X-Forwarded-Proto' => 'https']);
+    $response->assertOk();
+
+    preg_match('~<link[^>]*rel="icon"[^>]*>~', $response->getContent(), $tag);
+
+    // Host-nya ikut APP_URL uji, jadi yang diperiksa skemanya — itulah yang dulu salah.
+    expect($tag[0] ?? '')->toMatch('~href="https://[^"]+/img/favicon\.svg"~');
+});
+
 it('menyediakan berkas ikon yang benar-benar berisi', function (string $berkas, int $minimalByte) {
     // public/favicon.ico bawaan Laravel berukuran 0 byte — peramban tetap memintanya walau tidak
     // ada <link>, dan berkas kosong tampil sebagai ikon rusak. Uji ini menjaga agar tidak kembali 0.

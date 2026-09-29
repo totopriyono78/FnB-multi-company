@@ -45,8 +45,16 @@ class AdminPanelProvider extends PanelProvider
              * SVG, bukan .ico: satu berkas 1,4 KB tetap tajam dari 16 px sampai ikon layar utama,
              * dan otomatis ikut bila tema warnanya diubah. public/favicon.ico tetap disediakan
              * karena peramban meminta alamat itu sendiri walau tidak ada <link>.
+             *
+             * Closure, bukan nilai langsung (temuan tim penguji 29 Sep 2026): metode ini dipanggil
+             * saat panel didaftarkan, dan pendaftaran provider terjadi SEBELUM middleware berjalan.
+             * Saat itu TrustProxies belum sempat membaca X-Forwarded-Proto, jadi Laravel masih
+             * melihat request sebagai http:// — dan alamat favicon-nya ikut lahir sebagai http://
+             * di halaman https, yang diblokir peramban sebagai mixed content. Aset Filament lain
+             * tidak kena karena baru dirakit saat halaman dirender, jauh setelah middleware.
+             * Ditunda ke saat render, skemanya benar.
              */
-            ->favicon(asset('img/favicon.svg'))
+            ->favicon(fn (): string => asset('img/favicon.svg'))
             ->login(Login::class)
             ->registration()
             ->passwordReset()

@@ -160,6 +160,101 @@ test('slip QRIS memuat gambar QR, nominal, batas waktu, dan peringatan bukan buk
     expect(hasil.teks).toContain('Ref: REF-123');
 });
 
+/*
+ * Dialog cetak tidak boleh terbuka tanpa diminta (temuan tim penguji 29 Sep 2026).
+ *
+ * Di komputer tanpa printer terpasang, `window.print()` membuat Chrome menggantung di
+ * "Waiting for printer connection…" dengan tombol Cancel yang tidak menanggapi — peramban harus
+ * ditutup paksa. Dulu itu terjadi sendiri sesudah "Ke dapur" dan sesudah pembayaran selesai,
+ * karena kedua pilihan cetak otomatis menyala dari sananya.
+ *
+ * Peramban tidak punya cara memeriksa ada-tidaknya printer, jadi satu-satunya jaminan adalah
+ * tidak pernah memanggilnya sendiri. Uji ini menghitung panggilannya, bukan menilai tampilan.
+ */
+/**
+ * Menghitung panggilan cetak dan menyediakan state minimum yang dituntut slipText/kitchenText.
+ * Dikembalikan: nilai bawaan pilihan cetak, dibaca saat localStorage masih kosong — persis
+ * seperti komputer kasir yang baru dipakai, dan justru nilai itulah yang dulu salah.
+ */
+const siapkan = (opsi) => {
+    window.__cetak = 0;
+    window.print = () => { window.__cetak++; };
+    // Dibaca saat localStorage masih kosong — persis seperti komputer kasir yang baru dipakai,
+    // dan justru nilai bawaan inilah yang dulu salah.
+    const bawaan = { auto: prefs().auto, kitchen: prefs().kitchen };
+
+    S.catalog = { channels: [], items: [], outlet: { receipt: {} } };
+    S.device = { outlet: { name: 'Hamzah Coffee Kaliurang' } };
+    S.pos = { staff: { name: 'Sari Kasir' } };
+    S.shift = { id: 'shift-uji', business_date: '2026-09-29' };
+
+    if (opsi && opsi.nyalakanOtomatis) savePrefs({ auto: true });
+    if (opsi && opsi.order) showReceipt(opsi.order);
+    if (opsi && opsi.tiket) {
+        S.lastKitchen = opsi.tiket;
+        document.getElementById('kitchenPrintBtn').hidden = false;
+    }
+
+    return bawaan;
+};
+
+const PESANAN = { receipt_no: 'A-0001', total: '10000', subtotal: '10000', items: [], payments: [] };
+const TIKET = [{ item_id: 'i1', name: 'Kopi Susu', qty: '1.000', modifiers: [] }];
+
+test('bawaannya tidak mencetak sendiri, baik struk maupun tiket dapur', async ({ page }) => {
+    await page.goto('/pos');
+
+    const bawaan = await page.evaluate(siapkan, { order: PESANAN });
+
+    // Cetak otomatis ditunda 150 ms; ditunggu lewat supaya hasilnya bukan sekadar "belum sempat".
+    await page.waitForTimeout(400);
+
+    expect(bawaan.auto, 'cetak struk otomatis harus mati dari sananya').toBe(false);
+    expect(bawaan.kitchen, 'cetak tiket dapur otomatis harus mati dari sananya').toBe(false);
+    expect(await page.evaluate(() => window.__cetak), 'tidak ada dialog cetak yang terbuka sendiri').toBe(0);
+});
+
+test('mencetak struk hanya saat tombol Cetak ditekan', async ({ page }) => {
+    await page.goto('/pos');
+
+    await page.evaluate(siapkan, { order: PESANAN });
+    await page.click('#printBtn');
+
+    expect(await page.evaluate(() => window.__cetak), 'kertas keluar karena diminta').toBe(1);
+});
+
+test('menyediakan tombol cetak tiket dapur setelah tiketnya terkirim', async ({ page }) => {
+    // Tanpa tombol ini, mematikan cetak otomatis berarti tiket dapur tidak bisa dicetak sama sekali.
+    await page.goto('/pos');
+
+    await page.evaluate(siapkan, {});
+    const awal = await page.evaluate(() => document.getElementById('kitchenPrintBtn').hidden);
+
+    await page.evaluate(siapkan, { tiket: TIKET });
+    // Handler dipanggil langsung, seperti uji cetak QR di atas: tanpa perangkat terpasang layar
+    // kasir belum dirender, jadi klik sungguhan tidak mungkin. Yang diuji wiring dan isi kertasnya.
+    const hasil = await page.evaluate(() => {
+        document.getElementById('kitchenPrintBtn').onclick();
+
+        return { cetak: window.__cetak, teks: document.getElementById('printSlip').textContent };
+    });
+
+    expect(awal, 'tombolnya tersembunyi sampai ada tiket yang terkirim').toBe(true);
+    expect(hasil.cetak).toBe(1);
+    expect(hasil.teks).toContain('TIKET DAPUR');
+    expect(hasil.teks).toContain('KOPI SUSU');
+});
+
+test('tetap mencetak sendiri bila kasir menyalakannya', async ({ page }) => {
+    // Pagarnya harus benar-benar pagar, bukan kode mati: yang sudah punya printer tetap terlayani.
+    await page.goto('/pos');
+
+    await page.evaluate(siapkan, { nyalakanOtomatis: true, order: PESANAN });
+    await page.waitForTimeout(400);
+
+    expect(await page.evaluate(() => window.__cetak)).toBe(1);
+});
+
 test('tidak mencetak QR simulasi dan menolak QR yang terlalu rapat', async ({ page }) => {
     await page.goto('/pos');
 

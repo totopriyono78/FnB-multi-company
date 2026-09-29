@@ -155,6 +155,9 @@
   .cart{width:352px;flex:0 0 auto;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:16px 16px 16px 0;display:flex;flex-direction:column;overflow:hidden}
   .cart .head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;justify-content:space-between}
   .cart .head b{font-size:14px;font-weight:600;color:var(--ink)}.cart .head span{font-size:11.5px;color:var(--muted)}
+  .cart .head .headKanan{display:flex;align-items:center;gap:9px}
+  .cart .head .tautan{background:none;border:0;padding:0;font:inherit;font-size:11.5px;
+    color:var(--accent);text-decoration:underline;cursor:pointer}
   .seg{display:flex;gap:4px;margin:12px 14px 4px;padding:3px;background:var(--line-soft);border-radius:var(--r)}
   .seg button{flex:1;border:0;border-radius:4px;background:transparent;padding:7px 4px;font-size:11.5px;font-family:inherit;font-weight:500;color:var(--ink-2);cursor:pointer}
   .seg button.on{background:var(--accent);color:#fff;font-weight:600;box-shadow:var(--pill-glow)}
@@ -462,6 +465,11 @@
           <button data-w="80">80 mm</button>
           <button data-w="58">58 mm</button>
         </div>
+        {{-- Keduanya mati dari sananya. Lihat komentar pada prefs() — di komputer tanpa printer,
+             dialog cetak yang terbuka sendiri mengunci layar kasir. --}}
+        <p class="d" style="margin-bottom:10px">Nyalakan kedua pilihan di bawah <b>hanya bila printer struk sudah
+          terpasang di komputer ini</b> dan Uji cetak berhasil. Selama mati, kertas tetap bisa dikeluarkan
+          kapan saja lewat tombol Cetak di layar struk dan tombol "Cetak tiket" di panel pesanan.</p>
         <label class="chk" style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px">
           <input type="checkbox" id="autoPrint"> Langsung buka dialog cetak setelah transaksi selesai
         </label>
@@ -487,7 +495,10 @@
       </div>
 
       <aside class="cart" id="cartPanel">
-        <div class="head"><b>Pesanan baru</b><span id="cartMeta">nomor struk otomatis</span></div>
+        {{-- "Cetak tiket" muncul setelah tiket terkirim. Tanpa ini, mematikan cetak otomatis
+             berarti tiket dapur tidak bisa dicetak sama sekali. --}}
+        <div class="head"><b>Pesanan baru</b><span class="headKanan"><span id="cartMeta">nomor struk otomatis</span>
+          <button type="button" class="tautan" id="kitchenPrintBtn" hidden>Cetak tiket</button></span></div>
         <div class="seg" id="seg"></div>
         <div class="barrow">
           <button class="tablebar" id="tableBar" style="display:none">
@@ -1356,8 +1367,14 @@ el('kitchenBtn').onclick = async () => {
     el('cartMeta').textContent = 'tiket dapur terkirim';
     // Baris dari quote dipakai bila ada: nama varian dan modifier sudah diterjemahkan server.
     const utk = (S.quote && S.quote.lines && S.quote.lines.length) ? S.quote.lines : dikirim;
+    S.lastKitchen = utk;
+    el('kitchenPrintBtn').hidden = false;
     if (prefs().kitchen) setTimeout(() => kirimKePrinter(kitchenText(utk), { logo: false }), 150);
   } catch (e) { el('cartMeta').textContent = 'tiket dapur gagal: ' + e.message; }
+};
+
+el('kitchenPrintBtn').onclick = () => {
+  if (S.lastKitchen) kirimKePrinter(kitchenText(S.lastKitchen), { logo: false });
 };
 
 /* ---------------- pembayaran ---------------- */
@@ -1665,8 +1682,23 @@ const PAPER = {
 };
 const METHOD_LABEL = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu Debit', credit: 'Kartu Kredit' };
 
+/*
+ * Cetak otomatis MATI sampai kasir menyalakannya sendiri (temuan tim penguji 29 Sep 2026).
+ *
+ * Dulu keduanya menyala sejak awal, dan di komputer tanpa printer terpasang `window.print()`
+ * membuat Chrome menggantung di "Waiting for printer connection…" dengan tombol Cancel yang
+ * tidak menanggapi — satu-satunya jalan keluar menutup paksa peramban. Itu terjadi tepat di dua
+ * momen paling buruk: sesudah menekan "Ke dapur" dan sesudah menyelesaikan pembayaran.
+ *
+ * Pesanannya sendiri tidak ikut hilang — keduanya sudah tersimpan di server sebelum baris cetak
+ * dijalankan. Yang hilang hanya layar kasirnya, dan itu sudah cukup buruk.
+ *
+ * Karena itu kertas hanya keluar bila ada yang menekan tombol cetak. Peramban tidak punya cara
+ * memeriksa apakah ada printer terpasang, jadi menyala-secara-bawaan berarti bertaruh pada
+ * perangkat yang tidak bisa kita lihat.
+ */
 function prefs(){
-  const def = { w: 80, auto: true, kitchen: true };
+  const def = { w: 80, auto: false, kitchen: false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem(LS.print) || '{}')); }
   catch (e) { return def; }
 }
@@ -2349,6 +2381,10 @@ function bersihkanKeranjang(){
   S.cart = []; S.quote = null; S.orderId = null; S.intent = null; S.table = '';
   S.guest = ''; S.queue = ''; S.orderNote = ''; S.pays = [];
   S.billId = null; S.billLabel = '';
+  // Tiket dapur milik pesanan yang baru saja ditutup; menawarkannya di pesanan berikutnya
+  // hanya mengundang kertas yang salah keluar.
+  S.lastKitchen = null;
+  el('kitchenPrintBtn').hidden = true;
   renderTableBar(); renderDetailBar(); refreshQuote();
   siarkan();
 }
