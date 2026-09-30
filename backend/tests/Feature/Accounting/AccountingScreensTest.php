@@ -1,11 +1,13 @@
 <?php
 
+use App\Filament\Pages\Accounting\JournalMappingPage;
 use App\Filament\Pages\Accounting\TrialBalancePage;
 use App\Filament\Resources\AccountResource\Pages\CreateAccount;
 use App\Filament\Resources\AccountResource\Pages\ListAccounts;
 use App\Filament\Resources\JournalResource\Pages\CreateJournal;
 use App\Filament\Resources\JournalResource\Pages\ListJournals;
 use App\Modules\Accounting\Application\ChartOfAccounts;
+use App\Modules\Accounting\Application\JournalMap;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\Journal;
 use App\Modules\Accounting\Domain\Models\JournalLine;
@@ -14,6 +16,7 @@ use App\Modules\Tenancy\Application\TenantContext;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
 use Tests\Support\Factory;
+use Tests\Support\Menu;
 
 /**
  * Layar akuntansi: siapa boleh melihat, siapa boleh mengubah, dan apakah formnya benar-benar
@@ -208,4 +211,79 @@ it('tidak menampilkan bagan akun milik company lain di layar', function () {
     app(TenantContext::class)->setTenant($tetangga->id);
 
     Livewire::test(ListAccounts::class)->assertCountTableRecords(0);
+});
+
+describe('pemetaan akun jurnal otomatis (ACC-10)', function () {
+    it('mengisi pemetaan bawaan dan menyimpan pengecualian per kategori menu', function () {
+        pasangTemplatePembukuan($this);
+        $brand = Factory::brand($this->company, ['code' => 'BMN']);
+        $kategori = Menu::category($this->company, $brand, 'Minuman');
+        masukAkuntansi($this, $this->finance);
+
+        $layar = Livewire::test(JournalMappingPage::class);
+        // Sebelum diisi, layar mengatakan apa adanya bahwa jurnal otomatis belum bisa jalan.
+        expect($layar->instance()->missing())->not->toBeEmpty();
+
+        $layar->callAction('installDefaults');
+        expect(Livewire::test(JournalMappingPage::class)->instance()->missing())->toBe([]);
+
+        // Pendapatan minuman dipisahkan ke akun 4102.
+        Livewire::test(JournalMappingPage::class)
+            ->set("data.kategori.{$kategori->id}", akunPembukuanKode($this, '4102')->id)
+            ->call('save');
+
+        $akun = Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::REVENUE, $kategori->id));
+        expect($akun->code)->toBe('4102');
+
+        // Dikosongkan kembali = ikut aturan bawaan, bukan tanpa akun.
+        Livewire::test(JournalMappingPage::class)
+            ->set("data.kategori.{$kategori->id}", null)
+            ->call('save');
+
+        expect(Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::REVENUE, $kategori->id)->code))->toBe('4103');
+    });
+
+    it('menampilkan dan menyimpan slot pembayaran yang namanya memuat titik', function () {
+        pasangTemplatePembukuan($this);
+        masukAkuntansi($this, $this->finance);
+        Livewire::test(JournalMappingPage::class)->callAction('installDefaults');
+
+        /*
+         * Slot pembayaran bernama `payment.cash`. Titiknya sempat dibaca Filament sebagai jalur
+         * bersarang, sehingga layar menampilkan slot kosong padahal pemetaannya ada — dan finance
+         * akan mengisinya ulang tanpa tahu apa yang sebenarnya salah.
+         */
+        Livewire::test(JournalMappingPage::class)
+            ->assertSet('data.payment__cash', akunPembukuanKode($this, '1101')->id)
+            ->set('data.payment__cash', akunPembukuanKode($this, '1102')->id)
+            ->call('save');
+
+        expect(Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::paymentSlot('cash'))->code))->toBe('1102');
+    });
+
+    it('pemilik boleh melihat pemetaan tetapi tidak mengubahnya', function () {
+        pasangTemplatePembukuan($this);
+        Factory::tenant($this->company, fn () => app(JournalMap::class)->installDefaults());
+        masukAkuntansi($this, $this->owner);
+
+        $this->get("{$this->base}/pemetaan-akun")->assertSuccessful();
+
+        Livewire::test(JournalMappingPage::class)
+            ->set('data.'.JournalMap::TAX, akunPembukuanKode($this, '2202')->id)
+            ->call('save');
+
+        // Akun pajak tetap 2201: layar yang hanya dapat dilihat tidak boleh bisa menulis.
+        expect(Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::TAX)->code))->toBe('2201');
+    });
+
+    it('menolak akun induk sebagai tujuan pemetaan', function () {
+        pasangTemplatePembukuan($this);
+        masukAkuntansi($this, $this->finance);
+
+        Livewire::test(JournalMappingPage::class)
+            ->set('data.'.JournalMap::REVENUE, akunPembukuanKode($this, '4100')->id)
+            ->call('save');
+
+        expect(Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::REVENUE, null, false)))->toBeNull();
+    });
 });

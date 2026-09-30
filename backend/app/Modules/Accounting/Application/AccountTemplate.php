@@ -31,6 +31,14 @@ final class AccountTemplate
             self::head('1100', 'Kas & Setara Kas', Account::ASSET, '1000'),
             self::leaf('1101', 'Kas di Laci Kasir', Account::ASSET, '1100', system: true),
             self::leaf('1102', 'Kas Kecil', Account::ASSET, '1100'),
+            /*
+             * Penampung sementara kas masuk/keluar dari shift kasir (setoran ke brankas, beli es
+             * batu, dan sebagainya). Uangnya jelas berpindah, tujuannya belum. Tanpa akun ini saldo
+             * kas di buku akan lebih besar daripada isi laci — cacat yang tidak kelihatan sampai
+             * seseorang menghitung uangnya. Finance WAJIB memindahkannya ke akun yang benar; saldo
+             * yang menumpuk di sini adalah pekerjaan yang belum selesai, bukan aset.
+             */
+            self::leaf('1103', 'Kas Belum Dialokasikan', Account::ASSET, '1100', system: true),
             self::leaf('1110', 'Bank', Account::ASSET, '1100', system: true),
             self::head('1200', 'Piutang', Account::ASSET, '1000'),
             // Uang non-tunai belum masuk rekening pada hari transaksi; ia piutang sampai cair.

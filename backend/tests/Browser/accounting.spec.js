@@ -104,3 +104,41 @@ test('kasir tidak melihat menu akuntansi', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'Bagan Akun' })).toHaveCount(0);
     expect((await page.goto(`${base}/pembukuan/jurnal`)).status()).toBe(403);
 });
+
+test('finance melengkapi pemetaan akun jurnal otomatis', async ({ page }) => {
+    const base = await masuk(page);
+
+    await page.goto(`${base}/pembukuan/bagan-akun`);
+    await page.getByRole('button', { name: 'Pasang template standar' }).click();
+    await page.getByRole('button', { name: 'Pasang', exact: true }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+
+    await page.goto(`${base}/pembukuan/pemetaan-akun`);
+    /*
+     * Sebelum dilengkapi, layar harus MENGATAKAN bahwa jurnal otomatis belum jalan. Pemetaan yang
+     * diam-diam kosong adalah cara paling mudah kehilangan sebulan pembukuan tanpa ada yang sadar.
+     */
+    const peringatan = page.locator('.fnb-callout--danger');
+    await expect(peringatan).toContainText('belum dapat disusun');
+
+    await page.getByRole('button', { name: 'Isi dengan akun bawaan' }).click();
+    await page.getByRole('button', { name: 'Konfirmasi' }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+
+    await page.reload();
+    await expect(page.locator('.fnb-callout--danger')).toHaveCount(0);
+    // Akun pajak terisi 2201 — satu-satunya slot yang boleh menunjuk ke sana.
+    await expect(page.getByLabel('Pajak keluaran (PB1)')).not.toHaveValue('');
+    await expect(page.locator('.choices__list--single').filter({ hasText: '2201 — PB1' })).toHaveCount(1);
+
+    /*
+     * Slot pembayaran diperiksa terpisah karena ia berada di bawah lipatan layar: isian Filament
+     * baru dimuat saat terlihat, sehingga "kosong" pada tangkapan layar penuh bisa berarti belum
+     * dimuat — bukan belum terpetakan. Yang dipastikan di sini adalah nilainya benar-benar sampai.
+     */
+    const tunai = page.getByLabel('Pembayaran tunai');
+    await tunai.scrollIntoViewIfNeeded();
+    await expect(tunai).not.toHaveValue('');
+    await expect(page.locator('.choices__list--single').filter({ hasText: '1101 — Kas di Laci Kasir' })).toHaveCount(1);
+    await page.screenshot({ path: `${SHOTS}/53-pemetaan-akun.png`, fullPage: true });
+});

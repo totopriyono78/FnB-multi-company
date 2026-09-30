@@ -2,6 +2,8 @@
 
 namespace App\Modules;
 
+use App\Modules\Accounting\Console\PostSalesJournals;
+use App\Modules\Accounting\Listeners\PostSalesJournal;
 use App\Modules\Audit\Domain\AuditLog;
 use App\Modules\Audit\Policies\AuditLogPolicy;
 use App\Modules\Catalog\Application\PriceHistoryRecorder;
@@ -38,6 +40,7 @@ use App\Modules\Payment\Console\SandboxPay;
 use App\Modules\Purchasing\Domain\Models\Supplier;
 use App\Modules\Purchasing\Policies\SupplierPolicy;
 use App\Modules\Reporting\Console\SendScheduledReports;
+use App\Modules\Sales\Domain\Events\BusinessDayClosed;
 use App\Modules\Shared\Infrastructure\Console\EnsurePartitions;
 use App\Modules\Sync\Application\SyncVersions;
 use App\Modules\Tenancy\Application\TenantContext;
@@ -129,6 +132,8 @@ class ModulesServiceProvider extends ServiceProvider
         Event::listen('eloquent.created: '.Outlet::class, fn (Outlet $outlet) => $this->app->make(PaymentMethods::class)->ensure($outlet));
         Event::listen('eloquent.created: '.Outlet::class, fn (Outlet $outlet) => $this->app->make(StockLocations::class)->ensureDefault($outlet));
         Event::subscribe(PostSalesStock::class);
+        // Jurnal penjualan otomatis (ACC-11). Kegagalannya tidak boleh menggagalkan Tutup Hari — lihat listener-nya.
+        Event::listen(BusinessDayClosed::class, [PostSalesJournal::class, 'handle']);
 
         // Koneksi dibuat ulang / transaksi dibatalkan dapat mengubah role PostgreSQL diam-diam: terapkan ulang konteks tenant.
         $resync = function (Connection $connection): void {
@@ -167,7 +172,7 @@ class ModulesServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(300)->by($request->user()?->getKey() ?? $request->ip()));
 
         if ($this->app->runningInConsole()) {
-            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class]);
+            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class, PostSalesJournals::class]);
         }
     }
 }
