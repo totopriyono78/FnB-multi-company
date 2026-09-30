@@ -23,6 +23,7 @@ class DashboardReport
     public function __construct(
         private readonly SalesReport $sales,
         private readonly BusinessCalendar $calendar,
+        private readonly ActiveCashiers $cashiers,
     ) {}
 
     /** @return array<string, mixed> */
@@ -55,6 +56,10 @@ class DashboardReport
             'outlets' => $today['outlet'],
             'brands' => $today['brand'],
             'payments' => $today['payment'],
+            // Keadaan SEKARANG, bukan rekap hari bisnis seperti baris-baris di atas. Ikut di sini
+            // karena dashboard sudah disimpan 30 detik per user & filter, jadi tidak menambah kueri
+            // per widget; 30 detik juga masih jauh di bawah ambang offline 180 detik.
+            'active_cashiers' => $this->cashiers->forOutlets($scope->outletIds),
         ];
     }
 

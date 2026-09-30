@@ -616,13 +616,18 @@ html.dark:root {
 
 
 /*
- * Dasbor Ringkasan: dua kolom (Menu terlaris | Pembayaran), Peringkat outlet selebar penuh di bawahnya.
- * Tiga kartu berjajar membuat tabel empat kolom terjepit (±320px) dan nama outlet patah per kata.
+ * Dasbor Ringkasan: dua kolom (Pembayaran | Kasir bertugas), lalu Menu terlaris dan Peringkat outlet
+ * selebar penuh di bawahnya.
+ *
+ * Dipatok DUA kolom, bukan `auto-fit`. Dengan auto-fit, kartu ketiga baru naik berdampingan di layar
+ * ≥1500 px dan di 1366 px ia jatuh sendirian ke baris kedua dengan separuh baris kosong di sebelahnya.
+ * Tiga kartu berjajar juga mengulang persoalan 26 Sep 2026: tabel empat kolom terjepit (±320px),
+ * kolom Porsi keluar dari kartu, nama outlet patah per kata.
  */
 .fnb-dashboard-grid {
     display: grid;
     gap: var(--fnb-space-6);
-    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
 }
 
@@ -640,11 +645,51 @@ html.dark:root {
     font-weight: 500;
 }
 
-@media (max-width: 640px) {
+/*
+ * Kartu "Kasir bertugas": keterangan kecil di bawah nama kasir (status perangkat, outlet, mesin).
+ * Statusnya selalu punya TEKS — titik warna hanya penguat, karena status yang dibedakan warna saja
+ * melanggar WCAG 2.1 AA dan tidak terbaca pembaca layar.
+ */
+.fnb-shift-meta {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.6875rem;
+    font-weight: 400;
+    line-height: 1.35;
+    color: rgb(var(--gray-600));
+}
+
+.dark .fnb-shift-meta {
+    color: rgb(var(--gray-400));
+}
+
+.fnb-shift-dot {
+    display: inline-block;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    margin-right: 0.3125rem;
+    border-radius: 9999px;
+    vertical-align: baseline;
+    background-color: rgb(var(--success-500));
+}
+
+.fnb-shift-dot--off {
+    background-color: rgb(var(--gray-400));
+}
+
+/*
+ * Satu kolom jauh sebelum ukuran ponsel. Dua kartu berdampingan baru masuk akal bila masing-masing
+ * ≥ ~28rem; di bawah itu tabel empat kolomnya terjepit — di layar 1024 px keduanya cuma 340 px,
+ * persis lebar yang dikeluhkan 26 Sep 2026. Ambang 1240 px kira-kira setara wadah 920 px setelah
+ * dikurangi sidebar.
+ */
+@media (max-width: 1240px) {
     .fnb-dashboard-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+}
 
+@media (max-width: 640px) {
     .fnb-dashboard-grid .fnb-receipt th[scope='row'] {
         min-width: 6.5rem;
     }

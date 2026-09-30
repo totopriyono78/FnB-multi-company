@@ -49,6 +49,43 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(peringkat).toBeVisible();
     const kartuPeringkat = page.locator('.fi-section', { has: peringkat });
     await expect(kartuPeringkat).toContainText(/Hamzah|Belum ada penjualan hari ini/);
+    /*
+     * Kartu "Kasir bertugas" harus BERSEBELAHAN dengan "Pembayaran hari ini" (permintaan user
+     * 30 Sep 2026), bukan di bawahnya. Yang diuji posisinya, bukan sekadar keberadaannya: kartu
+     * ketiga pernah jatuh sendirian ke baris kedua di lebar 1366 px dengan separuh baris kosong di
+     * sebelahnya — persis yang diminta user untuk tidak terjadi, dan tidak akan ketahuan dari uji
+     * yang hanya mencari judulnya.
+     */
+    const kasir = page.getByRole('heading', { name: 'Kasir bertugas' });
+    await expect(kasir).toBeVisible();
+    const sejajar = await page.evaluate(() => {
+        const cari = (judul) => [...document.querySelectorAll('.fnb-dashboard-grid > .fi-section')]
+            .find((el) => el.querySelector('.fi-section-header-heading')?.textContent.trim() === judul);
+        const a = cari('Pembayaran hari ini')?.getBoundingClientRect();
+        const b = cari('Kasir bertugas')?.getBoundingClientRect();
+        return a && b ? { atasSama: Math.abs(a.top - b.top) < 2, disebelah: b.left > a.left } : null;
+    });
+    expect(sejajar, 'kedua kartu harus ditemukan di grid dashboard').not.toBeNull();
+    expect(sejajar.atasSama, 'Kasir bertugas harus sebaris dengan Pembayaran hari ini').toBe(true);
+    expect(sejajar.disebelah, 'Kasir bertugas harus di sebelah kanan Pembayaran hari ini').toBe(true);
+
+    /*
+     * Diperiksa juga di layar lebar. Grid-nya dipatok DUA kolom; dengan `auto-fit` layar 1680 px
+     * memuat tiga jalur, sehingga baris pertama jadi Pembayaran | Kasir | <kosong> — kartunya
+     * memang masih bersebelahan, tetapi ada seperempat baris menganga di sebelahnya. Di 1366 px
+     * cacat itu tidak terlihat sama sekali, jadi ukurannya harus diubah di dalam uji.
+     */
+    await page.setViewportSize({ width: 1680, height: 900 });
+    await page.waitForTimeout(300);
+    const jalur = await page.evaluate(() => getComputedStyle(document.querySelector('.fnb-dashboard-grid')).gridTemplateColumns.split(' ').length);
+    expect(jalur, 'grid dashboard harus tetap dua kolom di layar lebar').toBe(2);
+    await page.setViewportSize({ width: 1366, height: 800 });
+    await page.waitForTimeout(300);
+
+    const kartuKasir = page.locator('.fi-section', { has: kasir });
+    // Status perangkat wajib punya teks, bukan cuma titik warna (WCAG 2.1 AA).
+    await expect(kartuKasir).toContainText(/Terhubung|Terputus|Belum ada shift kasir yang dibuka/);
+
     await expectAccessible(page, 'ringkasan');
     await page.screenshot({ path: `${SHOTS}/40-dashboard.png`, fullPage: true });
 
