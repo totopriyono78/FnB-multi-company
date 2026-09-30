@@ -40,6 +40,21 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await page.locator('.fi-ta-search-field input').fill('KLU-POS01');
     await expect(page.getByRole('cell', { name: /KLU-POS01-\d{6}-0007/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).getByText('Refund sebagian')).toBeVisible();
+
+    /*
+     * Baris total mengikuti hasil filter, bukan halaman yang tampil (permintaan user 30 Sep 2026).
+     * Aturan angkanya dijaga uji PHP (OrderTotalsTest); yang dijaga di sini bahwa barisnya benar-
+     * benar sampai ke layar — summarizer di kolom pertama dulu tertelan judul baris ringkasan dan
+     * tidak pernah terlihat, tanpa error apa pun.
+     */
+    const ringkasan = page.locator('[class*="summary"]').filter({ hasText: 'Semua Transaksi' }).first();
+    await expect(ringkasan).toContainText('Transaksi dihitung');
+    await expect(ringkasan).toContainText('Total setelah retur');
+    await expect(ringkasan).toContainText('Rata-rata per transaksi');
+
+    // Ekspor tersedia untuk hasil filter yang sedang dilihat.
+    await expect(page.getByRole('button', { name: 'Ekspor' })).toBeVisible();
+
     await expectAccessible(page, 'daftar transaksi');
     await page.screenshot({ path: `${SHOTS}/20-transaksi.png`, fullPage: true });
 
