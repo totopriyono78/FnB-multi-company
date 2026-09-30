@@ -65,8 +65,16 @@
                 @endif
             </x-filament::section>
 
-            @if (count($data['outlets']) > 1)
+            {{-- Muncul untuk pengguna yang memang mengelola lebih dari satu outlet, entah sudah ada
+                 penjualan atau belum. Dulu bagian ini ikut lenyap saat belum ada penjualan, sehingga
+                 halamannya berubah bentuk sepanjang hari dan pembacanya tidak bisa membedakan
+                 "belum ada yang jualan" dari "kartunya memang tidak ada" — dua bagian lain di
+                 sebelahnya sudah punya keadaan kosong. --}}
+            @if ($data['outlet_count'] > 1)
                 <x-filament::section heading="Peringkat outlet hari ini" class="fnb-dashboard-grid__wide">
+                    @if ($data['outlets'] === [])
+                        <p class="fnb-muted">Belum ada penjualan hari ini.</p>
+                    @else
                     <div class="fnb-table-scroll">
                         <table class="fnb-receipt" aria-label="Peringkat outlet hari ini">
                             <thead>
@@ -89,6 +97,7 @@
                             </tbody>
                         </table>
                     </div>
+                    @endif
                 </x-filament::section>
             @endif
         </div>

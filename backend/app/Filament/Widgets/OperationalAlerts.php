@@ -20,6 +20,7 @@ use App\Modules\Sales\Domain\Models\Order;
 use App\Modules\Tenancy\Domain\DeviceStatus;
 use App\Modules\Tenancy\Domain\Models\Device;
 use App\Modules\Tenancy\Domain\Models\Outlet;
+use Carbon\CarbonImmutable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -71,15 +72,29 @@ class OperationalAlerts extends StatsOverviewWidget
         ];
 
         if (SalesLabels::canView()) {
+            /*
+             * Satu tanggal dipakai bersama oleh angkanya dan oleh tautannya (temuan user
+             * 30 Sep 2026). Sebelumnya angka di kartu dibatasi 7 hari sementara tautannya membuka
+             * daftar tanpa batas tanggal sama sekali — kartu menulis 3, daftarnya menampilkan 8,
+             * dan tidak ada cara bagi pembacanya menebak mana yang benar.
+             *
+             * Dihitung mundur 6 hari, bukan 7: "7 hari terakhir" berarti hari ini ditambah enam
+             * hari sebelumnya. Zona waktu tampilan dipakai agar batasnya sama dengan tanggal yang
+             * dibaca pengguna di layar, bukan tanggal UTC di server.
+             */
+            $sejak = CarbonImmutable::now((string) config('app.display_timezone'))->subDays(6)->format('Y-m-d');
             $flagged = Order::query()
                 ->whereIn('outlet_id', SalesLabels::outletIds())
-                ->where('business_date', '>=', now()->subDays(7)->format('Y-m-d'))
+                ->where('business_date', '>=', $sejak)
                 ->whereRaw("flags <> '[]'::jsonb")
                 ->count();
             $stats[] = Stat::make('Transaksi perlu ditinjau', number_format($flagged, 0, ',', '.'))->icon('heroicon-o-flag')
                 ->description($flagged > 0 ? '7 hari terakhir · lihat menu Transaksi' : 'Tidak ada dalam 7 hari terakhir')
                 ->color($flagged > 0 ? 'warning' : 'success')
-                ->url($flagged > 0 ? OrderResource::getUrl('index', ['tableFilters' => ['flagged' => ['value' => '1']]]) : null);
+                ->url($flagged > 0 ? OrderResource::getUrl('index', ['tableFilters' => [
+                    'flagged' => ['value' => '1'],
+                    'periode' => ['from' => $sejak],
+                ]]) : null);
         }
 
         $stats = [...$stats, ...$this->inventoryStats()];

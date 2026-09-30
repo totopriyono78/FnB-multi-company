@@ -37,7 +37,18 @@ test('pemilik memantau dashboard, membaca laporan, dan mengekspor', async ({ pag
     await expect(page.getByRole('heading', { name: 'Penjualan hari ini' })).toBeVisible();
     await expect(page.getByText('Penjualan bersih').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Penjualan per jam' })).toBeVisible();
-    await expect(page.getByRole('table', { name: 'Peringkat outlet hari ini' })).toContainText('Hamzah Coffee Prawirotaman');
+
+    /*
+     * Bagian "Peringkat outlet hari ini" harus SELALU ada untuk pemilik yang mengelola lebih dari
+     * satu outlet, entah sudah ada penjualan atau belum. Isinya sengaja tidak dipatok ke nama
+     * outlet tertentu: data demo disemai mengikuti jam buka, jadi menuntut nama tertentu membuat
+     * uji ini merah setiap kali dijalankan sebelum outletnya buka — merah yang tidak menandakan
+     * apa pun. Kebenaran isi angkanya dijaga uji laporan di bawah dan oleh uji PHP.
+     */
+    const peringkat = page.getByRole('heading', { name: 'Peringkat outlet hari ini' });
+    await expect(peringkat).toBeVisible();
+    const kartuPeringkat = page.locator('.fi-section', { has: peringkat });
+    await expect(kartuPeringkat).toContainText(/Hamzah|Belum ada penjualan hari ini/);
     await expectAccessible(page, 'ringkasan');
     await page.screenshot({ path: `${SHOTS}/40-dashboard.png`, fullPage: true });
 
@@ -112,11 +123,34 @@ test('finance membaca laporan pajak dan membuat jadwal email', async ({ page }) 
     await page.locator('.fi-fo-field-wrp', { has: page.locator('label', { hasText: /^\s*Laporan\s*\*?\s*$/ }) }).locator('.choices').first().click();
     await page.locator('.choices.is-open input[type="search"]').fill('Laba kotor');
     await page.locator('.choices.is-open .choices__item--choice', { hasText: 'Laba kotor per outlet' }).first().click();
+    /*
+     * Penerima diisi SEBELUM Frekuensi, dan diketik huruf per huruf.
+     *
+     * Dua hal yang dulu membuat uji ini merah bergantian tanpa ada yang berubah:
+     * fill() menulis langsung ke nilai DOM tanpa lewat Alpine, sehingga TagsInput mengembalikan
+     * kotaknya ke kosong pada tick berikutnya; dan setiap medan `live` (Laporan, Frekuensi) memicu
+     * putaran Livewire yang merender ulang bagian ini — huruf yang diketik tepat saat render itu
+     * mendarat ikut tertelan, yang terbaca sebagai "wner@..." alih-alih "owner@...".
+     *
+     * Blok toPass mengulang seluruh pengetikan bila hal itu terjadi, jadi uji ini menguji fitur
+     * penjadwalannya, bukan ketangkasan mengetik di sela-sela render.
+     */
+    const recipients = page.getByRole('combobox', { name: /Email penerima/ });
+    await expect(async () => {
+        await recipients.click();
+        await recipients.clear();
+        await recipients.pressSequentially('owner@gtgroup.test', { delay: 20 });
+        await expect(recipients).toHaveValue('owner@gtgroup.test', { timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
+
+    await recipients.press('Enter');
+    const wadahPenerima = page.locator('.fi-fo-field-wrp', { has: page.locator('label', { hasText: /Email penerima/ }) });
+    await expect(wadahPenerima.getByText('owner@gtgroup.test')).toBeVisible();
+
     await page.getByRole('combobox', { name: 'Frekuensi' }).selectOption({ label: 'Mingguan (Senin–Minggu lalu)' });
     await expect(page.getByText('Dikirim setiap Senin untuk Senin–Minggu sebelumnya.')).toBeVisible();
-    const recipients = page.getByRole('combobox', { name: /Email penerima/ });
-    await recipients.fill('owner@gtgroup.test');
-    await recipients.press('Enter');
+    // Tagnya harus selamat melewati render ulang akibat Frekuensi.
+    await expect(wadahPenerima.getByText('owner@gtgroup.test')).toBeVisible();
     await expectAccessible(page, 'jadwal baru');
     await page.screenshot({ path: `${SHOTS}/46-jadwal-baru.png`, fullPage: true });
     await page.getByRole('button', { name: 'Simpan Jadwal' }).click();

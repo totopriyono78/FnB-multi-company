@@ -66,11 +66,28 @@ class StockBalanceResource extends Resource
             ])
             ->defaultSort('ingredients.name')
             ->filters([
+                /*
+                 * Parameternya WAJIB bernama `$query` (temuan user 30 Sep 2026).
+                 *
+                 * Filament menyuntikkan argumen closure berdasarkan NAMA parameter. Nama lain —
+                 * dulu `$q` di sini — tidak dikenali, sehingga Filament membangun objek Builder
+                 * baru dari container, closure mengubah objek buangan itu, lalu hasilnya dilempar.
+                 * Filternya tampak aktif di layar (chip "Filter aktif" muncul) tetapi tidak
+                 * menyaring apa pun, dan tidak ada error sedikit pun yang memberi tahu.
+                 */
                 SelectFilter::make('outlet')->label('Outlet')->options(fn () => InventoryFields::outletOptions())
-                    ->query(fn (Builder $q, array $data) => $data['value'] ? $q->whereIn('stock_balances.location_id', StockLocation::query()->where('outlet_id', $data['value'])->select('id')) : $q),
+                    ->query(fn (Builder $query, array $data) => $data['value'] ? $query->whereIn('stock_balances.location_id', StockLocation::query()->where('outlet_id', $data['value'])->select('id')) : $query),
                 SelectFilter::make('location_id')->label('Lokasi')->options(fn () => InventoryFields::visibleLocations()),
                 Filter::make('low')->label('Hanya stok kritis')->toggle()
-                    ->query(fn (Builder $q) => $q->whereRaw('stock_balances.qty < 0 OR (COALESCE(stock_balances.min_qty, ingredients.min_stock) > 0 AND stock_balances.qty < COALESCE(stock_balances.min_qty, ingredients.min_stock))')),
+                    /*
+                     * Tanda kurung mengelilingi seluruh OR bukan hiasan: `whereRaw` menempelkan
+                     * SQL-nya apa adanya dengan `and` di depan, tanpa kurung. Tanpa kurung,
+                     * `... and company_id = ? and qty < 0 OR (min > 0 and qty < min)` dibaca
+                     * sebagai `(... and qty < 0) OR (min > 0 and qty < min)` — cabang kedua
+                     * kehilangan penyaring company dan lokasi, sehingga stok company lain bisa
+                     * ikut terbaca.
+                     */
+                    ->query(fn (Builder $query) => $query->whereRaw('(stock_balances.qty < 0 OR (COALESCE(stock_balances.min_qty, ingredients.min_stock) > 0 AND stock_balances.qty < COALESCE(stock_balances.min_qty, ingredients.min_stock)))')),
             ])
             ->actions([
                 Action::make('card')->label('Kartu stok')->icon('heroicon-o-queue-list')

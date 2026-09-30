@@ -70,7 +70,10 @@ class StockMovementResource extends Resource
                         DatePicker::make('from')->label('Dari tanggal')->default(now()->subDays(30)),
                         DatePicker::make('until')->label('Sampai tanggal'),
                     ])
-                    ->query(fn (Builder $q, array $data) => $q
+                    // Parameternya wajib `$query`: Filament menyuntikkannya berdasarkan nama, dan
+                    // nama lain membuat filter ini diam-diam tidak menyaring apa pun — termasuk
+                    // bawaan "30 hari terakhir" di atas (temuan user 30 Sep 2026).
+                    ->query(fn (Builder $query, array $data) => $query
                         ->when($data['from'] ?? null, fn ($w, $v) => $w->where('business_date', '>=', $v))
                         ->when($data['until'] ?? null, fn ($w, $v) => $w->where('business_date', '<=', $v)))
                     ->indicateUsing(fn (array $data) => ($data['from'] ?? null) ? 'Sejak '.CarbonImmutable::parse($data['from'])->format('d M Y') : null),
