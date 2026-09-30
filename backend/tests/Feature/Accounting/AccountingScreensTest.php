@@ -1,5 +1,7 @@
 <?php
 
+use App\Filament\Pages\Accounting\BalanceSheetPage;
+use App\Filament\Pages\Accounting\IncomeStatementPage;
 use App\Filament\Pages\Accounting\JournalMappingPage;
 use App\Filament\Pages\Accounting\TrialBalancePage;
 use App\Filament\Resources\AccountResource\Pages\CreateAccount;
@@ -8,6 +10,7 @@ use App\Filament\Resources\JournalResource\Pages\CreateJournal;
 use App\Filament\Resources\JournalResource\Pages\ListJournals;
 use App\Modules\Accounting\Application\ChartOfAccounts;
 use App\Modules\Accounting\Application\JournalMap;
+use App\Modules\Accounting\Application\JournalService;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\Journal;
 use App\Modules\Accounting\Domain\Models\JournalLine;
@@ -62,7 +65,7 @@ it('membuka layar akuntansi untuk finance dan pemilik', function (string $peran)
     $user = $peran === 'finance' ? $this->finance : $this->owner;
     masukAkuntansi($this, $user);
 
-    foreach (['bagan-akun', 'jurnal', 'neraca-saldo', 'buku-besar', 'periode'] as $halaman) {
+    foreach (['bagan-akun', 'jurnal', 'neraca-saldo', 'buku-besar', 'periode', 'pemetaan-akun', 'laba-rugi', 'neraca'] as $halaman) {
         $this->get("{$this->base}/{$halaman}")->assertSuccessful();
     }
 })->with(['finance', 'pemilik']);
@@ -74,6 +77,8 @@ it('menutup layar akuntansi untuk peran tanpa izin', function (string $role) {
     $this->get("{$this->base}/bagan-akun")->assertForbidden();
     $this->get("{$this->base}/jurnal")->assertForbidden();
     $this->get("{$this->base}/neraca-saldo")->assertForbidden();
+    $this->get("{$this->base}/laba-rugi")->assertForbidden();
+    $this->get("{$this->base}/neraca")->assertForbidden();
 })->with(['kasir' => ['cashier'], 'manajer outlet' => ['outlet_manager'], 'gudang' => ['warehouse']]);
 
 it('memasang template bagan akun lewat tombol di layar', function () {
@@ -285,5 +290,60 @@ describe('pemetaan akun jurnal otomatis (ACC-10)', function () {
             ->call('save');
 
         expect(Factory::tenant($this->company, fn () => app(JournalMap::class)->account(JournalMap::REVENUE, null, false)))->toBeNull();
+    });
+});
+
+describe('laporan keuangan (FIN-01, FIN-02)', function () {
+    beforeEach(function () {
+        pasangTemplatePembukuan($this);
+        masukAkuntansi($this, $this->finance);
+        $service = app(JournalService::class);
+        Factory::tenant($this->company, function () use ($service): void {
+            $jurnal = $service->create([
+                'journal_date' => '2026-10-05',
+                'description' => 'Penjualan tunai',
+                'lines' => [
+                    ['account_id' => Account::query()->where('code', '1101')->value('id'), 'debit' => '4000000', 'credit' => '0'],
+                    ['account_id' => Account::query()->where('code', '4101')->value('id'), 'debit' => '0', 'credit' => '4000000'],
+                ],
+            ], $this->finance);
+            $service->post($jurnal, $this->finance);
+        });
+    });
+
+    it('merender laba rugi di layar, lengkap dengan baris hasilnya', function () {
+        /*
+         * Dirender lewat Livewire, bukan hanya dipanggil layanannya: baris laporan keuangan memakai
+         * kunci tambahan `_style` yang dibaca penyaji, dan kunci yang salah hanya meledak di blade.
+         */
+        Livewire::test(IncomeStatementPage::class)
+            ->set('from', '2026-10-01')
+            ->set('to', '2026-10-31')
+            ->assertSuccessful()
+            ->assertSee('LABA (RUGI) BERSIH')
+            ->assertSee('Marjin Bersih');
+    });
+
+    it('merender neraca yang seimbang di layar', function () {
+        $layar = Livewire::test(BalanceSheetPage::class)
+            ->set('from', '2026-10-01')
+            ->set('to', '2026-10-31')
+            ->assertSuccessful()
+            ->assertSee('JUMLAH LIABILITAS & EKUITAS')
+            ->assertDontSee('PERINGATAN');
+
+        $table = $layar->instance()->table();
+        $baris = collect($table->rows)->keyBy('name');
+        expect($baris['JUMLAH ASET']['amount'])->toBe($baris['JUMLAH LIABILITAS & EKUITAS']['amount']);
+    });
+
+    it('mengekspor laba rugi tanpa tersandung kunci gaya baris', function () {
+        // Pengekspor hanya membaca kunci yang terdaftar di `columns`; `_style` harus diabaikan diam-diam.
+        $berkas = Livewire::test(IncomeStatementPage::class)
+            ->set('from', '2026-10-01')
+            ->set('to', '2026-10-31')
+            ->callAction('xlsx');
+
+        expect($berkas)->not->toBeNull();
     });
 });

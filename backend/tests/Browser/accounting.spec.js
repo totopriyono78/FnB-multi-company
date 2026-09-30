@@ -91,6 +91,29 @@ test('finance memasang bagan akun, menjurnal, memposting, dan membaca neraca sal
 
     await expect(page.getByRole('button', { name: 'Ekspor' })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/52-neraca-saldo.png`, fullPage: true });
+
+    // --- Laba Rugi: belum ada penjualan, jadi angkanya nol — dan itu pun harus terbaca jelas.
+    await klikNavigasi(page, page.getByRole('link', { name: 'Laba Rugi' }));
+    await expect(page.getByRole('heading', { name: 'Laporan Laba Rugi' }).first()).toBeVisible();
+    await expect(page.getByText('Marjin Bersih')).toBeVisible();
+    await expect(page.locator('table.fnb-report-table')).toContainText('LABA (RUGI) BERSIH');
+
+    /*
+     * --- Neraca. Janji yang diperiksa di sini bukan "halamannya terbuka", melainkan bahwa angka
+     * yang sampai ke layar benar-benar seimbang: jumlah aset sama persis dengan jumlah liabilitas
+     * dan ekuitas, dan tidak ada peringatan ketimpangan di catatan kakinya.
+     */
+    await klikNavigasi(page, page.getByRole('link', { name: 'Neraca', exact: true }));
+    await expect(page.getByRole('heading', { name: 'Neraca', exact: true }).first()).toBeVisible();
+    const neraca = page.locator('table.fnb-report-table');
+    await expect(neraca).toContainText('1110 — Bank');
+
+    const nilai = async (label) => (await neraca.locator('tr', { hasText: label }).first().locator('td').first().textContent()).trim();
+    expect(await nilai('JUMLAH ASET')).toBe(await nilai('JUMLAH LIABILITAS & EKUITAS'));
+    await expect(page.locator('.fnb-report-notes')).not.toContainText('PERINGATAN');
+    // Modal disetor 5 juta masuk sebagai ekuitas, bukan tersangkut di aset saja.
+    await expect(neraca.locator('tr.fnb-report-row--subtotal', { hasText: 'Jumlah Ekuitas' })).toContainText('Rp5.000.000');
+    await page.screenshot({ path: `${SHOTS}/54-neraca.png`, fullPage: true });
 });
 
 test('kasir tidak melihat menu akuntansi', async ({ page }) => {

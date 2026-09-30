@@ -11,6 +11,17 @@
             <p class="fnb-muted">Pilih akun untuk menampilkan buku besarnya.</p>
         </x-filament::section>
     @else
+        @if ($table->summary !== [])
+            <dl class="fnb-report-summary" aria-label="Ringkasan laporan">
+                @foreach ($table->summary as $s)
+                    <div class="fnb-report-summary__item">
+                        <dt>{{ $s['label'] }}</dt>
+                        <dd @class(['fnb-report-summary__negative' => str_starts_with((string) $s['value'], '-')])>{{ ReportTable::format($s['value'], $s['type']) }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+        @endif
+
         <x-filament::section :heading="$table->title" :description="$table->subtitle">
             @if ($table->filters !== [])
                 <p class="fnb-muted">
@@ -32,7 +43,10 @@
                         </thead>
                         <tbody>
                             @foreach ($table->rows as $row)
-                                <tr>
+                                {{-- Laporan keuangan menandai barisnya: seksi, subtotal, hasil. Tanpa itu
+                                     neraca terbaca sebagai satu dinding angka tanpa awal dan akhir. --}}
+                                @php $style = $row['_style'] ?? null; @endphp
+                                <tr @class(['fnb-report-row--'.$style => $style !== null])>
                                     @foreach ($table->columns as $key => $col)
                                         @php $value = $row[$key] ?? null; @endphp
                                         @if ($loop->first)
@@ -41,7 +55,7 @@
                                             <td @class([
                                                 'fnb-num' => $col['type'] !== ReportTable::TEXT,
                                                 'fnb-negative' => $col['type'] === ReportTable::MONEY && str_starts_with((string) $value, '-'),
-                                            ])>{{ ReportTable::format($value, $col['type']) }}</td>
+                                            ])>{{-- Baris judul kelompok tidak punya angka; "-" di sana dibaca sebagai data yang hilang. --}}{{ $style === 'section' ? '' : ReportTable::format($value, $col['type']) }}</td>
                                         @endif
                                     @endforeach
                                 </tr>

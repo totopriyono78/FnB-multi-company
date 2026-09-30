@@ -1390,3 +1390,58 @@ a.fi-wi-stats-overview-stat:hover {
 .dark .fnb-footer__text {
     color: rgb(var(--gray-400));
 }
+
+/*
+ * Baris laporan keuangan (Laba Rugi, Neraca).
+ *
+ * Laporan keuangan dibaca dengan mata yang melompat: pembaca mencari judul kelompok, lalu langsung
+ * ke angka jumlahnya. Tanpa pembeda baris, neraca menjadi satu dinding angka yang harus dibaca
+ * seluruhnya untuk menemukan satu angka. Tiga tingkat sudah cukup — lebih dari itu justru membuat
+ * mata kehilangan pegangan.
+ */
+.fnb-report-table tr.fnb-report-row--section th[scope='row'] {
+    padding-top: var(--fnb-space-4);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: rgb(var(--gray-500));
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.dark .fnb-report-table tr.fnb-report-row--section th[scope='row'] {
+    color: rgb(var(--gray-400));
+}
+
+/* Baris akun menjorok ke dalam supaya jelas ia milik kelompok di atasnya. */
+.fnb-report-table tr.fnb-report-row--item th[scope='row'] {
+    padding-left: var(--fnb-space-5);
+    font-weight: 400;
+}
+
+.fnb-report-table tr.fnb-report-row--subtotal th[scope='row'],
+.fnb-report-table tr.fnb-report-row--subtotal td {
+    font-weight: 600;
+    border-top: 1px solid rgb(var(--gray-200));
+}
+
+.dark .fnb-report-table tr.fnb-report-row--subtotal th[scope='row'],
+.dark .fnb-report-table tr.fnb-report-row--subtotal td {
+    border-top-color: rgb(var(--gray-700));
+}
+
+/* Angka yang dicari orang lebih dulu: laba kotor, laba bersih, jumlah liabilitas & ekuitas. */
+.fnb-report-table tr.fnb-report-row--result th[scope='row'],
+.fnb-report-table tr.fnb-report-row--result td {
+    font-weight: 700;
+    color: rgb(var(--gray-900));
+    background: rgb(var(--gray-50));
+    border-top: 2px solid rgb(var(--gray-300));
+    border-bottom: 0;
+}
+
+.dark .fnb-report-table tr.fnb-report-row--result th[scope='row'],
+.dark .fnb-report-table tr.fnb-report-row--result td {
+    color: rgb(var(--gray-50));
+    background: rgb(var(--gray-800));
+    border-top-color: rgb(var(--gray-600));
+}

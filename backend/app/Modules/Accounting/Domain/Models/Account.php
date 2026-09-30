@@ -62,6 +62,15 @@ class Account extends Model
     /** Akun neraca (saldonya berlanjut antar periode) vs akun laba rugi (ditutup tiap periode). */
     public const BALANCE_SHEET = [self::ASSET, self::LIABILITY, self::EQUITY];
 
+    /**
+     * Kelompok yang bertambah di sisi debit.
+     *
+     * Dipakai laporan keuangan untuk menentukan TANDA angka menurut kelompoknya, bukan menurut
+     * saldo normal akunnya sendiri — supaya akun lawan (Diskon Penjualan, Akumulasi Penyusutan)
+     * tampil negatif dan benar-benar mengurangi kelompoknya.
+     */
+    public const DEBIT_GROUPS = [self::ASSET, self::COGS, self::EXPENSE];
+
     protected $fillable = ['code', 'name', 'type', 'parent_id', 'is_postable', 'is_active', 'description'];
 
     protected function casts(): array
