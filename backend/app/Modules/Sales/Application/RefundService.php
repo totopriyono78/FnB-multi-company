@@ -69,6 +69,8 @@ class RefundService
 
             $shift = $this->shifts->openShift($device, $data['shift_id']);
             $this->shifts->assertWithinShift($shift, $at);
+            // Retur mengurangi kas shift; shift yang hari bisnisnya sudah lewat harus ditutup dulu.
+            $this->shifts->assertSameBusinessDay($shift, $at);
 
             $actor = $this->auth->staff($data['refunded_by'], $outlet, 'pos.transact', 'refunded_by');
             $flags = [];

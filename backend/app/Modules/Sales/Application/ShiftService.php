@@ -6,6 +6,7 @@ use App\Modules\Audit\Application\AuditLogger;
 use App\Modules\Sales\Domain\Models\CashMovement;
 use App\Modules\Sales\Domain\Models\Shift;
 use App\Modules\Tenancy\Domain\Models\Device;
+use App\Modules\Tenancy\Domain\Models\Outlet;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +80,8 @@ class ShiftService
         $shift = $this->openShift($device, $data['shift_id']);
         $at = $this->time($data['created_at'], 'created_at');
         $this->assertWithinShift($shift, $at);
+        // Kas masuk/keluar masuk ke laporan kas shift; hari bisnisnya harus masih yang sama.
+        $this->assertSameBusinessDay($shift, $at);
 
         $type = $data['type'];
         if (! in_array($type, CashMovement::TYPES, true)) {
@@ -205,6 +208,42 @@ class ShiftService
         if ($at->lessThan($shift->opened_at) || ($shift->closed_at !== null && $at->greaterThan($shift->closed_at))) {
             throw new SalesException('OUTSIDE_SHIFT', 'Waktu transaksi berada di luar rentang shift.', 422, field: 'created_at');
         }
+    }
+
+    /**
+     * Satu shift hanya boleh memuat satu hari bisnis (BR-20; cacat dilaporkan user 30 Sep 2026).
+     *
+     * Seluruh baris keuangan — order, tiket dapur, pergerakan kas — mengambil `business_date`
+     * dari shiftnya, dan shift menetapkan tanggal itu sekali saja saat dibuka. Selama shift masih
+     * terbuka tidak ada batas atas waktunya, sehingga shift yang lupa ditutup semalam menyerap
+     * seluruh penjualan pagi berikutnya ke tanggal kemarin. Ringkasan memakai jam sekarang, shift
+     * memakai jam kemarin: keduanya benar menurut acuannya sendiri, dan angkanya tidak pernah
+     * bertemu. Yang dilaporkan user: transaksi pagi 30 September muncul sebagai penjualan kemarin,
+     * padahal judul Ringkasan sudah menulis 30 September.
+     *
+     * Dibandingkan terhadap waktu TRANSAKSI, bukan jam server sekarang. Dua alasan: perangkat yang
+     * lama luring boleh mengirim penjualan tadi malam setelah tengah malam tanpa ditolak, dan
+     * penjualan pukul 01.00 di outlet dengan pergantian hari 04.00 memang masih milik hari kemarin
+     * — dua-duanya sah dan harus tetap lewat.
+     */
+    public function assertSameBusinessDay(Shift $shift, CarbonImmutable $at): void
+    {
+        $outlet = $shift->outlet ?? Outlet::query()->findOrFail($shift->outlet_id);
+        $sekarang = $this->calendar->businessDate($outlet, $at);
+        $shiftDate = $shift->business_date->format('Y-m-d');
+
+        if ($sekarang->format('Y-m-d') === $shiftDate) {
+            return;
+        }
+
+        throw new SalesException(
+            'BUSINESS_DAY_ROLLED_OVER',
+            'Hari bisnis sudah berganti ke '.$sekarang->format('d-m-Y').', sedangkan shift ini masih hari bisnis '
+                .$shift->business_date->format('d-m-Y').'. Tutup shift tersebut lalu buka shift baru sebelum berjualan.',
+            409,
+            field: 'shift_id',
+            details: ['shift_business_date' => $shiftDate, 'current_business_date' => $sekarang->format('Y-m-d')],
+        );
     }
 
     public function time(mixed $value, string $field): CarbonImmutable

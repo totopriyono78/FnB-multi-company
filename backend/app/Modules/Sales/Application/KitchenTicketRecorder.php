@@ -62,6 +62,8 @@ class KitchenTicketRecorder
             $businessDate = null;
             if (! empty($data['shift_id'])) {
                 $shift = $this->shifts->assertShiftOnDevice(Shift::query()->find($data['shift_id']), $device);
+                // Tiket dapur ikut menandai hari bisnis shiftnya; aturannya sama dengan order.
+                $this->shifts->assertSameBusinessDay($shift, $sentAt);
                 $businessDate = $shift->business_date;
             }
             $businessDate ??= $this->calendar->businessDate($outlet, $sentAt);

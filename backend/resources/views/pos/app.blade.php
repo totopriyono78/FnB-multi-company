@@ -888,13 +888,23 @@ async function api(path, { method = 'GET', body = null, token = null } = {}) {
   if (!res.ok || data.success === false) {
     const err = (data.errors || [])[0] || {};
     const e = new Error(err.message || ('Gagal (' + res.status + ')'));
-    e.code = err.code; e.status = res.status; e.field = err.field;
+    e.code = err.code; e.status = res.status; e.field = err.field; e.details = err.details || null;
     throw e;
   }
   return data.data;
 }
 const dev = (p, o = {}) => api(p, Object.assign({ token: S.device.token }, o));
-const pos = (p, o = {}) => api(p, Object.assign({ token: S.pos.token }, o));
+/*
+ * Setiap panggilan kasir ikut memeriksa satu hal: apakah server menolak karena hari bisnisnya
+ * sudah berganti. Ditangkap di sini, bukan di masing-masing tombol, supaya tidak ada satu pun
+ * jalur yang menampilkan pesan mentahnya kepada kasir.
+ */
+const pos = (p, o = {}) => api(p, Object.assign({ token: S.pos.token }, o)).catch((e) => {
+  if (e.code === 'BUSINESS_DAY_ROLLED_OVER') {
+    hariBisnisBerganti((e.details || {}).current_business_date);
+  }
+  throw e;
+});
 
 /* ---------------- pairing ---------------- */
 el('pairBtn').onclick = async () => {
@@ -945,6 +955,39 @@ function wipeLokal(){
   location.replace(location.pathname + '?dicabut=1');
 }
 
+/*
+ * Hari bisnis sudah berganti sementara shiftnya belum ditutup (cacat dilaporkan user 30 Sep 2026).
+ *
+ * Seluruh transaksi mewarisi hari bisnis dari shiftnya, jadi berjualan di shift kemarin membuat
+ * penjualan hari ini tercatat sebagai penjualan kemarin — dan Ringkasan, yang memakai jam
+ * sekarang, tidak akan pernah menemukannya. Server sudah menolaknya, tetapi penolakan itu baru
+ * terasa setelah kasir mengetik satu pesanan penuh. Di sini kasir diberi tahu lebih dulu.
+ *
+ * Diberitahukan sekali per shift: peringatan yang muncul berulang kali setiap menit hanya akan
+ * ditutup tanpa dibaca.
+ */
+let hariBisnisDiberitahu = null;
+
+function hariBisnisBerganti(tanggalBaru){
+  if (!S.shift || !S.shift.id) return;
+  const shiftDate = String(S.shift.business_date || '').slice(0, 10);
+  if (!shiftDate || (tanggalBaru && tanggalBaru === shiftDate)) return;
+  if (hariBisnisDiberitahu === shiftDate) return;
+  hariBisnisDiberitahu = shiftDate;
+
+  // Dimatikan di sisi kasir juga, bukan hanya ditolak server: keranjang yang sudah diketik penuh
+  // lalu ditolak saat menekan Bayar adalah cara paling mahal menyampaikan kabar ini.
+  el('kitchenBtn').disabled = true;
+  el('payBtn').disabled = true;
+  el('cartMeta').textContent = 'hari bisnis berganti — tutup shift dulu';
+
+  Promise.resolve(el('closeShiftHere').onclick()).then(() => {
+    el('closeSub').textContent = 'Hari bisnis sudah berganti'
+      + (tanggalBaru ? ' ke ' + tanggalBaru : '') + ', sedangkan shift ini masih hari bisnis '
+      + shiftDate + '. Hitung uang di laci, tutup shift ini, lalu buka shift baru sebelum berjualan lagi.';
+  });
+}
+
 async function denyut(){
   if (!S.device || !S.device.token) return;
   try {
@@ -954,6 +997,7 @@ async function denyut(){
       pending_sync_count: 0,
     }});
     setelNet('dot', 'Terhubung');
+    if (r && r.business_date) hariBisnisBerganti(r.business_date);
     if (r && r.wipe) wipeLokal();
   } catch (e) {
     /*
@@ -1081,6 +1125,9 @@ async function enterSale(){
   await muatPesananShift();
   renderChannels(); renderTabs(); renderGrid(); renderCart(); renderTotals(null); renderDevice();
   goView('kasir');
+  // Diperiksa begitu layar kasir terbuka, tidak menunggu denyut berikutnya: kasir yang masuk
+  // pagi ini ke shift semalam harus tahu sebelum ia menyentuh satu tombol menu pun.
+  denyut();
 }
 
 /**
@@ -2649,6 +2696,10 @@ el('closeGo').onclick = async () => {
       id: uuid(), counted_cash: counted, variance_note: el('closeNote').value || null } });
     el('closeModal').classList.remove('on');
     S.shift = null; S.cart = []; S.quote = null;
+    // Shift lama sudah beres; peringatan pergantian hari bisnis dilepas agar shift berikutnya
+    // diperiksa dari awal lagi.
+    hariBisnisDiberitahu = null;
+    el('kitchenBtn').disabled = false;
     await renderShift(); updateHeader(); renderCart(); renderTotals(null);
   } catch (e) { fail('closeErr', e.message); }
 };

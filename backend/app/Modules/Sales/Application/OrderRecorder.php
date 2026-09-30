@@ -166,6 +166,9 @@ class OrderRecorder
                 throw new SalesException('SHIFT_CLOSED', 'Shift sudah ditutup; transaksi tidak dapat ditambahkan.', 409, field: 'shift_id');
             }
             $this->shifts->assertWithinShift($shift, $createdAt);
+            // Satu shift = satu hari bisnis. Tanpa ini, shift yang lupa ditutup semalam menyerap
+            // penjualan pagi berikutnya ke tanggal kemarin (lihat assertSameBusinessDay).
+            $this->shifts->assertSameBusinessDay($shift, $createdAt);
 
             $cashier = $this->auth->staff($data['cashier_id'], $outlet, 'pos.transact');
             $businessDate = $shift->business_date;
