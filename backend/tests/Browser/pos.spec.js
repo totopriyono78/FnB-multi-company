@@ -87,6 +87,12 @@ async function isiKeranjang(page, jumlah = 2) {
     }
 }
 
+/*
+ * Nomor meja diminta di tengah jalan menuju pembayaran, lalu jalannya diteruskan sendiri ke form
+ * pembayaran (permintaan user 30 Sep 2026). Karena itu helper ini TIDAK menekan Bayar untuk kedua
+ * kalinya — dulu memang begitu, dan sekarang klik kedua itu justru tertahan oleh overlay modal
+ * pembayaran yang sudah terbuka.
+ */
 async function pilihMeja(page, nomor) {
     if (await page.locator('#tableModal.on').count()) {
         await page.locator(`#tableGrid button[data-t="${nomor}"]`).click();
@@ -151,19 +157,23 @@ test('kasir memasangkan perangkat, menjual, dan mencetak struk', async ({ page }
         }
     }
 
-    // makan di tempat wajib bernomor meja: tombol Ke dapur membuka pemilih meja dulu
+    /*
+     * Makan di tempat wajib bernomor meja: tombol Ke dapur membuka pemilih meja dulu, lalu
+     * pengirimannya diteruskan sendiri begitu mejanya dipilih (permintaan user 30 Sep 2026).
+     * Tombolnya TIDAK ditekan dua kali di sini — justru itu yang diminta hilang.
+     */
     await page.locator('#kitchenBtn').click();
     await expect(page.locator('#tableModal.on')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('#tableGrid button')).toHaveCount(18); // jumlah meja outlet Kaliurang
     await page.locator('#tableGrid button[data-t="7"]').click();
     await expect(page.locator('#tableText')).toHaveText(/Meja\s*7/);
+    await expect(page.locator('#cartMeta')).toHaveText('tiket dapur terkirim', { timeout: 10_000 });
 
     /*
      * Tiket dapur dicetak lewat tombolnya, bukan otomatis (temuan tim penguji 29 Sep 2026):
      * cetak otomatis kini mati dari sananya karena di komputer tanpa printer, dialog cetak yang
      * terbuka sendiri mengunci layar kasir. Nilai bawaannya dijaga di cetak-struk.spec.js.
      */
-    await page.locator('#kitchenBtn').click();
     await expect(page.locator('#kitchenPrintBtn')).toBeVisible({ timeout: 10_000 });
     await page.locator('#kitchenPrintBtn').click();
     await expect.poll(() => page.evaluate(() => window.__cetak.length), { timeout: 10_000 }).toBeGreaterThan(0);
@@ -252,10 +262,16 @@ test('kasir memakai bayar gabungan, retur berotorisasi, kas shift, dan tandai ha
 
     await isiKeranjang(page);
 
-    // bayar gabungan: separuh tunai, sisanya kartu debit
+    /*
+     * Bayar gabungan: separuh tunai, sisanya kartu debit.
+     *
+     * Satu klik Bayar saja. Nomor meja diminta di tengah jalan, dan begitu diisi layarnya langsung
+     * lanjut ke form pembayaran — bukan pulang ke keranjang untuk ditekan ulang (permintaan user
+     * 30 Sep 2026). Tidak ada klik Bayar kedua di bawah ini, dan itulah yang diuji.
+     */
     await page.locator('#payBtn').click();
     await page.waitForTimeout(500);
-    if (await pilihMeja(page, 5)) await page.locator('#payBtn').click();
+    await pilihMeja(page, 5);
     await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
 
     const total = await page.evaluate(() => totalTagihan());
@@ -376,7 +392,7 @@ test('kasir menimbang ikan, memarkir bill, melayani tamu lain, lalu menagih', as
 
     await page.locator('#payBtn').click();
     await page.waitForTimeout(500);
-    if (await pilihMeja(page, 4)) await page.locator('#payBtn').click();
+    await pilihMeja(page, 4);
     await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
     await page.locator('#payDone').click();
     await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 20_000 });
@@ -457,7 +473,7 @@ test('kasir membayar QRIS: gambar QR, hitung mundur, dan status terpantau sendir
 
     await page.locator('#payBtn').click();
     await page.waitForTimeout(500);
-    if (await pilihMeja(page, 7)) await page.locator('#payBtn').click();
+    await pilihMeja(page, 7);
     await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
 
     await page.locator('#ways button[data-code="qris"]').click();
@@ -549,7 +565,7 @@ test('layar pelanggan di monitor kedua mengikuti pesanan, QR, dan status lunas',
     // ---- bayar QRIS ----
     await page.locator('#payBtn').click();
     await page.waitForTimeout(500);
-    if (await pilihMeja(page, 9)) await page.locator('#payBtn').click();
+    await pilihMeja(page, 9);
     await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
     await page.locator('#ways button[data-code="qris"]').click();
     await page.locator('#qrisCreate').click();

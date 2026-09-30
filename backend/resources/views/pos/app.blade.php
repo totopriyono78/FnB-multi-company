@@ -1182,8 +1182,18 @@ function renderTableBar(){
   el('tableText').innerHTML = S.table ? 'Meja <b>' + esc(S.table) + '</b>' : 'Pilih meja';
 }
 
-function openTableModal(alasan){
+/*
+ * `lanjut` dijalankan setelah nomor mejanya tersimpan (permintaan user 30 Sep 2026).
+ *
+ * Dulu menekan Bayar tanpa nomor meja membuka modal ini, dan sesudah nomornya diisi kasir kembali
+ * ke keranjang dan harus menekan Bayar sekali lagi. Isian nomor meja bukan tujuan kasir; ia hanya
+ * satu hal yang diminta di tengah jalan menuju pembayaran, jadi jalannya diteruskan sendiri.
+ */
+let lanjutSetelahMeja = null;
+
+function openTableModal(alasan, lanjut){
   const n = Number((S.catalog.outlet || {}).table_count || 0);
+  lanjutSetelahMeja = typeof lanjut === 'function' ? lanjut : null;
   el('tableSub').textContent = alasan || 'Pilih meja tempat tamu duduk.';
   el('tableGrid').innerHTML = Array.from({ length: n }, (_, i) => i + 1)
     .map(i => `<button data-t="${i}" class="${String(i) === S.table ? 'on' : ''}">${i}</button>`).join('');
@@ -1196,6 +1206,11 @@ function simpanMeja(v){
   S.table = String(v || '').trim().slice(0, 30);
   el('tableModal').classList.remove('on');
   renderTableBar();
+  // Diambil lalu dikosongkan lebih dulu: membuka modal meja dari dalam langkah lanjutan tidak
+  // boleh memicu langkah yang sama dua kali.
+  const lanjut = lanjutSetelahMeja;
+  lanjutSetelahMeja = null;
+  if (lanjut && S.table) lanjut();
 }
 el('cashInBtn').onclick = () => askCash('in');
 el('cashOutBtn').onclick = () => askCash('out');
@@ -1479,7 +1494,14 @@ function renderCart(){
 /* ---- kirim ke dapur ---- */
 el('kitchenBtn').onclick = async () => {
   if (!S.cart.length) return;
-  if (perluMeja() && !S.table) { openTableModal('Isi nomor meja dulu supaya dapur tahu pesanan ini untuk siapa.'); return; }
+  // Sama seperti tombol Bayar: nomor meja diminta lalu pengirimannya diteruskan sendiri,
+  // bukan dipulangkan ke keranjang untuk ditekan dua kali.
+  if (perluMeja() && !S.table) {
+    openTableModal('Isi nomor meja dulu supaya dapur tahu pesanan ini untuk siapa.',
+      () => el('kitchenBtn').onclick());
+
+    return;
+  }
   S.orderId = S.orderId || uuid();
   const dikirim = S.cart.slice();
   try {
@@ -1508,7 +1530,17 @@ el('payBtn').onclick = () => {
     alert('Belum ada shift terbuka. Buka menu Shift di kiri, lalu tekan "Buka shift".');
     return;
   }
-  if (perluMeja() && !S.table) { openTableModal('Isi nomor meja dulu sebelum menutup transaksi makan di tempat.'); return; }
+  // Nomor meja belum ada: diminta dulu, lalu jalannya diteruskan ke form pembayaran sendiri.
+  if (perluMeja() && !S.table) {
+    openTableModal('Isi nomor meja dulu sebelum menutup transaksi makan di tempat.', bukaPembayaran);
+
+    return;
+  }
+  bukaPembayaran();
+};
+
+function bukaPembayaran(){
+  if (!S.quote) return;
   clearFail('payErr');
   S.intent = null;
   S.pays = [];
@@ -1527,7 +1559,7 @@ el('payBtn').onclick = () => {
   });
   setGiven(t);
   el('payModal').classList.add('on');
-};
+}
 function setGiven(v, dariInput){
   S.given = Math.max(0, Number(v) || 0);
   if (!dariInput) el('cashInput').value = S.given ? nf(S.given) : '';
