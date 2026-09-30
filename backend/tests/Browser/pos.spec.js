@@ -308,6 +308,22 @@ test('kasir memakai bayar gabungan, retur berotorisasi, kas shift, dan tandai ha
     // kas keluar tercatat pada shift berjalan
     await page.locator('.rail button[data-scr="shift"]').click();
     await page.waitForTimeout(1000);
+
+    /*
+     * Angka shift harus BENAR-BENAR sampai ke layar (temuan user 1 Okt 2026).
+     *
+     * Sampai 1 Okt 2026 layar ini selalu berbunyi "0 transaksi" dan "Rp0" betapa pun ramainya
+     * kasir, karena membaca nama field yang tidak pernah dikirim server. Tidak ada satu uji pun
+     * yang gagal: uji PHP memeriksa responsnya (yang memang benar), dan uji E2E hanya melewati
+     * layar ini untuk mencatat kas. Yang hilang persis pemeriksaan di bawah — bahwa angkanya
+     * muncul, bukan sekadar layarnya terbuka.
+     */
+    const kpi = (judul) => page.locator('.kpi').filter({ has: page.locator('h4', { hasText: judul }) });
+    await expect(kpi('Total penjualan').locator('.v')).not.toHaveText(/^Rp\s*0$/);
+    await expect(kpi('Penjualan tunai').locator('.s')).toHaveText(/[1-9]\d* transaksi/);
+    // Struk tadi diretur penuh, jadi angka kotornya wajib menyebutkan retur agar tidak menyesatkan.
+    await expect(kpi('Total penjualan').locator('.s')).toContainText('belum dikurangi retur');
+
     await page.locator('#cashOutBtn').click();
     await page.locator('#cashAmount').fill('150000');
     await page.locator('#cashReason').fill('setoran ke brankas');

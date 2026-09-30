@@ -1745,7 +1745,14 @@ async function syncSequence(){
   if (!S.shift || !S.shift.id) return;
   try {
     const d = await pos('/pos/shifts/' + S.shift.id + '/report');
-    const n = Number((d.report || {}).orders || 0);
+    /*
+     * `last_receipt_seq`, BUKAN jumlah transaksi. Nomor struk berlaku per perangkat per hari bisnis
+     * dan tetap terpakai oleh transaksi yang dibatalkan, jadi menghitung transaksi yang sah saja
+     * akan mengembalikan nomor yang sudah dipakai. Sebelum 1 Okt 2026 baris ini membaca
+     * `report.orders` — field yang tidak pernah dikirim server — sehingga selalu 0 dan penyelarasan
+     * ini tidak pernah benar-benar berjalan.
+     */
+    const n = Number((d.report || {}).last_receipt_seq || 0);
     const k = LS.seq + '.' + S.shift.business_date;
     if (n > (Number(localStorage.getItem(k)) || 0)) localStorage.setItem(k, String(n));
   } catch (e) { /* biarkan memakai penghitung lokal */ }
@@ -2738,11 +2745,21 @@ async function renderShift(){
     const d = await pos('/pos/shifts/' + S.shift.id + '/report');
     const r = d.report || {};
     const c = r.cash || {};
+    /*
+     * Nama field mengikuti respons server apa adanya: `order_count` dan `sales_total`. Sebelum
+     * 1 Okt 2026 baris ini membaca `r.orders` dan `r.totals.total` — keduanya tidak pernah ada di
+     * respons — sehingga layar Shift selalu menunjukkan "0 transaksi" dan "Rp0" betapa pun ramainya
+     * kasir. `?? 0` yang dimaksudkan sebagai jaring pengaman justru menyembunyikannya.
+     */
+    const retur = Number(r.refund_total ?? 0);
     el('shiftKpis').innerHTML = [
       ['Modal awal', rp(d.opening_cash), 'Dibuka ' + fmtTime(d.opened_at)],
-      ['Penjualan tunai', rp(c.sales ?? 0), (r.orders ?? 0) + ' transaksi'],
+      ['Penjualan tunai', rp(c.sales ?? 0), (r.order_count ?? 0) + ' transaksi'],
       ['Kas seharusnya', rp(c.expected ?? 0), 'Modal + tunai − pengeluaran'],
-      ['Total penjualan', rp((r.totals || {}).total ?? 0), 'Termasuk non-tunai'],
+      // Angka kotor, sejajar dengan "Penjualan tunai" di sebelahnya. Bila ada retur, itu disebutkan
+      // supaya angkanya tidak terbaca sebagai uang yang benar-benar tinggal.
+      ['Total penjualan', rp(r.sales_total ?? 0),
+        retur > 0 ? 'Termasuk non-tunai · belum dikurangi retur ' + rp(retur) : 'Termasuk non-tunai'],
     ].map(([h, v, s]) => `<div class="kpi"><h4>${h}</h4><div class="v num">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
   } catch (e) {
     kpi.innerHTML = '<div class="err">Laporan shift tidak dapat dibaca (' + esc(e.message) + ').<br>'

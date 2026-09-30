@@ -79,6 +79,7 @@ class ShiftReport
             'shift_id' => $shift->id,
             'business_date' => $date,
             'order_count' => (int) ($orders->order_count ?? 0),
+            'last_receipt_seq' => $this->lastReceiptSeq($shift, $date),
             'void_count' => (int) ($orders->void_count ?? 0),
             'void_after_payment_total' => $this->money($orders->void_after_payment_total ?? '0'),
             'sales_total' => (string) $gross->toScale(2),
@@ -100,6 +101,45 @@ class ShiftReport
             ],
             'drawer_open_count' => $movements['drawer_open']['count'] ?? 0,
         ];
+    }
+
+    /**
+     * Urutan struk terakhir yang sudah terpakai PERANGKAT ini pada hari bisnis ini.
+     *
+     * Dipakai POS untuk menyelaraskan penghitung nomor struk di localStorage — penghitung itu hilang
+     * bila peramban dibersihkan atau perangkat diganti, dan tanpa penyelarasan nomornya mengulang
+     * dari 1 lalu bertabrakan (DUPLICATE_RECEIPT_NO).
+     *
+     * Dua hal yang membuatnya TIDAK boleh diganti `order_count`:
+     * 1. Nomor struk berlaku per perangkat per HARI BISNIS (FR-POS-24), bukan per shift. Satu
+     *    perangkat bisa membuka-tutup shift beberapa kali dalam sehari.
+     * 2. Transaksi yang dibatalkan tetap memakai nomornya; menghitung yang sah saja akan
+     *    mengembalikan nomor yang sudah dipakai.
+     */
+    private function lastReceiptSeq(Shift $shift, string $date): int
+    {
+        $shift->loadMissing(['outlet', 'device']);
+        if ($shift->outlet === null || $shift->device === null) {
+            return 0;
+        }
+        $prefix = ReceiptNumber::prefix($shift->outlet, $shift->device, $shift->business_date);
+
+        /*
+         * Urutannya diambil sebagai deretan angka di UJUNG nomor struk, bukan lewat posisi karakter.
+         * `substring(x from ?)` dengan parameter terikat dikirim PDO sebagai teks, dan Postgres
+         * membaca bentuk itu sebagai POLA REGEX — bukan posisi — sehingga hasilnya selalu kosong.
+         * Pola literal di bawah tidak punya jebakan itu, dan sekaligus tidak bergantung pada panjang
+         * kode outlet/perangkat.
+         */
+        $max = DB::table('orders')
+            ->where('company_id', $shift->company_id)
+            ->where('device_id', $shift->device_id)
+            ->where('business_date', $date)
+            ->where('receipt_no', 'like', $prefix.'%')
+            ->selectRaw("max(nullif(substring(receipt_no from '[0-9]+$'), '')::bigint) as seq")
+            ->value('seq');
+
+        return (int) ($max ?? 0);
     }
 
     private function money(mixed $value): string
