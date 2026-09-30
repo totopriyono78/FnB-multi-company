@@ -3,6 +3,7 @@
 namespace App\Modules\Sync\Application;
 
 use App\Modules\Audit\Application\AuditLogger;
+use App\Modules\Sales\Application\GatewayRefundService;
 use App\Modules\Sales\Application\KitchenTicketRecorder;
 use App\Modules\Sales\Application\OrderRecorder;
 use App\Modules\Sales\Application\OrderVoider;
@@ -32,13 +33,14 @@ class SyncPushService
 
     public const MAX_REJECTION_AUDITS_PER_HOUR = 200;
 
-    public const TYPES = ['shift.open', 'cash_movement', 'kitchen.send', 'order', 'order.void', 'order.refund', 'shift.close'];
+    public const TYPES = ['shift.open', 'cash_movement', 'kitchen.send', 'order', 'order.void', 'order.refund', 'order.gateway_refund_request', 'shift.close'];
 
     public function __construct(
         private readonly ShiftService $shifts,
         private readonly OrderRecorder $orders,
         private readonly OrderVoider $voider,
         private readonly RefundService $refunds,
+        private readonly GatewayRefundService $gatewayRefunds,
         private readonly KitchenTicketRecorder $tickets,
         private readonly AuditLogger $audit,
     ) {}
@@ -192,6 +194,13 @@ class SyncPushService
                 $refund = $this->refunds->refund($device, $this->string($payload, 'order_id'), ['id' => $id] + $payload);
 
                 return ['refund_id' => $refund->id, 'order_id' => $refund->order_id, 'amount' => $refund->amount];
+            })(),
+            'order.gateway_refund_request' => (function () use ($device, $id, $payload): array {
+                $request = $this->gatewayRefunds->request($device, $this->string($payload, 'order_id'), ['id' => $id] + $payload);
+
+                /* Kuncinya BUKAN 'status': amplop sinkron sudah memakai nama itu untuk hasil
+                 * push ('accepted'/'rejected'), dan nilai yang datang belakangan akan menimpanya. */
+                return ['gateway_refund_request_id' => $request->id, 'order_id' => $request->order_id, 'amount' => $request->amount, 'request_status' => $request->status];
             })(),
             default => throw new SalesException('UNKNOWN_TYPE', 'Jenis entitas tidak dikenal.', 422, field: 'type'),
         };

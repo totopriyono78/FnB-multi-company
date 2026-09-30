@@ -38,8 +38,15 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Transaksi' })).toBeVisible();
     // Data demo berisi riwayat dua minggu: cari struk kasir depan Kaliurang.
     await page.locator('.fi-ta-search-field input').fill('KLU-POS01');
-    await expect(page.getByRole('cell', { name: /KLU-POS01-\d{6}-0007/ })).toBeVisible();
-    await expect(page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).getByText('Refund sebagian')).toBeVisible();
+    /*
+     * Barisnya dipilih dari nomor struk DAN statusnya. Dulu nomor struk saja, tetapi polanya
+     * menerima tanggal apa pun (`\d{6}`), jadi transaksi baru mana pun yang kebetulan berurutan
+     * ke-7 di perangkat ini membuat pilihannya mendua dan uji gagal dengan galat "strict mode
+     * violation" — persis yang terjadi saat uji retur QRIS ditambahkan. Yang sebenarnya dicari
+     * uji ini memang struk yang diretur sebagian, jadi itulah yang dituliskan.
+     */
+    const barisRetur = page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).filter({ hasText: 'Refund sebagian' });
+    await expect(barisRetur).toHaveCount(1);
 
     /*
      * Baris total mengikuti hasil filter, bukan halaman yang tampil (permintaan user 30 Sep 2026).
@@ -59,7 +66,7 @@ test('pemilik meninjau transaksi, shift, dan tutup hari', async ({ page }) => {
     await page.screenshot({ path: `${SHOTS}/20-transaksi.png`, fullPage: true });
 
     // Rincian transaksi yang sebagian direfund
-    await klikNavigasi(page, page.getByRole('row', { name: /KLU-POS01-\d{6}-0007/ }).getByRole('link', { name: 'Detail' }));
+    await klikNavigasi(page, barisRetur.getByRole('link', { name: 'Detail' }));
     await expect(page.getByRole('heading', { name: /Transaksi KLU-POS01-\d{6}-0007/ })).toBeVisible();
     await expect(page.getByRole('table', { name: 'Rincian pesanan' })).toContainText('Croissant Butter');
     await expect(page.getByRole('table', { name: 'Refund' })).toContainText('Croissant gosong');

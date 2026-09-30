@@ -2,16 +2,12 @@
 
 namespace App\Modules\Sales\Application;
 
-use App\Modules\Audit\Application\AuditLogger;
 use App\Modules\Payment\Application\PaymentMethods;
-use App\Modules\Sales\Domain\Events\OrderRefunded;
 use App\Modules\Sales\Domain\Models\Order;
-use App\Modules\Sales\Domain\Models\OrderItem;
 use App\Modules\Sales\Domain\Models\Refund;
 use App\Modules\Sales\Domain\Models\Shift;
 use App\Modules\Tenancy\Domain\Models\Device;
 use Brick\Math\BigDecimal;
-use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -26,7 +22,8 @@ class RefundService
         private readonly ShiftService $shifts,
         private readonly Authorizations $auth,
         private readonly BusinessCalendar $calendar,
-        private readonly AuditLogger $audit,
+        private readonly RefundAmount $amounts,
+        private readonly RefundWriter $writer,
     ) {}
 
     /** @param  array<string, mixed>  $input */
@@ -67,6 +64,29 @@ class RefundService
                 throw new SalesException('ORDER_NOT_REFUNDABLE', 'Transaksi ini tidak dapat di-refund.', 409, field: 'order_id', details: ['status' => $order->status]);
             }
 
+            /*
+             * Retur lewat gateway TIDAK boleh dicatat dari kasir (keputusan user 30 Sep 2026).
+             *
+             * Sampai 30 Sep 2026 baris ini hanya menempelkan tanda `gateway_refund_required` lalu
+             * meneruskan: retur tercatat lunas, padahal tidak ada perintah pengembalian yang pernah
+             * dikirim ke acquirer — AINO belum menyediakan API refund sama sekali. Selisihnya tidak
+             * muncul di mana pun; hanya pelanggan yang tahu uangnya tidak kembali.
+             *
+             * Penolakan ini di server, bukan cuma di layar: layar bisa diakali, token perangkat bisa
+             * dipakai langsung ke API. Jalan keluarnya ada dua dan keduanya jujur — retur tunai
+             * (butuh manajer, lihat penjaga metode di bawah), atau pengajuan lewat GatewayRefundService yang baru
+             * jadi retur setelah finance benar-benar mengembalikan dananya.
+             */
+            if (in_array($data['method'], PaymentMethods::GATEWAY_METHODS, true)) {
+                throw new SalesException(
+                    'REFUND_GATEWAY_UNSUPPORTED',
+                    'Dana '.PaymentMethods::DEFAULTS[$data['method']]['label'].' tidak bisa dikembalikan dari kasir. Pilih retur tunai dengan persetujuan manajer, atau ajukan pengembalian dana untuk diproses kantor.',
+                    422,
+                    field: 'method',
+                    details: ['method' => $data['method']],
+                );
+            }
+
             $shift = $this->shifts->openShift($device, $data['shift_id']);
             $this->shifts->assertWithinShift($shift, $at);
             // Retur mengurangi kas shift; shift yang hari bisnisnya sudah lewat harus ditutup dulu.
@@ -98,8 +118,8 @@ class RefundService
                 $flags[] = 'closed_day_refund';
             }
 
-            $remaining = BigDecimal::of((string) $order->total)->minus((string) $order->refunded_total);
-            [$expected, $lines] = $this->expectedAmount($order, $data['lines'] ?? [], $remaining);
+            $remaining = $this->amounts->remaining($order);
+            [$expected, $lines] = $this->amounts->expected($order, $data['lines'] ?? [], $remaining);
             if (! BigDecimal::of((string) $data['amount'])->isEqualTo($expected)) {
                 throw new SalesException('REFUND_AMOUNT_MISMATCH', 'Nominal refund tidak sesuai perhitungan server.', 422, field: 'amount', details: ['expected' => (string) $expected]);
             }
@@ -116,12 +136,7 @@ class RefundService
                 }
                 $flags[] = 'refund_method_changed';
             }
-            if (in_array($data['method'], PaymentMethods::GATEWAY_METHODS, true)) {
-                $flags[] = 'gateway_refund_required';
-            }
-
-            $refund = new Refund;
-            $refund->forceFill([
+            $refund = $this->writer->write($order, [
                 'id' => $data['id'],
                 'company_id' => $order->company_id,
                 'outlet_id' => $outlet->id,
@@ -139,89 +154,9 @@ class RefundService
                 'flags' => array_values(array_unique($flags)),
                 'device_created_at' => $at,
                 'server_received_at' => now(),
-            ])->save();
-
-            $refunded = BigDecimal::of((string) $order->refunded_total)->plus($expected);
-            $order->forceFill([
-                'refunded_total' => (string) $refunded->toScale(2),
-                'status' => $refunded->isEqualTo(BigDecimal::of((string) $order->total)) ? Order::REFUNDED : Order::PARTIALLY_REFUNDED,
-            ])->save();
-
-            $this->audit->log('order.refunded', $order, new: ['refund_id' => $refund->id, 'amount' => $refund->amount, 'method' => $refund->method, 'status' => $order->status], reason: $refund->reason, authorizedBy: $refund->authorized_by, userId: $actor->id);
-
-            DB::afterCommit(fn () => OrderRefunded::dispatch($order->company_id, $order->id, $refund->id, $refund->stock_action));
+            ], $actor->id);
 
             return $refund;
         });
-    }
-
-    /**
-     * @param  list<array{order_item_id: string, qty: string|int|float}>  $requested
-     * @return array{0: BigDecimal, 1: list<array{order_item_id: string, qty: string, amount: string}>}
-     */
-    private function expectedAmount(Order $order, array $requested, BigDecimal $remaining): array
-    {
-        if ($remaining->isLessThanOrEqualTo(0)) {
-            throw new SalesException('ORDER_NOT_REFUNDABLE', 'Transaksi sudah di-refund penuh.', 409, field: 'order_id');
-        }
-        if ($requested === []) {
-            return [$remaining->toScale(2), []];
-        }
-
-        $items = OrderItem::query()->where('order_id', $order->id)->where('business_date', $order->business_date->format('Y-m-d'))->get()->keyBy('id');
-        $netTotal = $items->reduce(fn (BigDecimal $c, OrderItem $i) => $c->plus((string) $i->net), BigDecimal::zero());
-        $previous = [];
-        foreach ($order->refunds()->get() as $old) {
-            foreach ($old->lines as $l) {
-                $previous[$l['order_item_id']] = BigDecimal::of($previous[$l['order_item_id']] ?? '0')->plus($l['qty']);
-            }
-        }
-
-        $amount = BigDecimal::zero();
-        $lines = [];
-        foreach ($requested as $i => $r) {
-            /** @var OrderItem|null $item */
-            $item = $items->get($r['order_item_id']);
-            if ($item === null || $item->status !== 'sold') {
-                throw new SalesException('REFUND_LINE_INVALID', 'Baris refund tidak ditemukan pada transaksi.', 422, field: "lines.{$i}.order_item_id");
-            }
-            $qty = BigDecimal::of((string) $r['qty']);
-            $already = $previous[$item->id] ?? BigDecimal::zero();
-            if ($qty->plus($already)->isGreaterThan((string) $item->qty)) {
-                throw new SalesException('REFUND_QTY_EXCEEDED', 'Jumlah refund melebihi jumlah yang dibeli.', 422, field: "lines.{$i}.qty");
-            }
-            // Porsi baris terhadap total bayar (termasuk pajak, service charge, pembulatan).
-            $share = $netTotal->isZero()
-                ? BigDecimal::zero()
-                : BigDecimal::of((string) $item->net)->multipliedBy($qty)->multipliedBy((string) $order->total)
-                    ->dividedBy(BigDecimal::of((string) $item->qty)->multipliedBy($netTotal), 2, RoundingMode::HALF_UP);
-            $amount = $amount->plus($share);
-            $lines[] = ['order_item_id' => $item->id, 'qty' => (string) $qty, 'amount' => (string) $share];
-        }
-
-        // Refund yang menghabiskan semua sisa barang = sisa tagihan (hindari selisih pembulatan sen).
-        $requestedQty = [];
-        foreach ($lines as $line) {
-            $requestedQty[$line['order_item_id']] = BigDecimal::of($line['qty']);
-        }
-        $coversAll = true;
-        foreach ($items as $item) {
-            if ($item->status !== 'sold') {
-                continue;
-            }
-            $total = ($previous[$item->id] ?? BigDecimal::zero())->plus($requestedQty[$item->id] ?? BigDecimal::zero());
-            if (! $total->isEqualTo((string) $item->qty)) {
-                $coversAll = false;
-                break;
-            }
-        }
-        if ($coversAll || $amount->isGreaterThan($remaining)) {
-            $amount = $remaining;
-        }
-        if (! $amount->isPositive()) {
-            throw new SalesException('REFUND_AMOUNT_ZERO', 'Nominal refund nol.', 422, field: 'lines');
-        }
-
-        return [$amount->toScale(2), $lines];
     }
 }

@@ -26,7 +26,11 @@ final class SalesLabels
         'config_mismatch' => 'Pengaturan pajak berbeda',
         'offline_authorization' => 'Otorisasi saat offline',
         'payment_method_inactive' => 'Metode bayar nonaktif',
+        // Tanda lama (sebelum 30 Sep 2026): retur gateway terlanjur dicatat sebagai lunas padahal
+        // dananya tidak pernah dikembalikan. Dipertahankan agar baris lama tetap terbaca.
         'gateway_refund_required' => 'Perlu refund di gateway',
+        'gateway_refund_pending' => 'Menunggu pengembalian dana',
+        'gateway_refund_settled' => 'Dana dikembalikan lewat gateway',
         'closed_day_refund' => 'Refund hari yang sudah ditutup',
         'refund_method_changed' => 'Refund tunai untuk bayar non-tunai',
     ];

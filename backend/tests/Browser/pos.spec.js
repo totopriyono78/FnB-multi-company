@@ -512,6 +512,87 @@ test('kasir membayar QRIS: gambar QR, hitung mundur, dan status terpantau sendir
     await page.screenshot({ path: 'test-results/screens/34-qris-lunas.png', fullPage: true });
 });
 
+test('retur QRIS tidak bisa dicairkan kasir; diajukan lalu diselesaikan finance', async ({ page }) => {
+    /*
+     * Jalur uang yang paling mudah bocor tanpa suara (keputusan user 30 Sep 2026).
+     *
+     * Gateway kami belum punya API refund, jadi uang QRIS TIDAK bisa ditarik dari layar kasir.
+     * Sebelum 30 Sep 2026 layar ini menawarkannya seperti metode biasa dan server menerimanya:
+     * pembukuan mencatat retur lunas, pelanggan tidak pernah menerima uangnya, dan tidak ada satu
+     * angka pun di sistem yang berbeda. Uji ini menuntut dua hal sekaligus — pilihan retur
+     * langsung QRIS memang TIDAK ADA di layar, dan jalan penggantinya benar-benar sampai tuntas.
+     */
+    const pesan = [];
+    page.on('dialog', async (d) => { pesan.push(d.message()); await d.accept(); });
+
+    const kode = await kodePairing(page);
+    await masukKasir(page, kode);
+    await isiKeranjang(page);
+
+    await page.locator('#payBtn').click();
+    await page.waitForTimeout(500);
+    await pilihMeja(page, 9);
+    await expect(page.locator('#payModal.on')).toBeVisible({ timeout: 10_000 });
+
+    await page.locator('#ways button[data-code="qris"]').click();
+    await page.locator('#qrisCreate').click();
+    await expect(page.locator('#qrImg svg')).toBeVisible({ timeout: 15_000 });
+    await page.locator('#qrisSimulate').click();
+    await expect(page.locator('#qrisState')).toHaveText(/pembayaran diterima/, { timeout: 15_000 });
+    await page.locator('#payDone').click();
+    await expect(page.locator('#rcptModal.on')).toBeVisible({ timeout: 15_000 });
+    await page.locator('#rcptModal [data-close]').first().click();
+
+    // Buka layar retur untuk struk QRIS tadi.
+    await page.locator('.rail button[data-scr="pesanan"]').click();
+    await page.locator('#orderRows button', { hasText: 'Retur' }).first().click();
+    await expect(page.locator('#refundModal.on')).toBeVisible({ timeout: 10_000 });
+
+    /*
+     * Inti ujinya. "QRIS" boleh muncul sebagai PENGAJUAN, tetapi tidak boleh ada tombol yang
+     * berarti "cairkan lewat QRIS sekarang" — yaitu tombol berlabel QRIS yang bukan pengajuan.
+     */
+    const tombolQrisLangsung = page.locator('#refundMethod button[data-v="qris"]:not([data-ajukan="1"])');
+    await expect(tombolQrisLangsung).toHaveCount(0);
+    const pengajuan = page.locator('#refundMethod button[data-ajukan="1"]');
+    await expect(pengajuan).toHaveText(/Ajukan ke kantor \(QRIS\)/);
+    // Bawaannya pengajuan — mengembalikan lewat metode asal adalah aturan bakunya.
+    await expect(pengajuan).toHaveClass(/on/);
+    await expect(page.locator('#refundGo')).toHaveText('Ajukan pengembalian');
+    await expect(page.locator('#refundMethodNote')).toContainText('bukan sekarang');
+    await page.screenshot({ path: 'test-results/screens/35-retur-qris-pilihan.png', fullPage: true });
+
+    // Retur tunai tetap tersedia sebagai jalan cepat, dan keterangannya ikut berubah.
+    await page.locator('#refundMethod button[data-v="cash"]').click();
+    await expect(page.locator('#refundGo')).toHaveText('Proses retur');
+    await expect(page.locator('#refundMethodNote')).toContainText('laci');
+
+    // Ajukan seluruhnya.
+    await pengajuan.click();
+    await page.locator('#refundAll').click();
+    await expect(page.locator('#refundAmount')).not.toHaveText('Rp 0');
+    await page.locator('#refundReason').fill('pesanan salah, dana dikembalikan');
+    await page.locator('#refundGo').click();
+    await otorisasiSupervisor(page);
+    await expect.poll(() => pesan.join(' '), { timeout: 15_000 }).toMatch(/Pengajuan pengembalian dana .* tercatat/);
+
+    // Finance menyelesaikannya dari back-office.
+    await masukBackOffice(page);
+    await klikNavigasi(page, page.getByRole('link', { name: 'Pengembalian Dana Gateway' }));
+    await expect(page.getByRole('heading', { name: 'Pengembalian Dana Gateway' })).toBeVisible();
+    const baris = page.getByRole('row').filter({ hasText: 'Menunggu diproses' }).first();
+    await expect(baris).toBeVisible({ timeout: 10_000 });
+
+    await baris.getByRole('button', { name: 'Sudah dikembalikan' }).click();
+    await page.getByLabel('Nomor referensi dari gateway').fill('AINO-E2E-001');
+    await page.getByRole('button', { name: 'Catat retur' }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+    await page.screenshot({ path: 'test-results/screens/36-retur-gateway-selesai.png', fullPage: true });
+
+    // Setelah diselesaikan, antrean tidak lagi memuat baris itu (saringan bawaan = yang menunggu).
+    await expect(page.getByRole('row').filter({ hasText: 'AINO-E2E-001' })).toHaveCount(0);
+});
+
 test('layar pelanggan di monitor kedua mengikuti pesanan, QR, dan status lunas', async ({ page, context }) => {
     /*
      * Kasir dan pelanggan berhadapan, jadi layar kasir tidak bisa dilihat pelanggan — sementara

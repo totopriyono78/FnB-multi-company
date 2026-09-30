@@ -233,6 +233,7 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('pos/open-bills/{bill}', [OpenBillController::class, 'destroy']);
             Route::post('pos/orders/{order}/void', [PosSalesController::class, 'voidOrder']);
             Route::post('pos/orders/{order}/refunds', [PosSalesController::class, 'refundOrder']);
+            Route::post('pos/orders/{order}/gateway-refund-requests', [PosSalesController::class, 'requestGatewayRefund']);
 
             Route::post('payments/qris', [PosPaymentController::class, 'store']);
             Route::get('payments/{intent}', [PosPaymentController::class, 'show']);

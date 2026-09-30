@@ -216,6 +216,34 @@ class PosSalesController extends Controller
     }
 
     /**
+     * Ajukan pengembalian dana untuk transaksi berbayar gateway (keputusan user 30 Sep 2026).
+     *
+     * Bukan retur: tidak ada uang berpindah sampai finance menyelesaikannya. Lihat GatewayRefundService.
+     */
+    public function requestGatewayRefund(Request $request, string $orderId): JsonResponse
+    {
+        $result = $this->run($request, 'order.gateway_refund_request', $this->entityId($request), [
+            'order_id' => $orderId,
+            'shift_id' => $request->input('shift_id'),
+            'amount' => $request->input('amount'),
+            'method' => $request->input('method'),
+            'stock_action' => $request->input('stock_action'),
+            'reason' => $request->input('reason'),
+            'lines' => $request->input('lines'),
+            'requested_by' => $this->user($request)->id,
+            'created_at' => $this->serverTime($request, 'created_at'),
+            'authorization' => $request->input('authorization'),
+        ]);
+
+        return $this->respond($result, fn () => [
+            'gateway_refund_request_id' => $result['gateway_refund_request_id'],
+            'order_id' => $orderId,
+            'amount' => $result['amount'],
+            'request_status' => $result['request_status'],
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */

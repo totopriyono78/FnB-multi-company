@@ -238,6 +238,9 @@
   .opt button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:var(--r);padding:8px 12px;font-size:12.5px;font-family:inherit;cursor:pointer}
   .opt button.on{border-color:var(--sel);background:var(--sel-soft);color:var(--accent);font-weight:600}
   .gh{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 6px}
+  /* Keterangan satu-dua kalimat di bawah sekelompok tombol. Bukan .gh: judul kelompok memang
+     kapital dan berjarak huruf, tetapi kalimat utuh dengan gaya itu melelahkan dibaca kasir. */
+  .note{font-size:12px;font-weight:400;line-height:1.45;color:var(--muted);margin:-2px 0 10px}
   /* baris nomor meja di panel pesanan (hanya untuk makan di tempat) */
   .tablebar{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 10px;padding:9px 11px;font-size:13px;
     border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface);cursor:pointer;text-align:left;color:var(--ink);font-family:inherit}
@@ -630,6 +633,7 @@
     </div>
     <p class="gh">Dikembalikan lewat</p>
     <div class="opt" id="refundMethod"></div>
+    <p class="note" id="refundMethodNote" style="display:none"></p>
     <div class="fld"><label for="refundReason">Alasan (wajib)</label>
       <input id="refundReason" maxlength="300" autocomplete="off" placeholder="mis. pesanan salah"></div>
   </div>
@@ -1849,7 +1853,13 @@ const PAPER = {
   80: { cols: 42, css: '72mm', font: '11pt' },
   58: { cols: 32, css: '50mm', font: '9.5pt' },
 };
-const METHOD_LABEL = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu Debit', credit: 'Kartu Kredit' };
+const METHOD_LABEL = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu Debit', credit: 'Kartu Kredit', ewallet: 'E-Wallet' };
+
+/* Metode yang uangnya dipegang payment gateway. Gateway kami (AINO) belum punya API refund, jadi
+   kasir tidak bisa mengembalikannya dari sini — server pun menolaknya (REFUND_GATEWAY_UNSUPPORTED).
+   Yang bisa dilakukan kasir: retur tunai (persetujuan manajer), atau mengajukan pengembalian dana
+   untuk diproses kantor lewat dashboard gateway. */
+const METODE_GATEWAY = ['qris', 'ewallet'];
 
 /*
  * Cetak otomatis MATI sampai kasir menyalakannya sendiri (temuan tim penguji 29 Sep 2026).
@@ -2383,18 +2393,45 @@ async function askRefund(i){
   if (!ringkas) return;
   let order = ringkas;
   try { order = await pos('/pos/orders/' + ringkas.id); S.orders[i] = order; } catch (e) { /* pakai yang ada */ }
-  S.refundTarget = { order, qty: {}, stock: 'return', method: (order.payments || [{}])[0].method || 'cash' };
   clearFail('refundErr');
   el('refundReason').value = '';
   el('refundSub').textContent = 'Struk ' + order.receipt_no + ' — total ' + rp(order.total) +
     (Number(order.refunded_total || 0) ? ', sudah diretur ' + rp(order.refunded_total) : '');
-  const metode = [...new Set((order.payments || []).map(p => p.method).concat('cash'))];
-  el('refundMethod').innerHTML = metode.map(m =>
-    `<button data-v="${m}" class="${m === S.refundTarget.method ? 'on' : ''}">${METHOD_LABEL[m] || m}</button>`).join('');
+
+  /* Pilihan metode retur.
+     Metode gateway (QRIS/e-wallet) TIDAK ditawarkan sebagai retur langsung: uangnya ada di acquirer,
+     bukan di laci, dan tidak ada API untuk menariknya kembali. Ia muncul sebagai PENGAJUAN yang
+     diproses kantor. Pengajuan itu jadi pilihan bawaan bila transaksinya memang dibayar lewat
+     gateway, karena mengembalikan lewat metode asal adalah aturan bakunya (BR-12); retur tunai
+     tetap tersedia sebagai jalan cepat, dengan persetujuan manajer. */
+  const dibayar = [...new Set((order.payments || []).map(p => p.method))];
+  const gateway = dibayar.filter(m => METODE_GATEWAY.includes(m));
+  const langsung = [...new Set(dibayar.filter(m => !METODE_GATEWAY.includes(m)).concat('cash'))];
+  const pilihan = gateway.map(m => ({ m, ajukan: true, label: 'Ajukan ke kantor (' + (METHOD_LABEL[m] || m) + ')' }))
+    .concat(langsung.map(m => ({ m, ajukan: false, label: METHOD_LABEL[m] || m })));
+  const awal = pilihan[0];
+  S.refundTarget = { order, qty: {}, stock: 'return', method: awal.m, ajukan: awal.ajukan };
+
+  el('refundMethod').innerHTML = pilihan.map((p, i) =>
+    `<button data-v="${p.m}" data-ajukan="${p.ajukan ? 1 : ''}" class="${i === 0 ? 'on' : ''}">${esc(p.label)}</button>`).join('');
+  const catatan = el('refundMethodNote');
+  const jelaskan = () => {
+    const t = S.refundTarget;
+    catatan.style.display = gateway.length ? '' : 'none';
+    if (!gateway.length) return;
+    catatan.textContent = t.ajukan
+      ? 'Dana dikembalikan ke ' + (METHOD_LABEL[t.method] || t.method) + ' oleh kantor, bukan sekarang. Beri tahu pelanggan bahwa dananya masuk beberapa hari kerja.'
+      : 'Uang diambil dari laci sekarang. Dana ' + (METHOD_LABEL[gateway[0]] || gateway[0]) + ' pelanggan tetap di rekening toko.';
+  };
+  jelaskan();
   document.querySelectorAll('#refundMethod button').forEach(b => b.onclick = () => {
     S.refundTarget.method = b.dataset.v;
+    S.refundTarget.ajukan = !!b.dataset.ajukan;
     document.querySelectorAll('#refundMethod button').forEach(x => x.classList.toggle('on', x === b));
+    el('refundGo').textContent = S.refundTarget.ajukan ? 'Ajukan pengembalian' : 'Proses retur';
+    jelaskan();
   });
+  el('refundGo').textContent = S.refundTarget.ajukan ? 'Ajukan pengembalian' : 'Proses retur';
   document.querySelectorAll('#refundStock button').forEach(b => b.onclick = () => {
     S.refundTarget.stock = b.dataset.v;
     document.querySelectorAll('#refundStock button').forEach(x => x.classList.toggle('on', x === b));
@@ -2466,7 +2503,7 @@ el('refundGo').onclick = async () => {
     ? { authorization_id: null, reason: alasan }
     : await mintaOtorisasi({
         action: 'refund',
-        judul: 'Retur struk ' + t.order.receipt_no + ' memerlukan persetujuan supervisor.',
+        judul: (t.ajukan ? 'Pengajuan pengembalian dana struk ' : 'Retur struk ') + t.order.receipt_no + ' memerlukan persetujuan supervisor.',
         reasonDefault: alasan,
         referenceType: 'order',
         referenceId: t.order.id,
@@ -2482,7 +2519,10 @@ el('refundGo').onclick = async () => {
     };
     if (!semua) body.lines = baris;
     if (izin.authorization_id) body.authorization = { mode: 'online', authorization_id: izin.authorization_id };
-    return pos('/pos/orders/' + t.order.id + '/refunds', { method: 'POST', body });
+    /* Dua tujuan yang sengaja dibedakan: /refunds memindahkan uang sekarang, sedangkan
+       /gateway-refund-requests hanya mencatat tugas untuk kantor dan tidak mengubah satu angka pun
+       di laporan sampai dananya benar-benar dikembalikan. */
+    return pos('/pos/orders/' + t.order.id + (t.ajukan ? '/gateway-refund-requests' : '/refunds'), { method: 'POST', body });
   };
 
   try {
@@ -2498,7 +2538,9 @@ el('refundGo').onclick = async () => {
     el('refundModal').classList.remove('on');
     try { S.orders[S.orders.findIndex(o => o.id === t.order.id)] = await pos('/pos/orders/' + t.order.id); } catch (e) {}
     renderOrders();
-    alert('Retur tercatat sebesar ' + rp(hasil.amount || perkiraanRefund()) + '.');
+    alert(t.ajukan
+      ? 'Pengajuan pengembalian dana ' + rp(hasil.amount || perkiraanRefund()) + ' tercatat. Kantor yang mengembalikan dananya lewat ' + (METHOD_LABEL[t.method] || t.method) + '; uang belum keluar dari laci.'
+      : 'Retur tercatat sebesar ' + rp(hasil.amount || perkiraanRefund()) + '.');
   } catch (e) { fail('refundErr', e.message); }
 };
 
