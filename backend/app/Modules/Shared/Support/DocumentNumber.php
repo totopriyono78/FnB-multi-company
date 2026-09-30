@@ -14,8 +14,21 @@ final class DocumentNumber
 {
     public static function next(string $prefix, string $outletCode, CarbonInterface $date): string
     {
+        return self::sequence(strtoupper($prefix).'-'.strtoupper($outletCode).'-'.$date->format('ym'));
+    }
+
+    /**
+     * Nomor tanpa cakupan outlet: {PREFIX}-{YYMM}-{URUT}, mis. JU-2610-0001.
+     * Dipakai dokumen tingkat entitas seperti jurnal, yang memang tidak milik outlet mana pun.
+     */
+    public static function nextForCompany(string $prefix, CarbonInterface $date): string
+    {
+        return self::sequence(strtoupper($prefix).'-'.$date->format('ym'));
+    }
+
+    private static function sequence(string $key): string
+    {
         $companyId = app(TenantContext::class)->requireCompanyId();
-        $key = strtoupper($prefix).'-'.strtoupper($outletCode).'-'.$date->format('ym');
         $row = DB::selectOne(
             'INSERT INTO document_sequences (company_id, key, last_value) VALUES (?, ?, 1)
              ON CONFLICT (company_id, key) DO UPDATE SET last_value = document_sequences.last_value + 1
