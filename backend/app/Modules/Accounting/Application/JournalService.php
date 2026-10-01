@@ -29,6 +29,10 @@ use Illuminate\Support\Str;
  *    menjurnal ke sana membuat jumlah induk tidak lagi sama dengan jumlah anaknya.
  * 3. **Jurnal terposting tidak bisa diubah.** Koreksi lewat jurnal balik yang merujuk aslinya.
  *    Ini juga dijaga trigger basis data, bukan hanya kelas ini.
+ * 4. **Yang mengajukan tidak boleh yang memposting** (ACC-05, keputusan user 1 Okt 2026).
+ *    Pemisahan tugas ini soal ORANG, bukan izin: dua orang dengan izin yang sama pun tidak boleh
+ *    menjadi pengaju sekaligus pemosting jurnal yang sama. Itulah satu-satunya bentuk kontrol
+ *    yang tidak bisa dilewati hanya dengan memberi diri sendiri hak akses lebih.
  */
 class JournalService
 {
@@ -48,7 +52,7 @@ class JournalService
 
         return DB::transaction(function () use ($companyId, $date, $lines, $data, $actor): Journal {
             $period = $this->periods->forDate($date);
-            $this->periods->assertOpen($period);
+            $this->periods->assertPostable($period);
 
             $journal = new Journal;
             $journal->forceFill([
@@ -84,7 +88,7 @@ class JournalService
 
             $date = isset($data['journal_date']) ? $this->date($data['journal_date']) : CarbonImmutable::parse($locked->journal_date);
             $period = $this->periods->forDate($date);
-            $this->periods->assertOpen($period);
+            $this->periods->assertPostable($period);
 
             $lines = array_key_exists('lines', $data) ? $this->validateLines($data['lines']) : null;
 
@@ -105,36 +109,89 @@ class JournalService
         });
     }
 
-    public function post(Journal $journal, User $actor): Journal
+    /**
+     * Ajukan jurnal untuk diperiksa (ACC-05). Setelah diajukan, barisnya dibekukan — juga di basis data.
+     */
+    public function submit(Journal $journal, User $actor): Journal
     {
         return DB::transaction(function () use ($journal, $actor): Journal {
             /** @var Journal $locked */
             $locked = Journal::query()->whereKey($journal->id)->lockForUpdate()->firstOrFail();
             $this->assertDraft($locked);
-            $this->periods->assertOpen($locked->period()->firstOrFail());
+            $this->periods->assertPostable($locked->period()->firstOrFail());
+            $this->assertBalancedOnDisk($locked);
 
-            /*
-             * Barisnya diperiksa ULANG dari basis data, bukan dipercaya dari saat draft dibuat.
-             * Akun bisa dinonaktifkan di antara kedua saat itu, dan pemeriksaan keseimbangan di sini
-             * adalah pemeriksaan terakhir sebelum angkanya masuk buku besar.
-             */
-            $rows = JournalLine::query()->where('journal_id', $locked->id)->get();
-            if ($rows->count() < 2) {
-                throw new AccountingException('JOURNAL_TOO_FEW_LINES', 'Jurnal harus punya minimal dua baris.', 422, field: 'lines');
+            $locked->forceFill([
+                'status' => Journal::SUBMITTED,
+                'submitted_by' => $actor->id,
+                'submitted_at' => now(),
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'reject_reason' => null,
+            ])->save();
+
+            $this->audit->log('journal.submitted', $locked, new: ['number' => $locked->number], userId: $actor->id);
+
+            return $locked->refresh();
+        });
+    }
+
+    /** Kembalikan jurnal yang diajukan ke draft berikut alasannya. */
+    public function reject(Journal $journal, User $actor, string $reason): Journal
+    {
+        $text = trim($reason);
+        if (mb_strlen($text) < 3) {
+            throw new AccountingException('REJECT_REASON_REQUIRED',
+                'Alasan penolakan wajib diisi — pengaju perlu tahu apa yang harus diperbaiki.', 422, field: 'reason');
+        }
+
+        return DB::transaction(function () use ($journal, $actor, $text): Journal {
+            /** @var Journal $locked */
+            $locked = Journal::query()->whereKey($journal->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isSubmitted()) {
+                throw new AccountingException('JOURNAL_NOT_SUBMITTED',
+                    'Hanya jurnal yang sedang diajukan yang dapat ditolak.', 409, field: 'status');
             }
-            $debit = $rows->reduce(fn (BigDecimal $c, JournalLine $l) => $c->plus((string) $l->debit), BigDecimal::zero());
-            $credit = $rows->reduce(fn (BigDecimal $c, JournalLine $l) => $c->plus((string) $l->credit), BigDecimal::zero());
-            if (! $debit->isEqualTo($credit)) {
-                throw new AccountingException('JOURNAL_UNBALANCED', 'Debit dan kredit tidak seimbang.', 422, field: 'lines',
-                    details: ['debit' => (string) $debit->toScale(2), 'credit' => (string) $credit->toScale(2)]);
-            }
-            $this->assertAccountsPostable($rows->pluck('account_id')->unique()->all());
+
+            $locked->forceFill([
+                'status' => Journal::DRAFT,
+                'rejected_by' => $actor->id,
+                'rejected_at' => now(),
+                'reject_reason' => mb_substr($text, 0, 300),
+            ])->save();
+
+            $this->audit->log('journal.rejected', $locked, new: ['number' => $locked->number], reason: $text, userId: $actor->id);
+
+            return $locked->refresh();
+        });
+    }
+
+    public function post(Journal $journal, User $actor): Journal
+    {
+        return DB::transaction(function () use ($journal, $actor): Journal {
+            /** @var Journal $locked */
+            $locked = Journal::query()->whereKey($journal->id)->lockForUpdate()->firstOrFail();
+            $this->assertSubmitted($locked);
+            $this->assertDifferentPerson($locked, $actor);
+            $this->periods->assertPostable($locked->period()->firstOrFail());
+
+            $debit = $this->assertBalancedOnDisk($locked);
 
             $locked->forceFill([
                 'status' => Journal::POSTED,
                 'posted_by' => $actor->id,
                 'posted_at' => now(),
             ])->save();
+
+            /*
+             * Jurnal asal baru dinyatakan "dibalik" pada saat pembaliknya benar-benar masuk buku
+             * besar — bukan saat pembaliknya dibuat. Selama pembaliknya masih menunggu persetujuan,
+             * jurnal asal masih berlaku, dan itulah keadaan yang sebenarnya.
+             */
+            if ($locked->reverses_journal_id !== null) {
+                Journal::query()->whereKey($locked->reverses_journal_id)
+                    ->update(['status' => Journal::REVERSED, 'reversed_by_journal_id' => $locked->id, 'updated_at' => now()]);
+            }
 
             $this->audit->log('journal.posted', $locked, new: ['number' => $locked->number, 'total' => (string) $debit->toScale(2)], userId: $actor->id);
 
@@ -143,10 +200,14 @@ class JournalService
     }
 
     /**
-     * Jurnal balik: salinan cermin yang langsung diposting, merujuk jurnal asal (ACC-07).
+     * Jurnal balik: salinan cermin yang merujuk jurnal asal (ACC-07).
      *
      * Tanggalnya boleh berbeda — koreksi atas jurnal bulan lalu yang periodenya sudah ditutup
      * dicatat di periode berjalan, bukan dipaksakan mundur.
+     *
+     * Lahir berstatus **diajukan**, bukan langsung diposting: membalik jurnal adalah mengubah
+     * angka yang sudah terbit di laporan, jadi justru di sinilah pemeriksaan oleh orang kedua
+     * paling dibutuhkan. Jurnal asal baru ditandai "dibalik" saat pembaliknya benar-benar diposting.
      */
     public function reverse(Journal $journal, User $actor, string $reason, ?CarbonImmutable $on = null): Journal
     {
@@ -166,9 +227,22 @@ class JournalService
                     409, field: 'status');
             }
 
+            /*
+             * Pembalik yang masih menunggu persetujuan tetap menghalangi pembalik kedua. Tanpa ini,
+             * dua orang yang sama-sama merasa perlu membalik jurnal yang sama akan menghasilkan dua
+             * pembalik, dan yang kedua justru mengembalikan angkanya seperti semula.
+             */
+            $menggantung = Journal::query()->where('reverses_journal_id', $locked->id)
+                ->whereIn('status', [Journal::DRAFT, Journal::SUBMITTED])->value('number');
+            if ($menggantung !== null) {
+                throw new AccountingException('REVERSAL_PENDING',
+                    "Jurnal balik {$menggantung} untuk jurnal ini sudah dibuat dan masih menunggu persetujuan.",
+                    409, field: 'status');
+            }
+
             $date = $on ?? CarbonImmutable::now(config('app.display_timezone'))->startOfDay();
             $period = $this->periods->forDate($date);
-            $this->periods->assertOpen($period);
+            $this->periods->assertPostable($period);
 
             $balik = new Journal;
             $balik->forceFill([
@@ -198,11 +272,10 @@ class JournalService
                 ]);
             }
 
-            $balik = $this->post($balik, $actor);
+            $balik = $this->submit($balik, $actor);
 
-            $locked->forceFill(['status' => Journal::REVERSED, 'reversed_by_journal_id' => $balik->id])->save();
-
-            $this->audit->log('journal.reversed', $locked, new: ['number' => $locked->number, 'reversal' => $balik->number], reason: $text, userId: $actor->id);
+            $this->audit->log('journal.reversal_requested', $locked,
+                new: ['number' => $locked->number, 'reversal' => $balik->number], reason: $text, userId: $actor->id);
 
             return $balik;
         });
@@ -215,13 +288,83 @@ class JournalService
         $journal->delete();
     }
 
+    private function brandOfOutlet(?string $outletId): ?string
+    {
+        if ($outletId === null) {
+            return null;
+        }
+
+        $brandId = Outlet::query()->whereKey($outletId)->value('brand_id');
+
+        return is_string($brandId) ? $brandId : null;
+    }
+
     private function assertDraft(Journal $journal): void
     {
-        if (! $journal->isDraft()) {
-            throw new AccountingException('JOURNAL_NOT_DRAFT',
-                'Jurnal yang sudah diposting tidak dapat diubah atau dihapus. Buat jurnal balik bila perlu dikoreksi.',
-                409, field: 'status');
+        if ($journal->isDraft()) {
+            return;
         }
+
+        throw new AccountingException('JOURNAL_NOT_DRAFT',
+            $journal->isSubmitted()
+                ? 'Jurnal ini sedang diajukan dan tidak dapat diubah. Minta pemeriksa menolaknya lebih dulu bila perlu diperbaiki.'
+                : 'Jurnal yang sudah diposting tidak dapat diubah atau dihapus. Buat jurnal balik bila perlu dikoreksi.',
+            409, field: 'status');
+    }
+
+    private function assertSubmitted(Journal $journal): void
+    {
+        if ($journal->isSubmitted()) {
+            return;
+        }
+
+        throw new AccountingException('JOURNAL_NOT_SUBMITTED',
+            $journal->isDraft()
+                ? 'Jurnal ini masih draft. Ajukan dulu, lalu pemeriksa yang mempostingnya.'
+                : 'Jurnal ini sudah masuk buku besar.',
+            409, field: 'status');
+    }
+
+    /**
+     * Pemisahan tugas (ACC-05): yang mengajukan tidak boleh yang memposting.
+     *
+     * Diperiksa terhadap ORANGNYA, bukan izinnya. Verifikator yang memposting jurnal yang ia ajukan
+     * sendiri berarti tidak ada seorang pun yang benar-benar memeriksanya — dan kontrol yang bisa
+     * dilewati oleh satu orang bukan kontrol.
+     */
+    private function assertDifferentPerson(Journal $journal, User $actor): void
+    {
+        if ($journal->submitted_by !== $actor->id) {
+            return;
+        }
+
+        throw new AccountingException('SEGREGATION_OF_DUTIES',
+            'Jurnal ini Anda sendiri yang mengajukan, jadi orang lain yang harus mempostingnya.',
+            403, field: 'status', details: ['submitted_by' => $journal->submitted_by]);
+    }
+
+    /**
+     * Periksa ULANG barisnya dari basis data, bukan dari apa yang tersimpan saat draft dibuat.
+     * Akun bisa dinonaktifkan di antara kedua saat itu, dan ini pemeriksaan terakhir sebelum
+     * angkanya masuk buku besar.
+     *
+     * @return BigDecimal jumlah debit (sama dengan kredit bila lolos)
+     */
+    private function assertBalancedOnDisk(Journal $journal): BigDecimal
+    {
+        $rows = JournalLine::query()->where('journal_id', $journal->id)->get();
+        if ($rows->count() < 2) {
+            throw new AccountingException('JOURNAL_TOO_FEW_LINES', 'Jurnal harus punya minimal dua baris.', 422, field: 'lines');
+        }
+        $debit = $rows->reduce(fn (BigDecimal $c, JournalLine $l) => $c->plus((string) $l->debit), BigDecimal::zero());
+        $credit = $rows->reduce(fn (BigDecimal $c, JournalLine $l) => $c->plus((string) $l->credit), BigDecimal::zero());
+        if (! $debit->isEqualTo($credit)) {
+            throw new AccountingException('JOURNAL_UNBALANCED', 'Debit dan kredit tidak seimbang.', 422, field: 'lines',
+                details: ['debit' => (string) $debit->toScale(2), 'credit' => (string) $credit->toScale(2)]);
+        }
+        $this->assertAccountsPostable($rows->pluck('account_id')->unique()->all());
+
+        return $debit;
     }
 
     /**
@@ -255,13 +398,17 @@ class JournalService
 
             $debit = $debit->plus($d);
             $credit = $credit->plus($c);
+            $outletId = $this->dimension($row['outlet_id'] ?? null, Outlet::class, "lines.{$i}.outlet_id");
             $lines[] = [
                 'account_id' => $accountId,
                 'debit' => (string) $d->toScale(2),
                 'credit' => (string) $c->toScale(2),
                 'memo' => isset($row['memo']) && is_string($row['memo']) && trim($row['memo']) !== '' ? mb_substr(trim($row['memo']), 0, 300) : null,
-                'brand_id' => $this->dimension($row['brand_id'] ?? null, Brand::class, "lines.{$i}.brand_id"),
-                'outlet_id' => $this->dimension($row['outlet_id'] ?? null, Outlet::class, "lines.{$i}.outlet_id"),
+                'brand_id' => $this->dimension($row['brand_id'] ?? null, Brand::class, "lines.{$i}.brand_id")
+                    // Outlet selalu milik satu brand: menanyakannya lagi ke pengisi jurnal hanya
+                    // menambah satu isian yang bisa diisi salah dan tidak menambah keterangan apa pun.
+                    ?? $this->brandOfOutlet($outletId),
+                'outlet_id' => $outletId,
                 'counterparty_company_id' => null,
             ];
         }

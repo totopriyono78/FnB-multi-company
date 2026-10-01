@@ -36,6 +36,9 @@ class JournalMap
 
     public const CASH_MOVEMENT = 'cash_movement';
 
+    /** Potongan yang baru muncul saat dana settlement cair, di luar MDR yang diakui saat penjualan. */
+    public const SETTLEMENT_FEE = 'settlement_fee';
+
     /** Slot pembayaran dibentuk dari metode: `payment.cash`, `payment.qris`, … */
     public static function paymentSlot(string $method): string
     {
@@ -59,6 +62,7 @@ class JournalMap
             self::MDR => ['code' => '6105', 'label' => 'Biaya transaksi (MDR)', 'hint' => 'Potongan penyedia pembayaran, diakui saat penjualan.'],
             self::CASH_VARIANCE => ['code' => '6106', 'label' => 'Selisih kas', 'hint' => 'Selisih hitungan laci saat tutup shift.'],
             self::CASH_MOVEMENT => ['code' => '1103', 'label' => 'Kas masuk/keluar belum dialokasikan', 'hint' => 'Penampung sementara; finance memindahkannya ke akun yang benar.'],
+            self::SETTLEMENT_FEE => ['code' => '6105', 'label' => 'Biaya pencairan settlement', 'hint' => 'Potongan saat dana cair, di luar MDR yang sudah diakui saat penjualan.'],
             self::paymentSlot('cash') => ['code' => '1101', 'label' => 'Pembayaran tunai', 'hint' => 'Masuk ke laci kasir.'],
             self::paymentSlot('debit') => ['code' => '1201', 'label' => 'Pembayaran kartu debit', 'hint' => 'Piutang settlement sampai dana cair.'],
             self::paymentSlot('credit') => ['code' => '1201', 'label' => 'Pembayaran kartu kredit', 'hint' => 'Piutang settlement sampai dana cair.'],

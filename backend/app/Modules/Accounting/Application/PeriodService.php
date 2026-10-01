@@ -56,47 +56,79 @@ class PeriodService
         }
     }
 
-    public function assertOpen(AccountingPeriod $period): void
+    /**
+     * Boleh diposting? Periode terbuka jelas boleh; periode **soft close** juga boleh, tetapi
+     * pencatatannya ditandai (ACC-04).
+     *
+     * Soft close menjawab keadaan yang selalu ada di praktik: laporan bulan lalu sudah terbit,
+     * tetapi masih muncul satu-dua koreksi yang memang harus masuk ke bulan itu. Tanpa tingkat
+     * antara ini, orang hanya punya dua pilihan yang sama-sama buruk — membuka kembali periode
+     * (sehingga seluruh bulan kembali bebas disunting) atau memaksakan koreksi ke bulan berjalan
+     * (sehingga bulan lalu tetap salah selamanya).
+     */
+    public function assertPostable(AccountingPeriod $period): void
     {
-        if ($period->isClosed()) {
+        if ($period->isHardClosed()) {
             throw new AccountingException(
                 'PERIOD_CLOSED',
-                'Periode '.$period->label().' sudah ditutup. Posting ke periode tertutup tidak diperbolehkan — buka kembali periodenya, atau catat di periode berjalan.',
+                'Periode '.$period->label().' sudah ditutup permanen. Posting ke periode tertutup tidak diperbolehkan — buka kembali periodenya, atau catat di periode berjalan.',
                 422, field: 'journal_date', details: ['period' => $period->label()],
             );
         }
     }
 
-    public function close(AccountingPeriod $period, User $by, ?string $note = null): AccountingPeriod
+    /** Masih dipakai tempat yang menuntut periode benar-benar terbuka (mis. tutup buku). */
+    public function assertOpen(AccountingPeriod $period): void
     {
-        return DB::transaction(function () use ($period, $by, $note): AccountingPeriod {
+        if (! $period->isOpen()) {
+            throw new AccountingException(
+                'PERIOD_NOT_OPEN',
+                'Periode '.$period->label().' tidak dalam keadaan terbuka.',
+                422, field: 'journal_date', details: ['period' => $period->label()],
+            );
+        }
+    }
+
+    /**
+     * @param  bool  $hard  true = tutup permanen (tidak ada posting sama sekali);
+     *                      false = soft close, koreksi masih mungkin tetapi tercatat
+     */
+    public function close(AccountingPeriod $period, User $by, ?string $note = null, bool $hard = true): AccountingPeriod
+    {
+        return DB::transaction(function () use ($period, $by, $note, $hard): AccountingPeriod {
             /** @var AccountingPeriod $locked */
             $locked = AccountingPeriod::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
-            if ($locked->isClosed()) {
-                throw new AccountingException('PERIOD_ALREADY_CLOSED', 'Periode ini sudah ditutup.', 409);
+            if ($locked->isHardClosed()) {
+                throw new AccountingException('PERIOD_ALREADY_CLOSED', 'Periode ini sudah ditutup permanen.', 409);
+            }
+            if ($locked->isSoftClosed() && ! $hard) {
+                throw new AccountingException('PERIOD_ALREADY_CLOSED', 'Periode ini sudah dalam soft close.', 409);
             }
 
             /*
-             * Jurnal draft yang tertinggal adalah alasan paling sering sebuah periode "ditutup"
-             * lalu harus dibuka lagi. Lebih baik ditolak sekarang, dengan jumlahnya disebutkan.
+             * Jurnal yang belum masuk buku besar — draft maupun yang masih diajukan — adalah alasan
+             * paling sering sebuah periode "ditutup" lalu harus dibuka lagi. Lebih baik ditolak
+             * sekarang, dengan jumlahnya disebutkan.
              */
-            $draft = Journal::query()->where('period_id', $locked->id)->where('status', Journal::DRAFT)->count();
-            if ($draft > 0) {
+            $tertunda = Journal::query()->where('period_id', $locked->id)
+                ->whereIn('status', [Journal::DRAFT, Journal::SUBMITTED])->count();
+            if ($tertunda > 0) {
                 throw new AccountingException(
                     'PERIOD_HAS_DRAFTS',
-                    "Masih ada {$draft} jurnal draft di periode ini. Posting atau hapus dulu sebelum menutup periode.",
-                    422, details: ['draft_count' => $draft],
+                    "Masih ada {$tertunda} jurnal yang belum diposting di periode ini. Selesaikan dulu sebelum menutup periode.",
+                    422, details: ['pending_count' => $tertunda],
                 );
             }
 
             $locked->forceFill([
-                'status' => AccountingPeriod::CLOSED,
+                'status' => $hard ? AccountingPeriod::CLOSED : AccountingPeriod::SOFT_CLOSED,
                 'closed_at' => now(),
                 'closed_by' => $by->id,
                 'close_note' => $note === null ? null : mb_substr(trim($note), 0, 300),
             ])->save();
 
-            $this->audit->log('accounting_period.closed', $locked, new: ['period' => $locked->label()], reason: $note, userId: $by->id);
+            $this->audit->log($hard ? 'accounting_period.closed' : 'accounting_period.soft_closed', $locked,
+                new: ['period' => $locked->label()], reason: $note, userId: $by->id);
 
             return $locked;
         });
@@ -113,7 +145,7 @@ class PeriodService
         return DB::transaction(function () use ($period, $by, $text): AccountingPeriod {
             /** @var AccountingPeriod $locked */
             $locked = AccountingPeriod::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
-            if (! $locked->isClosed()) {
+            if ($locked->isOpen()) {
                 throw new AccountingException('PERIOD_NOT_CLOSED', 'Periode ini memang belum ditutup.', 409);
             }
 

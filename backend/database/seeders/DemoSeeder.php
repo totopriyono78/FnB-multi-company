@@ -127,6 +127,12 @@ class DemoSeeder extends Seeder
             // Kantor pusat.
             $this->staff($owner, $this->member('Bayu Pratama', 'bayu@gtgroup.test', 'HO-001', ['company_admin']));
             $this->staff($owner, $this->member('Lina Kusuma', 'lina@gtgroup.test', 'HO-002', ['finance']));
+            /*
+             * Orang kedua di pembukuan. Sejak maker–checker berlaku (ACC-05), pengaju jurnal tidak
+             * boleh mempostingnya sendiri — entitas dengan satu orang finance tidak akan pernah bisa
+             * menutup satu jurnal pun, termasuk di demo.
+             */
+            $this->staff($owner, $this->member('Farah Anindita', 'farah@gtgroup.test', 'HO-004', ['finance']));
             $this->staff($owner, $this->member('Rudi Hartanto', 'rudi@gtgroup.test', 'HO-003', ['warehouse']));
             // Hamzah Coffee Kaliurang.
             $this->staff($owner, $this->member('Dewi Lestari', 'dewi@gtgroup.test', 'KLU-001', ['outlet_manager'], [$kaliurang->id], '482915'));

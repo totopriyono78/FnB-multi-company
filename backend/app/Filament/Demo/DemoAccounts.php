@@ -19,6 +19,7 @@ final class DemoAccounts
             ['email' => 'rina@gtgroup.test', 'name' => 'Rina Hartono', 'role' => 'Pemilik', 'company' => 'Gamatechno Group', 'pin' => '802614'],
             ['email' => 'bayu@gtgroup.test', 'name' => 'Bayu Pratama', 'role' => 'Admin Company', 'company' => 'Gamatechno Group', 'pin' => null],
             ['email' => 'lina@gtgroup.test', 'name' => 'Lina Kusuma', 'role' => 'Finance', 'company' => 'Gamatechno Group', 'pin' => null],
+            ['email' => 'farah@gtgroup.test', 'name' => 'Farah Anindita', 'role' => 'Finance (pemeriksa jurnal)', 'company' => 'Gamatechno Group', 'pin' => null],
             ['email' => 'rudi@gtgroup.test', 'name' => 'Rudi Hartanto', 'role' => 'Gudang / Purchasing', 'company' => 'Gamatechno Group', 'pin' => null],
             ['email' => 'dewi@gtgroup.test', 'name' => 'Dewi Lestari', 'role' => 'Manajer Hamzah Coffee Kaliurang', 'company' => 'Gamatechno Group', 'pin' => '482915'],
             ['email' => 'andi@gtgroup.test', 'name' => 'Andi Saputra', 'role' => 'Kasir Hamzah Coffee Kaliurang', 'company' => 'Gamatechno Group', 'pin' => '7351'],

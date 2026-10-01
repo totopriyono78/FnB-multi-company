@@ -12,12 +12,17 @@ import { klikNavigasi } from './support/spa.js';
  */
 
 const FINANCE = { email: 'lina@gtgroup.test', password: 'Rahasia123' };
+// Pemeriksa: orang kedua yang memposting apa yang diajukan finance (ACC-05).
+const PEMERIKSA = { email: 'farah@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
-async function masuk(page) {
+async function masuk(page, akun = FINANCE) {
+    // Sesi sebelumnya dibersihkan: berganti orang di tengah skenario adalah inti uji maker–checker,
+    // dan halaman login akan langsung dialihkan bila sesi lama masih hidup.
+    await page.context().clearCookies();
     await page.goto('/admin/login');
-    await page.getByLabel('Email atau nomor HP').fill(FINANCE.email);
-    await page.getByLabel('Kata sandi').fill(FINANCE.password);
+    await page.getByLabel('Email atau nomor HP').fill(akun.email);
+    await page.getByLabel('Kata sandi').fill(akun.password);
     await page.getByRole('button', { name: 'Masuk', exact: true }).click();
     await page.waitForURL(/\/admin\/(?!login)[a-z0-9-]+$/);
 
@@ -66,13 +71,29 @@ test('finance memasang bagan akun, menjurnal, memposting, dan membaca neraca sal
     const baris = page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' });
     await expect(baris).toContainText('Draft');
 
-    // --- Posting: setelah ini jurnalnya final.
-    await baris.getByRole('button', { name: 'Posting' }).click();
+    // --- Diajukan oleh finance.
+    await baris.getByRole('button', { name: 'Ajukan' }).click();
+    await page.getByRole('button', { name: 'Ajukan jurnal' }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' })).toContainText('Diajukan');
+
+    /*
+     * Pemisahan tugas (ACC-05): pengajunya sendiri tidak diberi tombol Posting. Ini yang paling
+     * mudah lolos dari uji — layanannya memang menolak, tetapi kalau tombolnya tetap tampil orang
+     * akan menekannya berkali-kali dan mengira sistemnya rusak.
+     */
+    await expect(page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' })
+        .getByRole('button', { name: 'Posting' })).toHaveCount(0);
+
+    // --- Orang kedua yang memposting. Setelah ini jurnalnya final.
+    await masuk(page, PEMERIKSA);
+    await page.goto(`${base}/pembukuan/jurnal`);
+    const barisPemeriksa = page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' });
+    await barisPemeriksa.getByRole('button', { name: 'Posting' }).click();
     // Tombol di dalam modal, bukan tombol "Posting" milik baris tabel yang namanya mirip.
     await page.getByRole('button', { name: 'Posting jurnal' }).click();
     await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' })).toContainText('Diposting');
-    // Jurnal yang sudah diposting tidak menawarkan Posting lagi — hanya jurnal balik.
     await expect(page.getByRole('row').filter({ hasText: 'Setoran modal awal pemilik' })
         .getByRole('button', { name: 'Posting' })).toHaveCount(0);
 
@@ -164,4 +185,41 @@ test('finance melengkapi pemetaan akun jurnal otomatis', async ({ page }) => {
     await expect(tunai).not.toHaveValue('');
     await expect(page.locator('.choices__list--single').filter({ hasText: '1101 — Kas di Laci Kasir' })).toHaveCount(1);
     await page.screenshot({ path: `${SHOTS}/53-pemetaan-akun.png`, fullPage: true });
+});
+
+test('finance mencatat pencairan settlement dan piutangnya berkurang', async ({ page }) => {
+    const base = await masuk(page);
+
+    await page.goto(`${base}/pembukuan/bagan-akun`);
+    await page.getByRole('button', { name: 'Pasang template standar' }).click();
+    await page.getByRole('button', { name: 'Pasang', exact: true }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+
+    await page.goto(`${base}/pembukuan/pemetaan-akun`);
+    await page.getByRole('button', { name: 'Isi dengan akun bawaan' }).click();
+    await page.getByRole('button', { name: 'Konfirmasi' }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+
+    /*
+     * Layar ini menjawab pertanyaan yang sebelumnya tidak bisa dijawab sistem sama sekali:
+     * berapa uang non-tunai kita yang masih ditahan penyedia pembayaran.
+     */
+    await page.goto(`${base}/pembukuan/settlement`);
+    await expect(page.getByRole('heading', { name: 'Piutang Settlement' }).first()).toBeVisible();
+    const tabel = page.locator('table.fnb-report-table');
+    await expect(tabel).toContainText('Sisa piutang');
+    await page.screenshot({ path: `${SHOTS}/55-piutang-settlement.png`, fullPage: true });
+
+    await page.getByRole('button', { name: 'Catat pencairan' }).click();
+    const modal = page.locator('.fi-modal-window');
+    await modal.getByLabel('Metode').selectOption({ label: 'QRIS' });
+    await modal.getByLabel('Piutang yang dicairkan').fill('250000');
+    await modal.getByLabel('Potongan saat pencairan').fill('2500');
+    await modal.getByLabel('Nomor settlement penyedia').fill('E2E-STL-1');
+    await modal.getByRole('button', { name: 'Simpan pencairan' }).click();
+    await expect(page.locator('.fi-no-notification')).toBeVisible({ timeout: 15_000 });
+
+    // Tercatat, tetapi piutangnya belum berkurang sampai jurnalnya diposting — dan layar mengatakannya.
+    await expect(page.locator('.fnb-report-notes')).toContainText('belum diposting');
+    await expect(page.getByRole('row').filter({ hasText: 'E2E-STL-1' })).toContainText('Draft');
 });

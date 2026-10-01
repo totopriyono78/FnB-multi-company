@@ -6,15 +6,18 @@ use App\Filament\Resources\JournalResource\Pages;
 use App\Filament\Support\AccountingAccess;
 use App\Filament\Support\MenuFields;
 use App\Modules\Accounting\Application\AccountingException;
+use App\Modules\Accounting\Application\JournalAttachments;
 use App\Modules\Accounting\Application\JournalService;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\Journal;
 use App\Modules\Accounting\Domain\Models\JournalLine;
 use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Shared\Application\AttachmentStore;
 use App\Modules\Tenancy\Domain\Models\Outlet;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -35,6 +38,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 
 /** Jurnal umum (ACC-05). Jurnal terposting hanya bisa dilihat; koreksinya lewat jurnal balik. */
 class JournalResource extends Resource
@@ -166,6 +170,7 @@ class JournalResource extends Resource
                     ->formatStateUsing(fn (string $state) => Journal::STATUS_LABEL[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         Journal::POSTED => 'success',
+                        Journal::SUBMITTED => 'info',
                         Journal::DRAFT => 'warning',
                         default => 'gray',
                     }),
@@ -186,14 +191,57 @@ class JournalResource extends Resource
             ])
             ->actions([
                 ViewAction::make()->label('Detail'),
+                Action::make('submit')
+                    ->label('Ajukan')->icon('heroicon-o-paper-airplane')->color('info')
+                    ->visible(fn (Journal $record) => $record->isDraft() && AccountingAccess::canManage())
+                    ->requiresConfirmation()
+                    ->modalHeading('Ajukan jurnal untuk diperiksa')
+                    ->modalDescription('Setelah diajukan, barisnya terkunci sampai diposting atau dikembalikan ke draft. Yang mempostingnya harus orang lain.')
+                    ->modalSubmitActionLabel('Ajukan jurnal')
+                    ->action(fn (Journal $record) => self::run(fn (User $by) => app(JournalService::class)->submit($record, $by), 'Jurnal diajukan.')),
                 Action::make('post')
                     ->label('Posting')->icon('heroicon-o-check-circle')->color('success')
-                    ->visible(fn (Journal $record) => $record->isDraft() && AccountingAccess::canManage())
+                    /*
+                     * Tombolnya disembunyikan dari pengajunya sendiri, bukan sekadar ditolak saat
+                     * ditekan: tombol yang pasti gagal hanya membuat orang mengira sistemnya rusak.
+                     * Penjagaan sebenarnya tetap di JournalService — ini hanya supaya layarnya jujur.
+                     */
+                    ->visible(fn (Journal $record) => $record->isSubmitted() && AccountingAccess::canManage()
+                        && $record->submitted_by !== AccountingAccess::user()?->id)
                     ->requiresConfirmation()
                     ->modalHeading('Posting jurnal ke buku besar')
                     ->modalDescription('Setelah diposting, jurnal ini tidak dapat diubah lagi. Koreksi hanya bisa lewat jurnal balik.')
                     ->modalSubmitActionLabel('Posting jurnal')
                     ->action(fn (Journal $record) => self::run(fn (User $by) => app(JournalService::class)->post($record, $by), 'Jurnal diposting.')),
+                Action::make('reject')
+                    ->label('Kembalikan')->icon('heroicon-o-arrow-uturn-left')->color('warning')
+                    ->visible(fn (Journal $record) => $record->isSubmitted() && AccountingAccess::canManage())
+                    ->modalHeading('Kembalikan jurnal ke draft')
+                    ->modalDescription('Pengaju akan melihat alasannya dan dapat memperbaiki jurnalnya.')
+                    ->form([TextInput::make('reason')->label('Alasan')->required()->minLength(3)->maxLength(300)])
+                    ->action(fn (Journal $record, array $data) => self::run(
+                        fn (User $by) => app(JournalService::class)->reject($record, $by, (string) $data['reason']),
+                        'Jurnal dikembalikan ke draft.')),
+                Action::make('attach')
+                    ->label('Lampiran')->icon('heroicon-o-paper-clip')->color('gray')
+                    ->visible(fn () => AccountingAccess::canManage())
+                    ->modalHeading('Lampirkan bukti')
+                    ->modalDescription('Foto nota, bukti transfer, atau faktur (JPG/PNG/WebP/PDF). Bukti boleh menyusul, termasuk setelah jurnal diposting.')
+                    ->form([
+                        FileUpload::make('files')->label('Berkas')->multiple()->required()
+                            ->acceptedFileTypes(AttachmentStore::MIMES)
+                            ->maxSize(fn () => app(AttachmentStore::class)->maxKb())
+                            // Berkasnya ditangani AttachmentStore, bukan disimpan sendiri oleh Filament:
+                            // jalur, nama acak, dan disk privatnya satu pintu di sana.
+                            ->storeFiles(false),
+                    ])
+                    ->action(fn (Journal $record, array $data) => self::run(function (User $by) use ($record, $data): void {
+                        foreach ((array) ($data['files'] ?? []) as $file) {
+                            if ($file instanceof UploadedFile) {
+                                app(JournalAttachments::class)->attach($record, $file, $by);
+                            }
+                        }
+                    }, 'Lampiran tersimpan.')),
                 Action::make('reverse')
                     ->label('Jurnal balik')->icon('heroicon-o-arrow-uturn-left')->color('danger')
                     ->visible(fn (Journal $record) => $record->status === Journal::POSTED && AccountingAccess::canManage())
@@ -208,7 +256,7 @@ class JournalResource extends Resource
                     ->action(fn (Journal $record, array $data) => self::run(
                         fn (User $by) => app(JournalService::class)->reverse($record, $by, (string) $data['reason'],
                             isset($data['on']) ? CarbonImmutable::parse((string) $data['on']) : null),
-                        'Jurnal balik dibuat dan langsung diposting.')),
+                        'Jurnal balik dibuat dan diajukan. Orang lain yang mempostingnya.')),
             ])
             ->emptyStateHeading('Belum ada jurnal')
             ->emptyStateDescription('Buat jurnal umum, atau tunggu jurnal otomatis dari penjualan saat modul itu menyusul.');
@@ -225,11 +273,14 @@ class JournalResource extends Resource
                 TextEntry::make('source')->label('Sumber'),
                 TextEntry::make('description')->label('Keterangan')->columnSpanFull(),
                 TextEntry::make('creator.name')->label('Dibuat oleh')->placeholder('-'),
+                TextEntry::make('submitter.name')->label('Diajukan oleh')->placeholder('-'),
                 TextEntry::make('poster.name')->label('Diposting oleh')->placeholder('-'),
                 TextEntry::make('posted_at')->label('Waktu posting')->dateTime('d M Y H.i')->placeholder('-'),
                 TextEntry::make('reverses.number')->label('Membalik jurnal')->placeholder('-'),
+                TextEntry::make('reject_reason')->label('Alasan dikembalikan')->placeholder('-')->columnSpan(3),
             ]),
             ViewEntry::make('lines')->view('filament.accounting.journal-lines')->columnSpanFull(),
+            ViewEntry::make('attachments')->view('filament.accounting.journal-attachments')->columnSpanFull(),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Modules;
 
 use App\Modules\Accounting\Console\PostSalesJournals;
+use App\Modules\Accounting\Console\RunRecurringJournals;
 use App\Modules\Accounting\Listeners\PostSalesJournal;
 use App\Modules\Audit\Domain\AuditLog;
 use App\Modules\Audit\Policies\AuditLogPolicy;
@@ -172,7 +173,7 @@ class ModulesServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(300)->by($request->user()?->getKey() ?? $request->ip()));
 
         if ($this->app->runningInConsole()) {
-            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class, PostSalesJournals::class]);
+            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class, PostSalesJournals::class, RunRecurringJournals::class]);
         }
     }
 }

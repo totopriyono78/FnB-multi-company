@@ -21,6 +21,8 @@ use Tests\Support\Factory;
  */
 beforeEach(function () {
     [$this->company, $this->owner] = Factory::company('Kopi Tepi Jalan');
+    // Orang kedua: sejak ACC-05, pengaju tidak boleh memposting jurnalnya sendiri.
+    [$this->pemeriksa] = Factory::staff($this->company, ['finance'], []);
     $this->awal = CarbonImmutable::parse('2026-10-01');
     $this->akhir = CarbonImmutable::parse('2026-10-31');
     dalamLaporan($this, fn () => app(ChartOfAccounts::class)->installTemplate());
@@ -54,7 +56,7 @@ function postingLaporan(object $test, array $baris, string $tanggal, string $ket
                 'account_id' => akunLaporan($b[0])->id, 'debit' => $b[1], 'credit' => $b[2],
             ], $baris),
         ], $test->owner);
-        $service->post($jurnal, $test->owner);
+        $service->post($service->submit($jurnal, $test->owner), $test->pemeriksa);
     });
 }
 
@@ -214,3 +216,46 @@ it('tidak membocorkan angka entitas lain', function () {
         }
     });
 });
+
+it('menyusun laba rugi per outlet lewat dimensi di baris jurnal (ACC-03)', function () {
+    $brand = Factory::brand($this->company, ['code' => 'BDM']);
+    $kaliurang = Factory::outlet($this->company, $brand, ['code' => 'KLU']);
+    $prawiro = Factory::outlet($this->company, $brand, ['code' => 'PRW']);
+
+    // Pendapatan dua outlet, plus satu beban kantor pusat yang sengaja tanpa outlet.
+    postingLaporanBerdimensi($this, [['1101', '6000000', '0', $kaliurang->id], ['4101', '0', '6000000', $kaliurang->id]], '2026-10-03');
+    postingLaporanBerdimensi($this, [['1101', '4000000', '0', $prawiro->id], ['4101', '0', '4000000', $prawiro->id]], '2026-10-04');
+    postingLaporanBerdimensi($this, [['6101', '2000000', '0', null], ['1110', '0', '2000000', null]], '2026-10-05');
+
+    $semua = dalamLaporan($this, fn () => app(FinancialStatements::class)->incomeStatement($this->awal, $this->akhir));
+    $satu = dalamLaporan($this, fn () => app(FinancialStatements::class)->incomeStatement($this->awal, $this->akhir, $kaliurang->id));
+
+    expect(barisLaporan($semua)['Jumlah Pendapatan']['amount'])->toBe('10000000.00')
+        ->and(barisLaporan($satu)['Jumlah Pendapatan']['amount'])->toBe('6000000.00')
+        // Beban kantor pusat tidak punya outlet, jadi ia tidak ikut di laba rugi outlet mana pun —
+        // dan laporannya mengatakan itu, bukan membiarkannya hilang tanpa keterangan.
+        ->and(barisLaporan($satu))->not->toHaveKey('6101 — Beban Gaji & Tunjangan')
+        ->and(implode(' ', $satu->notes))->toContain('tanpa outlet/brand');
+
+    expect($satu->filters['Outlet'])->toBe($kaliurang->name);
+});
+
+/**
+ * Posting jurnal berdimensi: [kode akun, debit, kredit, outlet id].
+ *
+ * @param  list<array{0: string, 1: string, 2: string, 3: string|null}>  $baris
+ */
+function postingLaporanBerdimensi(object $test, array $baris, string $tanggal): void
+{
+    dalamLaporan($test, function () use ($test, $baris, $tanggal): void {
+        $service = app(JournalService::class);
+        $jurnal = $service->create([
+            'journal_date' => $tanggal,
+            'description' => 'Uji dimensi',
+            'lines' => array_map(fn (array $b) => [
+                'account_id' => akunLaporan($b[0])->id, 'debit' => $b[1], 'credit' => $b[2], 'outlet_id' => $b[3],
+            ], $baris),
+        ], $test->owner);
+        $service->post($service->submit($jurnal, $test->owner), $test->pemeriksa);
+    });
+}

@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Demo\DemoAccounts;
+use App\Modules\Accounting\Http\Controllers\AttachmentController;
 use App\Modules\Shared\Http\Controllers\MediaController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,3 +52,12 @@ Route::get('/pos/display', function () {
 Route::get('/media/{folder}/{file}', [MediaController::class, 'show'])
     ->where(['folder' => 'menu|logo', 'file' => '[A-Za-z0-9._-]+'])
     ->name('media.show');
+
+/*
+ * Bukti lampiran jurnal — kebalikan rute media di atas: wajib login, wajib entitas yang benar,
+ * wajib izin akuntansi. Foto nota bukan foto menu.
+ */
+Route::get('/pembukuan/lampiran/{attachment}', [AttachmentController::class, 'show'])
+    ->middleware(['web', 'auth'])
+    ->where(['attachment' => '[0-9a-fA-F-]{36}'])
+    ->name('accounting.attachment');

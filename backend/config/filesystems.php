@@ -55,6 +55,18 @@ return [
          * PaaS yang filesystem-nya ephemeral. Dengan rute, jalur URL-nya sama di semua
          * lingkungan, dan berpindah ke object storage cukup mengganti FNB_MEDIA_DISK.
          */
+        /*
+         * Bukti dokumen keuangan. Tanpa 'url' dan tanpa visibility publik: berkasnya hanya
+         * keluar lewat rute berotentikasi, bukan lewat tautan yang bisa diteruskan siapa saja.
+         */
+        'attachments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/attachments'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'media' => [
             'driver' => 'local',
             'root' => storage_path('app/media'),

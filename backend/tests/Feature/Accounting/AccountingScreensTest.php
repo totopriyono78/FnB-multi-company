@@ -36,6 +36,8 @@ beforeEach(function () {
     [$this->company, $this->owner] = Factory::company('Kopi Tepi Jalan');
     $this->outlet = Factory::outlet($this->company, null, ['code' => 'KMG']);
     [$this->finance] = Factory::staff($this->company, ['finance'], [$this->outlet->id]);
+    // Pemeriksa: orang kedua yang memposting apa yang diajukan finance (ACC-05).
+    [$this->pemeriksa] = Factory::staff($this->company, ['finance'], [$this->outlet->id]);
     $this->base = "/admin/{$this->company->code}/pembukuan";
 });
 
@@ -65,7 +67,8 @@ it('membuka layar akuntansi untuk finance dan pemilik', function (string $peran)
     $user = $peran === 'finance' ? $this->finance : $this->owner;
     masukAkuntansi($this, $user);
 
-    foreach (['bagan-akun', 'jurnal', 'neraca-saldo', 'buku-besar', 'periode', 'pemetaan-akun', 'laba-rugi', 'neraca'] as $halaman) {
+    foreach (['bagan-akun', 'jurnal', 'neraca-saldo', 'buku-besar', 'periode', 'pemetaan-akun', 'laba-rugi', 'neraca',
+        'settlement', 'saldo-awal', 'jurnal-berulang'] as $halaman) {
         $this->get("{$this->base}/{$halaman}")->assertSuccessful();
     }
 })->with(['finance', 'pemilik']);
@@ -79,6 +82,9 @@ it('menutup layar akuntansi untuk peran tanpa izin', function (string $role) {
     $this->get("{$this->base}/neraca-saldo")->assertForbidden();
     $this->get("{$this->base}/laba-rugi")->assertForbidden();
     $this->get("{$this->base}/neraca")->assertForbidden();
+    $this->get("{$this->base}/settlement")->assertForbidden();
+    $this->get("{$this->base}/saldo-awal")->assertForbidden();
+    $this->get("{$this->base}/jurnal-berulang")->assertForbidden();
 })->with(['kasir' => ['cashier'], 'manajer outlet' => ['outlet_manager'], 'gudang' => ['warehouse']]);
 
 it('memasang template bagan akun lewat tombol di layar', function () {
@@ -131,10 +137,29 @@ it('menyimpan jurnal seimbang lewat form dan memposting dari daftar', function (
         ->and($jurnal->number)->toBe('JU-2610-0001')
         ->and(Factory::tenant($this->company, fn () => JournalLine::query()->count()))->toBe(2);
 
+    // Diajukan oleh finance…
     masukAkuntansi($this, $this->finance);
+    Livewire::test(ListJournals::class)->callTableAction('submit', $jurnal)->assertHasNoTableActionErrors();
+    // Model lama masih mengingat status draft; Filament menilai tombolnya dari objek yang diberikan.
+    $jurnal = Factory::tenant($this->company, fn () => Journal::query()->findOrFail($jurnal->id));
+    expect($jurnal->status)->toBe(Journal::SUBMITTED);
+
+    /*
+     * …dan pengajunya sendiri TIDAK diberi tombol Posting. Ini bagian yang mudah lolos dari uji:
+     * layanan memang menolak, tetapi kalau tombolnya tetap tampil, orang akan menekannya berkali-kali
+     * dan mengira sistemnya rusak.
+     */
+    masukAkuntansi($this, $this->finance);
+    Livewire::test(ListJournals::class)->assertTableActionHidden('post', $jurnal);
+
+    // Orang kedua yang mempostingnya.
+    masukAkuntansi($this, $this->pemeriksa);
     Livewire::test(ListJournals::class)->callTableAction('post', $jurnal)->assertHasNoTableActionErrors();
 
-    expect(Factory::tenant($this->company, fn () => Journal::query()->findOrFail($jurnal->id))->status)->toBe(Journal::POSTED);
+    $tersimpan = Factory::tenant($this->company, fn () => Journal::query()->findOrFail($jurnal->id));
+    expect($tersimpan->status)->toBe(Journal::POSTED)
+        ->and($tersimpan->submitted_by)->toBe($this->finance->id)
+        ->and($tersimpan->posted_by)->toBe($this->pemeriksa->id);
 });
 
 it('menolak jurnal timpang lewat form tanpa menyisakan baris', function () {
@@ -191,6 +216,9 @@ it('menampilkan neraca saldo yang seimbang di layar', function () {
     ])->call('create');
     $jurnal = Factory::tenant($this->company, fn () => Journal::query()->firstOrFail());
     masukAkuntansi($this, $this->finance);
+    Livewire::test(ListJournals::class)->callTableAction('submit', $jurnal);
+    $jurnal = Factory::tenant($this->company, fn () => Journal::query()->findOrFail($jurnal->id));
+    masukAkuntansi($this, $this->pemeriksa);
     Livewire::test(ListJournals::class)->callTableAction('post', $jurnal);
 
     masukAkuntansi($this, $this->finance);
@@ -307,7 +335,7 @@ describe('laporan keuangan (FIN-01, FIN-02)', function () {
                     ['account_id' => Account::query()->where('code', '4101')->value('id'), 'debit' => '0', 'credit' => '4000000'],
                 ],
             ], $this->finance);
-            $service->post($jurnal, $this->finance);
+            $service->post($service->submit($jurnal, $this->finance), $this->pemeriksa);
         });
     });
 

@@ -25,6 +25,12 @@ use Tests\Support\Factory;
  */
 beforeEach(function () {
     [$this->company, $this->owner] = Factory::company('Kopi Tepi Jalan');
+    /*
+     * Pemeriksa adalah ORANG KEDUA (ACC-05). Sejak maker–checker berlaku, satu orang tidak bisa
+     * mengajukan sekaligus memposting jurnal yang sama — jadi uji pun butuh dua orang, persis
+     * seperti di lapangan.
+     */
+    [$this->pemeriksa] = Factory::staff($this->company, ['finance'], []);
     $this->tanggal = CarbonImmutable::parse('2026-10-05');
     dalamPembukuan($this, fn () => app(ChartOfAccounts::class)->installTemplate());
 });
@@ -54,11 +60,14 @@ function jurnalKasSederhana(object $test, string $nominal = '100000', ?string $t
     ];
 }
 
+/** Buat → ajukan (pengaju) → posting (pemeriksa). Satu putaran maker–checker yang lengkap. */
 function buatDanPostingJurnal(object $test, string $nominal = '100000', ?string $tanggal = null): Journal
 {
-    $jurnal = app(JournalService::class)->create(jurnalKasSederhana($test, $nominal, $tanggal), $test->owner);
+    $service = app(JournalService::class);
+    $jurnal = $service->create(jurnalKasSederhana($test, $nominal, $tanggal), $test->owner);
+    $service->submit($jurnal, $test->owner);
 
-    return app(JournalService::class)->post($jurnal, $test->owner);
+    return $service->post($jurnal, $test->pemeriksa);
 }
 
 it('memasang bagan akun standar dan aman dijalankan ulang', function () {
@@ -89,7 +98,8 @@ it('memposting jurnal yang seimbang dan menolak yang tidak seimbang', function (
 
         expect($jurnal->status)->toBe(Journal::POSTED)
             ->and($jurnal->number)->toStartWith('JU-2610-')
-            ->and($jurnal->posted_by)->toBe($this->owner->id);
+            ->and($jurnal->submitted_by)->toBe($this->owner->id)
+            ->and($jurnal->posted_by)->toBe($this->pemeriksa->id);
 
         $timpang = jurnalKasSederhana($this);
         $timpang['lines'][1]['credit'] = '90000';
@@ -166,9 +176,18 @@ it('mengoreksi lewat jurnal balik yang menihilkan jurnal asal', function () {
 
         $balik = app(JournalService::class)->reverse($asli, $this->owner, 'Salah akun pendapatan', $this->tanggal);
 
-        expect($balik->status)->toBe(Journal::POSTED)
+        /*
+         * Pembalik lahir DIAJUKAN, bukan langsung diposting: membalik jurnal berarti mengubah angka
+         * yang sudah terbit, jadi justru di sini pemeriksaan orang kedua paling dibutuhkan.
+         * Selama pembaliknya belum diposting, jurnal asal masih berlaku — dan itulah keadaan
+         * yang sebenarnya.
+         */
+        expect($balik->status)->toBe(Journal::SUBMITTED)
             ->and($balik->number)->toStartWith('JB-2610-')
-            ->and($balik->reverses_journal_id)->toBe($asli->id);
+            ->and($balik->reverses_journal_id)->toBe($asli->id)
+            ->and($asli->refresh()->status)->toBe(Journal::POSTED);
+
+        $balik = app(JournalService::class)->post($balik, $this->pemeriksa);
 
         $asli->refresh();
         expect($asli->status)->toBe(Journal::REVERSED)
@@ -202,8 +221,13 @@ it('menolak membalik jurnal yang belum diposting atau sudah pernah dibalik', fun
         expect(fn () => app(JournalService::class)->reverse($draft, $this->owner, 'apa saja'))
             ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('JOURNAL_NOT_POSTED'));
 
+        // Pembalik yang masih menggantung pun menghalangi pembalik kedua.
         $asli = buatDanPostingJurnal($this);
-        app(JournalService::class)->reverse($asli, $this->owner, 'Salah akun', $this->tanggal);
+        $balik = app(JournalService::class)->reverse($asli, $this->owner, 'Salah akun', $this->tanggal);
+        expect(fn () => app(JournalService::class)->reverse($asli->refresh(), $this->owner, 'Dibalik lagi', $this->tanggal))
+            ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('REVERSAL_PENDING'));
+
+        app(JournalService::class)->post($balik, $this->pemeriksa);
         expect(fn () => app(JournalService::class)->reverse($asli->refresh(), $this->owner, 'Dibalik lagi', $this->tanggal))
             ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('JOURNAL_NOT_POSTED'));
     });
@@ -313,14 +337,16 @@ it('tidak mengizinkan akun yang sudah bermutasi berubah arti', function () {
          * Untuk penghapusan dipakai akun NON-sistem: pada akun bawaan, penjaga "tidak boleh dihapus"
          * bicara lebih dulu, sehingga penjaga "sudah bermutasi" tidak akan pernah teruji di sana.
          */
-        app(JournalService::class)->post(app(JournalService::class)->create([
+        $service = app(JournalService::class);
+        $lain = $service->create([
             'journal_date' => $this->tanggal->format('Y-m-d'),
             'description' => 'Beban lain-lain dari kas kecil',
             'lines' => [
                 ['account_id' => akunPembukuan('6199')->id, 'debit' => '25000', 'credit' => '0'],
                 ['account_id' => akunPembukuan('1102')->id, 'debit' => '0', 'credit' => '25000'],
             ],
-        ], $this->owner), $this->owner);
+        ], $this->owner);
+        $service->post($service->submit($lain, $this->owner), $this->pemeriksa);
 
         expect(fn () => app(ChartOfAccounts::class)->delete(akunPembukuan('6199')))
             ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('ACCOUNT_HAS_ENTRIES'));

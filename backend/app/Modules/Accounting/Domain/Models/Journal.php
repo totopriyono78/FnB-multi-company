@@ -26,8 +26,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $reverses_journal_id
  * @property string|null $reversed_by_journal_id
  * @property string $created_by
+ * @property string|null $submitted_by
+ * @property CarbonImmutable|null $submitted_at
  * @property string|null $posted_by
  * @property CarbonImmutable|null $posted_at
+ * @property string|null $rejected_by
+ * @property CarbonImmutable|null $rejected_at
+ * @property string|null $reject_reason
  */
 class Journal extends Model
 {
@@ -36,12 +41,16 @@ class Journal extends Model
 
     public const DRAFT = 'draft';
 
+    /** Diajukan: angkanya dinyatakan siap, tetapi belum masuk buku besar (ACC-05). */
+    public const SUBMITTED = 'submitted';
+
     public const POSTED = 'posted';
 
     public const REVERSED = 'reversed';
 
     public const STATUS_LABEL = [
         self::DRAFT => 'Draft',
+        self::SUBMITTED => 'Diajukan',
         self::POSTED => 'Diposting',
         self::REVERSED => 'Dibalik',
     ];
@@ -57,7 +66,9 @@ class Journal extends Model
     {
         return [
             'journal_date' => 'immutable_date',
+            'submitted_at' => 'immutable_datetime',
             'posted_at' => 'immutable_datetime',
+            'rejected_at' => 'immutable_datetime',
         ];
     }
 
@@ -85,6 +96,18 @@ class Journal extends Model
         return $this->belongsTo(User::class, 'posted_by');
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    /** @return HasMany<JournalAttachment, $this> */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(JournalAttachment::class)->orderBy('created_at');
+    }
+
     /** @return BelongsTo<Journal, $this> */
     public function reverses(): BelongsTo
     {
@@ -92,6 +115,17 @@ class Journal extends Model
     }
 
     public function isDraft(): bool
+    {
+        return $this->status === self::DRAFT;
+    }
+
+    public function isSubmitted(): bool
+    {
+        return $this->status === self::SUBMITTED;
+    }
+
+    /** Masih boleh disunting isinya: hanya draft. */
+    public function isEditable(): bool
     {
         return $this->status === self::DRAFT;
     }

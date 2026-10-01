@@ -10,8 +10,14 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Periode akuntansi bulanan per entitas (ACC-04).
  *
- * Periode tertutup menolak posting apa pun — itu satu-satunya arti "tutup buku" yang bisa dipercaya.
- * Tutup lunak (soft close, indikatif) belum dibuat; catat di rencana bila nanti dibutuhkan.
+ * Tiga keadaan (ACC-04):
+ *
+ * - **open** — bebas dicatat.
+ * - **soft_closed** — laporan sudah terbit, tetapi koreksi yang memang milik bulan itu masih boleh
+ *   masuk. Setiap posting ke periode seperti ini tercatat khusus, jadi tidak ada yang terjadi
+ *   diam-diam. Ini jalan tengah yang mencegah orang membuka kembali seluruh bulan hanya demi satu
+ *   koreksi kecil.
+ * - **closed** — tutup permanen; posting apa pun ditolak.
  *
  * @property string $id
  * @property string $company_id
@@ -31,7 +37,15 @@ class AccountingPeriod extends Model
 
     public const OPEN = 'open';
 
+    public const SOFT_CLOSED = 'soft_closed';
+
     public const CLOSED = 'closed';
+
+    public const STATUS_LABEL = [
+        self::OPEN => 'Terbuka',
+        self::SOFT_CLOSED => 'Tutup sementara',
+        self::CLOSED => 'Tertutup',
+    ];
 
     protected $guarded = ['*'];
 
@@ -46,9 +60,25 @@ class AccountingPeriod extends Model
         ];
     }
 
-    public function isClosed(): bool
+    public function isOpen(): bool
+    {
+        return $this->status === self::OPEN;
+    }
+
+    public function isSoftClosed(): bool
+    {
+        return $this->status === self::SOFT_CLOSED;
+    }
+
+    public function isHardClosed(): bool
     {
         return $this->status === self::CLOSED;
+    }
+
+    /** Sudah ditutup dalam bentuk apa pun — dipakai layar untuk menawarkan "buka kembali". */
+    public function isClosed(): bool
+    {
+        return $this->status !== self::OPEN;
     }
 
     public function label(): string

@@ -63,6 +63,19 @@ return [
         'logo_height' => 512,
     ],
 
+    /*
+     * Bukti dokumen (nota, bukti transfer, kontrak) untuk jurnal dan dokumen keuangan.
+     *
+     * Disk terpisah dari media: berkas di sini TIDAK pernah disajikan publik, dan umurnya
+     * mengikuti kewajiban simpan dokumen (di Indonesia umumnya 10 tahun) — bukan umur sebuah
+     * foto menu yang bisa diganti kapan saja.
+     */
+    'attachments' => [
+        'disk' => env('FNB_ATTACHMENT_DISK', 'attachments'),
+        'max_upload_kb' => (int) env('FNB_ATTACHMENT_MAX_UPLOAD_KB', 10240),
+        'max_per_document' => (int) env('FNB_ATTACHMENT_MAX_PER_DOCUMENT', 10),
+    ],
+
     'auth' => [
         'login_max_attempts' => (int) env('FNB_LOGIN_MAX_ATTEMPTS', 5),
         'login_lock_minutes' => (int) env('FNB_LOGIN_LOCK_MINUTES', 15),

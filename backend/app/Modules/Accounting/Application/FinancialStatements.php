@@ -5,6 +5,8 @@ namespace App\Modules\Accounting\Application;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\Journal;
 use App\Modules\Reporting\Application\ReportTable;
+use App\Modules\Tenancy\Domain\Models\Brand;
+use App\Modules\Tenancy\Domain\Models\Outlet;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -44,10 +46,16 @@ use Illuminate\Support\Facades\DB;
  */
 class FinancialStatements
 {
-    /** Laba Rugi untuk satu rentang tanggal. */
-    public function incomeStatement(CarbonImmutable $from, CarbonImmutable $to): ReportTable
+    /**
+     * Laba Rugi untuk satu rentang tanggal, boleh dipersempit ke satu outlet atau brand (ACC-03).
+     *
+     * Dimensinya dibaca dari baris jurnal, bukan dari bagan akun yang dipecah per outlet. Memecah
+     * bagan akun berarti setiap outlet baru menambah puluhan akun dan neraca saldo jadi tak
+     * terbaca; dimensi menjawab pertanyaan yang sama tanpa merusak bagan akunnya.
+     */
+    public function incomeStatement(CarbonImmutable $from, CarbonImmutable $to, ?string $outletId = null, ?string $brandId = null): ReportTable
     {
-        $saldo = $this->balances($from, $to);
+        $saldo = $this->balances($from, $to, $outletId, $brandId);
 
         $rows = [];
         $pendapatan = $this->section($rows, $saldo, [Account::REVENUE], 'PENDAPATAN', 'Jumlah Pendapatan');
@@ -74,7 +82,11 @@ class FinancialStatements
             ],
             rows: $rows,
             totals: null,
-            filters: ['Periode' => $from->format('d M Y').' – '.$to->format('d M Y')],
+            filters: array_filter([
+                'Periode' => $from->format('d M Y').' – '.$to->format('d M Y'),
+                'Outlet' => $outletId === null ? null : (string) (Outlet::query()->whereKey($outletId)->value('name') ?? '—'),
+                'Brand' => $brandId === null ? null : (string) (Brand::query()->whereKey($brandId)->value('name') ?? '—'),
+            ]),
             summary: [
                 ['label' => 'Pendapatan', 'value' => (string) $pendapatan->toScale(2), 'type' => ReportTable::MONEY],
                 ['label' => 'Laba Kotor', 'value' => (string) $kotor->toScale(2), 'type' => ReportTable::MONEY],
@@ -84,6 +96,8 @@ class FinancialStatements
             notes: array_values(array_filter([
                 'Hanya jurnal yang sudah diposting yang dihitung; jurnal draft tidak ikut.',
                 'Akun lawan seperti Diskon dan Retur Penjualan tampil negatif karena ia mengurangi pendapatan.',
+                $outletId === null && $brandId === null ? null
+                    : 'Disaring per dimensi: baris jurnal tanpa outlet/brand (mis. beban kantor pusat) tidak ikut di sini.',
                 $pendapatan->isZero() && $bersih->isZero()
                     ? 'Belum ada pendapatan maupun beban terposting pada rentang ini.' : null,
             ])),
@@ -248,7 +262,7 @@ class FinancialStatements
      *
      * @return array<string, array{code: string, name: string, type: string, amount: BigDecimal}>
      */
-    private function balances(?CarbonImmutable $from, CarbonImmutable $to): array
+    private function balances(?CarbonImmutable $from, CarbonImmutable $to, ?string $outletId = null, ?string $brandId = null): array
     {
         $rows = DB::table('journal_lines as jl')
             ->join('journals as j', 'j.id', '=', 'jl.journal_id')
@@ -256,6 +270,8 @@ class FinancialStatements
             ->whereIn('j.status', Journal::IN_LEDGER)
             ->when($from !== null, fn ($q) => $q->where('j.journal_date', '>=', $from->format('Y-m-d')))
             ->where('j.journal_date', '<=', $to->format('Y-m-d'))
+            ->when($outletId !== null, fn ($q) => $q->where('jl.outlet_id', $outletId))
+            ->when($brandId !== null, fn ($q) => $q->where('jl.brand_id', $brandId))
             ->groupBy('jl.account_id', 'a.code', 'a.name', 'a.type')
             ->selectRaw('jl.account_id, a.code, a.name, a.type, coalesce(sum(jl.debit), 0) as debit, coalesce(sum(jl.credit), 0) as credit')
             ->get();
