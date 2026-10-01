@@ -102,12 +102,6 @@ class Journal extends Model
         return $this->belongsTo(User::class, 'submitted_by');
     }
 
-    /** @return HasMany<JournalAttachment, $this> */
-    public function attachments(): HasMany
-    {
-        return $this->hasMany(JournalAttachment::class)->orderBy('created_at');
-    }
-
     /** @return BelongsTo<Journal, $this> */
     public function reverses(): BelongsTo
     {

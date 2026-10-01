@@ -23,6 +23,7 @@ use App\Modules\Catalog\Policies\ModifierGroupPolicy;
 use App\Modules\Catalog\Policies\PromotionPolicy;
 use App\Modules\Identity\Application\AccessScope;
 use App\Modules\Identity\Application\TenantAwarePermissionRegistrar;
+use App\Modules\Identity\Console\SyncRoles;
 use App\Modules\Identity\Domain\Models\CompanyUser;
 use App\Modules\Identity\Domain\Models\PersonalAccessToken;
 use App\Modules\Identity\Domain\Models\RoleScope;
@@ -173,7 +174,7 @@ class ModulesServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(300)->by($request->user()?->getKey() ?? $request->ip()));
 
         if ($this->app->runningInConsole()) {
-            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class, PostSalesJournals::class, RunRecurringJournals::class]);
+            $this->commands([EnsurePartitions::class, ProvisionCatalog::class, SandboxPay::class, PostSalesStockCommand::class, SendScheduledReports::class, PostSalesJournals::class, RunRecurringJournals::class, SyncRoles::class]);
         }
     }
 }

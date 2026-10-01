@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Demo\DemoAccounts;
-use App\Modules\Accounting\Http\Controllers\AttachmentController;
+use App\Modules\Shared\Http\Controllers\AttachmentController;
 use App\Modules\Shared\Http\Controllers\MediaController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,8 +54,8 @@ Route::get('/media/{folder}/{file}', [MediaController::class, 'show'])
     ->name('media.show');
 
 /*
- * Bukti lampiran jurnal — kebalikan rute media di atas: wajib login, wajib entitas yang benar,
- * wajib izin akuntansi. Foto nota bukan foto menu.
+ * Bukti lampiran dokumen — kebalikan rute media di atas: wajib login, wajib entitas yang benar,
+ * wajib izin akuntansi atau dokumen pembayaran. Foto nota bukan foto menu.
  */
 Route::get('/pembukuan/lampiran/{attachment}', [AttachmentController::class, 'show'])
     ->middleware(['web', 'auth'])

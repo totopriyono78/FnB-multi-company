@@ -171,6 +171,7 @@ class DemoSeeder extends Seeder
                 'restoIkan' => $ikanBakar, 'restoIkanManager' => $find('aminah@gtgroup.test'), 'restoIkanCashier' => $find('yusuf@gtgroup.test'),
             ]);
             $inventory->afterSales($kaliurang, $find('rudi@gtgroup.test'));
+            (new DemoDocumentSeeder)->run();
         });
     }
 

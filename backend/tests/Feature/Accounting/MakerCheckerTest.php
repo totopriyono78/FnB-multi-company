@@ -3,15 +3,15 @@
 use App\Modules\Accounting\Application\AccountingException;
 use App\Modules\Accounting\Application\ChartOfAccounts;
 use App\Modules\Accounting\Application\GeneralLedger;
-use App\Modules\Accounting\Application\JournalAttachments;
 use App\Modules\Accounting\Application\JournalService;
 use App\Modules\Accounting\Application\PeriodService;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\AccountingPeriod;
 use App\Modules\Accounting\Domain\Models\Journal;
-use App\Modules\Accounting\Domain\Models\JournalAttachment;
 use App\Modules\Accounting\Domain\Models\JournalLine;
 use App\Modules\Shared\Application\AttachmentStore;
+use App\Modules\Shared\Application\DocumentAttachments;
+use App\Modules\Shared\Domain\Models\DocumentAttachment;
 use App\Modules\Tenancy\Application\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -189,8 +189,8 @@ describe('lampiran bukti', function () {
             $service = app(JournalService::class);
             $jurnal = $service->post($service->submit(jurnalBaru($this), $this->pengaju), $this->pemeriksa);
 
-            $lampiran = app(JournalAttachments::class)->attach(
-                $jurnal, UploadedFile::fake()->image('nota-brankas.jpg'), $this->pengaju);
+            $lampiran = app(DocumentAttachments::class)->attach(
+                DocumentAttachment::JOURNAL, $jurnal, UploadedFile::fake()->image('nota-brankas.jpg'), $this->pengaju);
 
             expect($lampiran->original_name)->toBe('nota-brankas.jpg')
                 ->and(app(AttachmentStore::class)->isValidPath($lampiran->path))->toBeTrue()
@@ -199,8 +199,8 @@ describe('lampiran bukti', function () {
             Storage::disk('attachments')->assertExists($lampiran->path);
 
             // Setelah diposting, bukti tidak boleh dihapus — itu sama saja menghapus jejak.
-            expect(fn () => app(JournalAttachments::class)->detach($lampiran, $this->pengaju))
-                ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('ATTACHMENT_LOCKED'));
+            expect(fn () => app(DocumentAttachments::class)->detach($lampiran, $this->pengaju, editable: $jurnal->isEditable()))
+                ->toThrow(RuntimeException::class);
         });
     });
 
@@ -208,24 +208,24 @@ describe('lampiran bukti', function () {
         dalamMakerChecker($this, function () {
             $jurnal = jurnalBaru($this);
 
-            expect(fn () => app(JournalAttachments::class)->attach(
-                $jurnal, UploadedFile::fake()->create('pembukuan.xlsx', 12), $this->pengaju))
-                ->toThrow(fn (AccountingException $e) => expect($e->errorCode)->toBe('ATTACHMENT_TYPE'));
+            expect(fn () => app(DocumentAttachments::class)->attach(
+                DocumentAttachment::JOURNAL, $jurnal, UploadedFile::fake()->create('pembukuan.xlsx', 12), $this->pengaju))
+                ->toThrow(InvalidArgumentException::class);
 
-            expect(JournalAttachment::query()->count())->toBe(0);
+            expect(DocumentAttachment::query()->count())->toBe(0);
         });
     });
 
     it('membuang berkasnya saat lampiran draft dihapus', function () {
         dalamMakerChecker($this, function () {
             $jurnal = jurnalBaru($this);
-            $lampiran = app(JournalAttachments::class)->attach(
-                $jurnal, UploadedFile::fake()->image('nota.png'), $this->pengaju);
+            $lampiran = app(DocumentAttachments::class)->attach(
+                DocumentAttachment::JOURNAL, $jurnal, UploadedFile::fake()->image('nota.png'), $this->pengaju);
             $path = $lampiran->path;
 
-            app(JournalAttachments::class)->detach($lampiran, $this->pengaju);
+            app(DocumentAttachments::class)->detach($lampiran, $this->pengaju, editable: true);
 
-            expect(JournalAttachment::query()->count())->toBe(0);
+            expect(DocumentAttachment::query()->count())->toBe(0);
             Storage::disk('attachments')->assertMissing($path);
         });
     });
@@ -234,13 +234,14 @@ describe('lampiran bukti', function () {
         $milikKita = dalamMakerChecker($this, function () {
             $jurnal = jurnalBaru($this);
 
-            return app(JournalAttachments::class)->attach($jurnal, UploadedFile::fake()->image('nota.jpg'), $this->pengaju);
+            return app(DocumentAttachments::class)->attach(
+                DocumentAttachment::JOURNAL, $jurnal, UploadedFile::fake()->image('nota.jpg'), $this->pengaju);
         });
 
         [$lain] = Factory::company('Warung Bu Ratna');
         Factory::tenant($lain, function () use ($milikKita): void {
-            expect(JournalAttachment::query()->count())->toBe(0)
-                ->and(JournalAttachment::query()->find($milikKita->id))->toBeNull();
+            expect(DocumentAttachment::query()->count())->toBe(0)
+                ->and(DocumentAttachment::query()->find($milikKita->id))->toBeNull();
         });
     });
 });

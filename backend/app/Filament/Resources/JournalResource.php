@@ -6,13 +6,14 @@ use App\Filament\Resources\JournalResource\Pages;
 use App\Filament\Support\AccountingAccess;
 use App\Filament\Support\MenuFields;
 use App\Modules\Accounting\Application\AccountingException;
-use App\Modules\Accounting\Application\JournalAttachments;
 use App\Modules\Accounting\Application\JournalService;
 use App\Modules\Accounting\Domain\Models\Account;
 use App\Modules\Accounting\Domain\Models\Journal;
 use App\Modules\Accounting\Domain\Models\JournalLine;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Shared\Application\AttachmentStore;
+use App\Modules\Shared\Application\DocumentAttachments;
+use App\Modules\Shared\Domain\Models\DocumentAttachment;
 use App\Modules\Tenancy\Domain\Models\Outlet;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
@@ -238,7 +239,7 @@ class JournalResource extends Resource
                     ->action(fn (Journal $record, array $data) => self::run(function (User $by) use ($record, $data): void {
                         foreach ((array) ($data['files'] ?? []) as $file) {
                             if ($file instanceof UploadedFile) {
-                                app(JournalAttachments::class)->attach($record, $file, $by);
+                                app(DocumentAttachments::class)->attach(DocumentAttachment::JOURNAL, $record, $file, $by);
                             }
                         }
                     }, 'Lampiran tersimpan.')),
@@ -280,7 +281,8 @@ class JournalResource extends Resource
                 TextEntry::make('reject_reason')->label('Alasan dikembalikan')->placeholder('-')->columnSpan(3),
             ]),
             ViewEntry::make('lines')->view('filament.accounting.journal-lines')->columnSpanFull(),
-            ViewEntry::make('attachments')->view('filament.accounting.journal-attachments')->columnSpanFull(),
+            ViewEntry::make('attachments')->view('filament.documents.attachments')
+                ->viewData(['ownerType' => DocumentAttachment::JOURNAL])->columnSpanFull(),
         ]);
     }
 

@@ -97,6 +97,10 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Laporan'),
                 NavigationGroup::make('Inventory'),
                 NavigationGroup::make('Pembelian'),
+                NavigationGroup::make('Akuntansi'),
+                // Dokumen berdiri sendiri, bukan di dalam Akuntansi: yang membuka SPPK sehari-hari
+                // adalah manajer outlet yang tidak punya dan tidak butuh akses pembukuan.
+                NavigationGroup::make('Dokumen'),
                 NavigationGroup::make('Akuntansi (Prototipe)'),
                 NavigationGroup::make('Pengguna & Akses'),
                 NavigationGroup::make('Keamanan'),

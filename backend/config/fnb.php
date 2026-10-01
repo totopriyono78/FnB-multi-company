@@ -97,6 +97,18 @@ return [
         'trial_days' => 14,
     ],
 
+    /*
+     * Dokumen keuangan (SPPK, advis bayar).
+     *
+     * `sla_days` hanya menentukan kapan sebuah dokumen di antrian verifikasi disebut "tertahan" —
+     * ia tidak pernah menolak, membatalkan, atau menyetujui apa pun secara otomatis. Dokumen yang
+     * sudah lewat tenggat hanya diberi tanda, karena yang bermasalah di praktiknya bukan dokumen
+     * yang ditolak, melainkan dokumen yang tidak pernah disentuh siapa pun.
+     */
+    'documents' => [
+        'sla_days' => (int) env('FNB_DOCUMENT_SLA_DAYS', 3),
+    ],
+
     'inventory' => [
         // Potong stok penjualan dijalankan setelah respons HTTP terkirim (SRS §7.3) agar sinkronisasi POS tetap cepat.
         // Di konsol (seeder, perintah, test) posting langsung dijalankan kecuali opsi ini diaktifkan.

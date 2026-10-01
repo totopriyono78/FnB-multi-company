@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Modules\Accounting\Http\Controllers;
+namespace App\Modules\Shared\Http\Controllers;
 
-use App\Modules\Accounting\Domain\Models\JournalAttachment;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Shared\Application\AttachmentStore;
+use App\Modules\Shared\Domain\Models\DocumentAttachment;
 use App\Modules\Shared\Http\Controller;
 use App\Modules\Tenancy\Application\TenantContext;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Mengunduh bukti yang dilampirkan pada jurnal.
+ * Mengunduh bukti yang dilampirkan pada dokumen: jurnal, SPPK, advis bayar.
  *
  * Kebalikan dari `MediaController`: **berotentikasi dan diperiksa per entitas**. Foto nota memuat
  * nama pihak, nominal, kadang NPWP — nama berkas acak saja tidak cukup, karena tautan yang bocor
@@ -28,10 +28,15 @@ class AttachmentController extends Controller
     public function show(string $attachment): Response|StreamedResponse
     {
         $user = auth()->user();
-        abort_unless($user instanceof User && $user->can('accounting.view'), 403);
+        /*
+         * Bukti dipakai dua dunia: jurnal (akuntansi) dan dokumen pembayaran. Siapa pun yang
+         * berwenang pada salah satunya boleh mengunduh buktinya — pembatasan per entitas dan
+         * per berkas tetap berlaku di bawah.
+         */
+        abort_unless($user instanceof User && ($user->can('accounting.view') || $user->can('payment.view')), 403);
 
-        /** @var JournalAttachment|null $row */
-        $row = JournalAttachment::query()->find($attachment);
+        /** @var DocumentAttachment|null $row */
+        $row = DocumentAttachment::query()->find($attachment);
         abort_if($row === null, 404);
 
         /*

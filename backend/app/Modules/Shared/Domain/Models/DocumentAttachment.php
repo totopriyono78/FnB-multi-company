@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Accounting\Domain\Models;
+namespace App\Modules\Shared\Domain\Models;
 
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Domain\Concerns\BelongsToCompany;
@@ -10,14 +10,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Bukti yang menyertai sebuah jurnal (ACC-05): foto nota, bukti transfer, kontrak.
+ * Bukti yang menyertai sebuah dokumen (DOC-01): foto nota, bukti transfer, faktur, kontrak.
  *
- * Berkasnya **tidak disajikan publik** seperti foto menu — foto nota memuat nama, nominal, dan
- * kadang NPWP. Pengunduhannya lewat rute berotentikasi yang memeriksa entitas dan izin.
+ * Pemiliknya polimorfik tetapi **tidak memakai relasi morph Eloquent** — `owner_type` diisi kata
+ * pendek ('journal', 'payment_request', 'payment_advice'), bukan nama kelas. Nama kelas yang
+ * tersimpan di basis data membuat setiap pemindahan berkas PHP menjadi migrasi data; kata pendek
+ * bertahan selama nama bisnisnya bertahan.
+ *
+ * Berkasnya tidak pernah disajikan publik: foto nota memuat nama pihak, nominal, kadang NPWP.
  *
  * @property string $id
  * @property string $company_id
- * @property string $journal_id
+ * @property string $owner_type
+ * @property string $owner_id
  * @property string $path
  * @property string $original_name
  * @property string $mime
@@ -25,10 +30,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $uploaded_by
  * @property CarbonImmutable $created_at
  */
-class JournalAttachment extends Model
+class DocumentAttachment extends Model
 {
     use BelongsToCompany;
     use HasUuids;
+
+    public const JOURNAL = 'journal';
+
+    public const PAYMENT_REQUEST = 'payment_request';
+
+    public const PAYMENT_ADVICE = 'payment_advice';
 
     public $timestamps = false;
 
@@ -37,12 +48,6 @@ class JournalAttachment extends Model
     protected function casts(): array
     {
         return ['created_at' => 'immutable_datetime', 'size_bytes' => 'integer'];
-    }
-
-    /** @return BelongsTo<Journal, $this> */
-    public function journal(): BelongsTo
-    {
-        return $this->belongsTo(Journal::class);
     }
 
     /** @return BelongsTo<User, $this> */

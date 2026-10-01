@@ -1468,3 +1468,48 @@ a.fi-wi-stats-overview-stat:hover {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
+
+/*
+ * Antrian verifikasi dokumen (DOC-07).
+ *
+ * Tiap butir memakai tiga baris sejajar, bukan tabel: isinya panjang-pendeknya tidak seragam
+ * (keperluan bisa satu kata atau satu kalimat), dan tabel dengan kolom selebar isi terpanjang
+ * membuat antrian sepuluh dokumen tidak muat satu layar. Yang dicari di antrian adalah "mana yang
+ * harus saya buka", bukan membandingkan angka antar baris.
+ */
+.fnb-queue {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fnb-space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fnb-queue__item {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--fnb-space-1) / 2);
+    padding-inline-start: var(--fnb-space-3);
+    border-inline-start: 3px solid rgb(var(--gray-200));
+}
+
+.fnb-queue__item > a {
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Lewat tenggat ditandai dengan garis, bukan dengan warna tulisan: dokumen yang terlambat tetap
+   harus mudah dibaca, dan garis tepi terlihat bahkan oleh mata yang sulit membedakan warna. */
+.fnb-queue__item--late {
+    border-inline-start-color: rgb(var(--danger-500));
+}
+
+.dark .fnb-queue__item {
+    border-inline-start-color: rgb(var(--gray-700));
+}
+
+.dark .fnb-queue__item--late {
+    border-inline-start-color: rgb(var(--danger-400));
+}

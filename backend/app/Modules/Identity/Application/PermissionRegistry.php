@@ -64,6 +64,17 @@ final class PermissionRegistry
             'accounting.manage' => 'Kelola akuntansi',
             'accounting.view' => 'Lihat akuntansi',
         ],
+        /*
+         * Dokumen pembayaran (Kelompok 4). Kewenangan MENYETUJUI sengaja TIDAK berupa izin:
+         * ia ditentukan matriks batas wewenang (DOC-09) yang menyebut peran per tingkat per nilai.
+         * Dua sistem kewenangan yang saling tumpang tindih hanya akan saling membatalkan — yang
+         * satu mengizinkan, yang lain menolak, dan tidak ada yang tahu mana yang berlaku.
+         */
+        'document' => [
+            'payment.request' => 'Ajukan pembayaran (SPPK)',
+            'payment.pay' => 'Terbitkan advis bayar',
+            'payment.view' => 'Lihat dokumen pembayaran',
+        ],
         'audit' => [
             'audit.view' => 'Lihat audit log',
         ],
@@ -78,6 +89,7 @@ final class PermissionRegistry
         'company.manage', 'subscription.manage', 'brand.manage', 'outlet.manage', 'device.manage',
         'user.manage', 'user.manage_outlet', 'role.manage', 'menu.manage', 'inventory.manage',
         'inventory.approve_count', 'purchasing.manage', 'purchasing.approve', 'accounting.manage', 'accounting.view', 'audit.view',
+        'payment.pay', 'payment.view',
         'pos.void', 'pos.discount', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
         'report.sales.company', 'report.sales.brand', 'report.sales.outlet',
     ];
@@ -88,6 +100,8 @@ final class PermissionRegistry
         'report.sales.company' => ['report.sales.brand', 'report.sales.outlet'],
         'report.sales.brand' => ['report.sales.outlet'],
         'accounting.manage' => ['accounting.view'],
+        'payment.request' => ['payment.view'],
+        'payment.pay' => ['payment.view'],
         'inventory.manage' => ['inventory.view'],
         'purchasing.manage' => ['purchasing.view', 'purchasing.request'],
     ];
@@ -136,9 +150,15 @@ final class PermissionRegistry
             'owner' => [
                 'label' => 'Pemilik',
                 'max_discount' => '100',
+                /*
+                 * Pemilik melihat semuanya dan bisa menyetujui lewat matriks, tetapi tidak
+                 * mengajukan dan tidak menerbitkan advis bayar sendiri — sama alasannya dengan
+                 * accounting.manage: yang menyatakan angkanya benar sebaiknya bukan yang
+                 * menyetujuinya.
+                 */
                 'permissions' => array_values(array_diff($all, [
                     'pos.transact', 'pos.shift', 'kds.use', 'accounting.manage', 'user.manage_outlet',
-                    'report.sales.own_shift', 'purchasing.request',
+                    'report.sales.own_shift', 'purchasing.request', 'payment.request', 'payment.pay',
                 ])),
             ],
             'company_admin' => [
@@ -151,7 +171,7 @@ final class PermissionRegistry
                     'pos.discount', 'pos.void', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
                     'inventory.manage', 'inventory.approve_count', 'inventory.view',
                     'purchasing.manage', 'purchasing.approve', 'purchasing.view',
-                    'report.sales.company', 'audit.view',
+                    'report.sales.company', 'audit.view', 'payment.view',
                 ],
             ],
             'brand_manager' => [
@@ -170,6 +190,9 @@ final class PermissionRegistry
                     'pos.transact', 'pos.shift', 'pos.discount', 'pos.void', 'pos.open_drawer',
                     'pos.price_override', 'pos.end_of_day', 'kds.use', 'inventory.manage', 'inventory.approve_count', 'inventory.view',
                     'purchasing.request', 'report.sales.outlet', 'report.sales.own_shift', 'audit.view',
+                    // Daftar peran di berkas ini ditulis UTUH, tidak mengandalkan IMPLIES: IMPLIES
+                    // hanya dipakai GrantGuard untuk menilai siapa boleh memberikan izin apa.
+                    'payment.request', 'payment.view',
                 ],
             ],
             'cashier' => [
@@ -193,6 +216,7 @@ final class PermissionRegistry
                 'permissions' => [
                     'company.view', 'subscription.view', 'inventory.view', 'purchasing.view',
                     'report.sales.company', 'accounting.manage', 'accounting.view', 'audit.view',
+                    'payment.request', 'payment.pay', 'payment.view',
                 ],
             ],
         ];
