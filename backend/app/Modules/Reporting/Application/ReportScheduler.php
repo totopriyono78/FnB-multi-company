@@ -42,7 +42,13 @@ class ReportScheduler
 
     public function canUse(User $user): bool
     {
-        return $this->access->can($user, ReportAccess::SALES) || $this->access->can($user, ReportAccess::INVENTORY);
+        // Finance yang hanya memegang izin pembukuan tetap boleh menjadwalkan paket laporan keuangan
+        // (FIN-08) — tanpa baris ini ia bisa membuka laporannya tetapi tidak bisa menjadwalkannya,
+        // dan justru penjadwalan itulah yang membuat janji "LK tiap dua hari" tidak bergantung pada
+        // ingatan seseorang.
+        return $this->access->can($user, ReportAccess::SALES)
+            || $this->access->can($user, ReportAccess::INVENTORY)
+            || $this->access->can($user, ReportAccess::ACCOUNTING);
     }
 
     public function canViewAll(User $user): bool

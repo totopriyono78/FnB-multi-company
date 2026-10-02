@@ -10,6 +10,7 @@ use App\Modules\Documents\Domain\Models\PaymentRequest;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Shared\Support\DocumentNumber;
 use App\Modules\Tenancy\Application\TenantContext;
+use App\Modules\Treasury\Application\PayableService;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +103,14 @@ class PaymentAdviceService
                 // sudah diposting — posting adalah urusan pembukuan, bukan urusan uangnya.
                 'status' => $terbayar->isGreaterThanOrEqualTo($locked->amount) ? PaymentRequest::PAID : $locked->status,
             ])->save();
+
+            /*
+             * Bila SPPK-nya menunjuk faktur pembelian, pembayaran ini dialokasikan ke faktur-faktur
+             * itu (Kelompok 5). Dipanggil di dalam transaksi yang sama supaya tidak pernah ada
+             * keadaan "uang sudah keluar tetapi hutangnya masih utuh" — keadaan yang akan terbaca
+             * sebagai tagihan yang belum dibayar, dan dibayar dua kali.
+             */
+            app(PayableService::class)->allocateAdvice($advice);
 
             $this->audit->log('payment_advice.issued', $advice, new: [
                 'number' => $advice->number, 'request' => $locked->number,

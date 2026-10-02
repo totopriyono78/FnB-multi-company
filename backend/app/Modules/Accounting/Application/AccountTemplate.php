@@ -45,6 +45,12 @@ final class AccountTemplate
             self::leaf('1201', 'Piutang Settlement Kartu', Account::ASSET, '1200', system: true),
             self::leaf('1202', 'Piutang Settlement QRIS & E-Wallet', Account::ASSET, '1200', system: true),
             self::leaf('1210', 'Piutang Usaha', Account::ASSET, '1200'),
+            /*
+             * PPN masukan adalah ASET, bukan beban: ia pajak yang dibayar ke supplier dan dapat
+             * dikreditkan terhadap PPN keluaran. Entitas yang belum PKP tidak memakainya sama sekali
+             * — PPN-nya menjadi bagian harga perolehan — dan akun ini tinggal diam di bagan akun.
+             */
+            self::leaf('1220', 'PPN Masukan', Account::ASSET, '1200', system: true),
             self::head('1300', 'Persediaan', Account::ASSET, '1000'),
             self::leaf('1301', 'Persediaan Bahan Baku', Account::ASSET, '1300'),
             self::head('1400', 'Biaya Dibayar Dimuka', Account::ASSET, '1000'),

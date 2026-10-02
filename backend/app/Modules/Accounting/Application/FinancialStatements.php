@@ -165,6 +165,78 @@ class FinancialStatements
     }
 
     /**
+     * Laporan Perubahan Ekuitas (FIN-04).
+     *
+     * Bentuknya sengaja sesederhana mungkin dan menjawab satu pertanyaan: **kenapa ekuitas berubah
+     * sebanyak itu?** Jawabannya selalu tiga hal — laba periode ini, setoran pemilik, dan pengambilan
+     * pemilik — dan laporan ini memisahkan ketiganya.
+     *
+     * Saldo awalnya memuat seluruh laba yang belum ditutup sejak jurnal pertama, sama seperti baris
+     * "Laba (Rugi) Berjalan" di Neraca. Itu dikatakan di catatan kaki, bukan disembunyikan: selama
+     * tutup buku tahunan belum ada, menyebutnya "laba tahun berjalan" akan menyesatkan.
+     */
+    public function equityChanges(CarbonImmutable $from, CarbonImmutable $to): ReportTable
+    {
+        $sebelum = $this->balances(null, $from->subDay());
+        $sampai = $this->balances(null, $to);
+        $periode = $this->balances($from, $to);
+
+        $awal = $this->total($sebelum, [Account::EQUITY])->plus($this->profit($sebelum));
+        $akhir = $this->total($sampai, [Account::EQUITY])->plus($this->profit($sampai));
+        $laba = $this->profit($periode);
+
+        $rows = [$this->line('', 'Ekuitas awal periode', $awal, 'subtotal')];
+        $rows[] = $this->line('', 'Laba (rugi) periode berjalan', $laba, 'item');
+
+        /*
+         * Mutasi akun ekuitas selama periode, satu baris per akun. Yang muncul di sini adalah setoran
+         * modal dan prive — bukan laba, karena laba tidak pernah menyentuh akun ekuitas sampai tutup
+         * buku dilakukan.
+         */
+        $mutasi = BigDecimal::zero();
+        foreach ($periode as $akun) {
+            if ($akun['type'] !== Account::EQUITY || $akun['amount']->isZero()) {
+                continue;
+            }
+            $rows[] = $this->line($akun['code'], $akun['name'], $akun['amount'], 'item');
+            $mutasi = $mutasi->plus($akun['amount']);
+        }
+        if ($mutasi->isZero()) {
+            $rows[] = $this->line('', 'Tidak ada setoran maupun pengambilan pemilik', BigDecimal::zero(), 'item');
+        }
+
+        $rows[] = $this->line('', 'EKUITAS AKHIR PERIODE', $akhir, 'result');
+
+        // Pemeriksaan diri: awal + laba + mutasi harus sama dengan akhir.
+        $selisih = $akhir->minus($awal->plus($laba)->plus($mutasi));
+
+        return new ReportTable(
+            key: 'perubahan-ekuitas',
+            title: 'Laporan Perubahan Ekuitas',
+            subtitle: $from->translatedFormat('d M Y').' – '.$to->translatedFormat('d M Y'),
+            columns: [
+                'name' => ['label' => 'Keterangan', 'type' => ReportTable::TEXT],
+                'amount' => ['label' => 'Nilai', 'type' => ReportTable::MONEY],
+            ],
+            rows: $rows,
+            summary: [
+                ['label' => 'Ekuitas awal', 'value' => (string) $awal->toScale(2), 'type' => ReportTable::MONEY],
+                ['label' => 'Laba periode', 'value' => (string) $laba->toScale(2), 'type' => ReportTable::MONEY],
+                ['label' => 'Ekuitas akhir', 'value' => (string) $akhir->toScale(2), 'type' => ReportTable::MONEY],
+            ],
+            notes: array_values(array_filter([
+                'Hanya jurnal yang sudah diposting yang dihitung.',
+                'Ekuitas awal sudah memuat seluruh laba yang belum ditutup sejak jurnal pertama, '
+                    .'karena tutup buku tahunan belum tersedia.',
+                'Prive (pengambilan pemilik) tampil negatif karena ia mengurangi ekuitas.',
+                $selisih->isZero() ? null
+                    : 'PERINGATAN: ekuitas akhir tidak sama dengan awal ditambah laba dan mutasi (selisih '
+                        .ReportTable::rupiah((string) $selisih->toScale(2)).'). Laporkan temuan ini.',
+            ])),
+        );
+    }
+
+    /**
      * Tulis satu kelompok akun ke `$rows` dan kembalikan jumlahnya.
      *
      * @param  list<array<string, string|int|null>>  $rows

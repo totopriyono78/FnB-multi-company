@@ -104,11 +104,21 @@ test('finance memasang bagan akun, menjurnal, memposting, dan membaca neraca sal
     await expect(tabel).toContainText('1110');
     await expect(tabel).toContainText('3101');
 
+    /*
+     * Janji terpenting sebuah neraca saldo: sisi debit dan kredit sama besar. Dibandingkan sebagai
+     * NILAI, bukan dengan mencari satu angka tertentu — data demo memuat jurnal lain di periode yang
+     * sama, dan uji yang mematok angka hanya akan gagal setiap kali data demo bertambah, pada hal
+     * yang sama sekali bukan kesalahan.
+     */
     const total = tabel.locator('tfoot tr');
-    await expect(total).toContainText('Rp5.000.000');
-    // Janji terpenting sebuah neraca saldo: sisi debit dan kredit sama besar.
-    const angka = (await total.textContent()).match(/Rp5\.000\.000/g) ?? [];
-    expect(angka.length, 'debit dan kredit harus sama-sama muncul di baris total').toBeGreaterThanOrEqual(4);
+    const selTotal = (await total.locator('td').allTextContents()).filter((t) => t.trim() !== '');
+    expect(selTotal.length, 'baris total harus memuat pasangan debit & kredit').toBeGreaterThanOrEqual(2);
+    expect(selTotal.length % 2, 'kolom angka selalu berpasangan debit–kredit').toBe(0);
+    for (let i = 0; i < selTotal.length; i += 2) {
+        expect(selTotal[i], `pasangan kolom ke-${i / 2 + 1} harus sama besar`).toBe(selTotal[i + 1]);
+    }
+    // Dan jurnal yang baru saja dibuat memang ikut terhitung.
+    await expect(tabel).toContainText('Rp5.000.000');
 
     await expect(page.getByRole('button', { name: 'Ekspor' })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/52-neraca-saldo.png`, fullPage: true });
@@ -132,8 +142,12 @@ test('finance memasang bagan akun, menjurnal, memposting, dan membaca neraca sal
     const nilai = async (label) => (await neraca.locator('tr', { hasText: label }).first().locator('td').first().textContent()).trim();
     expect(await nilai('JUMLAH ASET')).toBe(await nilai('JUMLAH LIABILITAS & EKUITAS'));
     await expect(page.locator('.fnb-report-notes')).not.toContainText('PERINGATAN');
-    // Modal disetor 5 juta masuk sebagai ekuitas, bukan tersangkut di aset saja.
-    await expect(neraca.locator('tr.fnb-report-row--subtotal', { hasText: 'Jumlah Ekuitas' })).toContainText('Rp5.000.000');
+    /*
+     * Modal disetor 5 juta masuk sebagai ekuitas, bukan tersangkut di aset saja. Diperiksa pada
+     * BARIS AKUNNYA, bukan pada subtotal ekuitas: subtotal ikut memuat laba berjalan dari data demo,
+     * jadi mematoknya ke satu angka hanya akan gagal setiap kali data demo bertambah.
+     */
+    await expect(neraca.locator('tr', { hasText: '3101' })).toContainText('Rp5.000.000');
     await page.screenshot({ path: `${SHOTS}/54-neraca.png`, fullPage: true });
 });
 

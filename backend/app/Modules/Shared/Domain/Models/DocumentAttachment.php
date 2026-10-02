@@ -41,6 +41,10 @@ class DocumentAttachment extends Model
 
     public const PAYMENT_ADVICE = 'payment_advice';
 
+    public const PURCHASE_INVOICE = 'purchase_invoice';
+
+    public const SALES_INVOICE = 'sales_invoice';
+
     public $timestamps = false;
 
     protected $guarded = ['*'];

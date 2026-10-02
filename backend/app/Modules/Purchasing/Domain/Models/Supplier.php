@@ -21,6 +21,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $email
  * @property string|null $address
  * @property int $payment_term_days
+ * @property string|null $npwp
+ * @property bool $is_pkp
+ * @property string|null $bank_name
+ * @property string|null $bank_account_number
+ * @property string|null $bank_account_holder
  * @property string|null $notes
  * @property bool $is_active
  */
@@ -32,12 +37,16 @@ class Supplier extends Model
     use SoftDeletes;
     use TracksAuthor;
 
-    protected $fillable = ['code', 'name', 'contact_name', 'phone', 'email', 'address', 'payment_term_days', 'notes', 'is_active'];
+    protected $fillable = [
+        'code', 'name', 'contact_name', 'phone', 'email', 'address', 'payment_term_days',
+        'npwp', 'is_pkp', 'bank_name', 'bank_account_number', 'bank_account_holder',
+        'notes', 'is_active',
+    ];
 
-    protected $attributes = ['payment_term_days' => 0, 'is_active' => true];
+    protected $attributes = ['payment_term_days' => 0, 'is_pkp' => false, 'is_active' => true];
 
     protected function casts(): array
     {
-        return ['payment_term_days' => 'integer', 'is_active' => 'boolean'];
+        return ['payment_term_days' => 'integer', 'is_pkp' => 'boolean', 'is_active' => 'boolean'];
     }
 }

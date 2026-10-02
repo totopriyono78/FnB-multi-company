@@ -101,6 +101,9 @@ class AdminPanelProvider extends PanelProvider
                 // Dokumen berdiri sendiri, bukan di dalam Akuntansi: yang membuka SPPK sehari-hari
                 // adalah manajer outlet yang tidak punya dan tidak butuh akses pembukuan.
                 NavigationGroup::make('Dokumen'),
+                // Kas, bank, hutang & piutang berdiri sendiri: yang membukanya tiap hari adalah
+                // finance yang mengurus uang, bukan yang menyusun laporan.
+                NavigationGroup::make('Kas & Hutang'),
                 NavigationGroup::make('Akuntansi (Prototipe)'),
                 NavigationGroup::make('Pengguna & Akses'),
                 NavigationGroup::make('Keamanan'),

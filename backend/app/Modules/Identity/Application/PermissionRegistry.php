@@ -75,6 +75,18 @@ final class PermissionRegistry
             'payment.pay' => 'Terbitkan advis bayar',
             'payment.view' => 'Lihat dokumen pembayaran',
         ],
+        /*
+         * Kas, bank, hutang & piutang (Kelompok 5). Rekonsiliasi dipisahkan dari pencatatan dengan
+         * sengaja: mencatat uang keluar dan menyatakan "catatan ini sudah cocok dengan rekening
+         * koran" adalah dua pekerjaan yang saling memeriksa. Entitas yang orangnya cukup bisa
+         * memisahkannya; yang tidak cukup, cukup memberikan keduanya ke orang yang sama — tetapi
+         * pilihannya ada, dan itu gunanya dipisah.
+         */
+        'treasury' => [
+            'treasury.manage' => 'Catat mutasi kas, faktur pembelian & tagihan',
+            'treasury.reconcile' => 'Rekonsiliasi bank',
+            'treasury.view' => 'Lihat kas, bank, hutang & piutang',
+        ],
         'audit' => [
             'audit.view' => 'Lihat audit log',
         ],
@@ -90,6 +102,7 @@ final class PermissionRegistry
         'user.manage', 'user.manage_outlet', 'role.manage', 'menu.manage', 'inventory.manage',
         'inventory.approve_count', 'purchasing.manage', 'purchasing.approve', 'accounting.manage', 'accounting.view', 'audit.view',
         'payment.pay', 'payment.view',
+        'treasury.manage', 'treasury.reconcile', 'treasury.view',
         'pos.void', 'pos.discount', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
         'report.sales.company', 'report.sales.brand', 'report.sales.outlet',
     ];
@@ -102,6 +115,8 @@ final class PermissionRegistry
         'accounting.manage' => ['accounting.view'],
         'payment.request' => ['payment.view'],
         'payment.pay' => ['payment.view'],
+        'treasury.manage' => ['treasury.view'],
+        'treasury.reconcile' => ['treasury.view'],
         'inventory.manage' => ['inventory.view'],
         'purchasing.manage' => ['purchasing.view', 'purchasing.request'],
     ];
@@ -159,6 +174,7 @@ final class PermissionRegistry
                 'permissions' => array_values(array_diff($all, [
                     'pos.transact', 'pos.shift', 'kds.use', 'accounting.manage', 'user.manage_outlet',
                     'report.sales.own_shift', 'purchasing.request', 'payment.request', 'payment.pay',
+                    'treasury.manage', 'treasury.reconcile',
                 ])),
             ],
             'company_admin' => [
@@ -171,7 +187,7 @@ final class PermissionRegistry
                     'pos.discount', 'pos.void', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
                     'inventory.manage', 'inventory.approve_count', 'inventory.view',
                     'purchasing.manage', 'purchasing.approve', 'purchasing.view',
-                    'report.sales.company', 'audit.view', 'payment.view',
+                    'report.sales.company', 'audit.view', 'payment.view', 'treasury.view',
                 ],
             ],
             'brand_manager' => [
@@ -217,6 +233,7 @@ final class PermissionRegistry
                     'company.view', 'subscription.view', 'inventory.view', 'purchasing.view',
                     'report.sales.company', 'accounting.manage', 'accounting.view', 'audit.view',
                     'payment.request', 'payment.pay', 'payment.view',
+                    'treasury.manage', 'treasury.reconcile', 'treasury.view',
                 ],
             ],
         ];

@@ -54,9 +54,23 @@ class SupplierResource extends Resource
                 TextInput::make('phone')->label('Telepon / WhatsApp')->tel()->maxLength(20)->regex('/^[0-9+\-() ]{6,20}$/'),
                 TextInput::make('email')->label('Email')->email()->maxLength(120),
                 Textarea::make('address')->label('Alamat')->rows(2)->maxLength(300)->columnSpan(2),
-                TextInput::make('payment_term_days')->label('Tempo pembayaran')->integer()->minValue(0)->maxValue(365)->default(0)->suffix('hari'),
+                TextInput::make('payment_term_days')->label('Tempo pembayaran')->integer()->minValue(0)->maxValue(365)->default(0)->suffix('hari')
+                    ->helperText('Dipakai menghitung jatuh tempo faktur pembelian.'),
                 Textarea::make('notes')->label('Catatan')->rows(2)->maxLength(300)->columnSpan(2),
                 Toggle::make('is_active')->label('Aktif')->default(true)->inline(false),
+            ]),
+            /*
+             * Data pajak & rekening (AP-01). Status PKP di sini menentukan NILAI BAWAAN saklar
+             * "ada faktur pajak" saat faktur pembelian dibuat — itulah yang membuat perlakuan PPN
+             * campuran bisa dipakai tanpa menuntut orang entry mengingat aturan pajak tiap supplier.
+             */
+            Section::make('Pajak & rekening')->columns(3)->collapsed()->schema([
+                TextInput::make('npwp')->label('NPWP')->maxLength(25),
+                Toggle::make('is_pkp')->label('PKP (berfaktur pajak)')->default(false)->inline(false)
+                    ->helperText('Menentukan bawaan PPN masukan pada faktur pembelian.'),
+                TextInput::make('bank_name')->label('Bank')->maxLength(100),
+                TextInput::make('bank_account_number')->label('Nomor rekening')->maxLength(50),
+                TextInput::make('bank_account_holder')->label('Atas nama')->maxLength(100)->columnSpan(2),
             ]),
         ]);
     }
@@ -69,6 +83,10 @@ class SupplierResource extends Resource
                 TextColumn::make('name')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('contact_name')->label('Kontak')->placeholder('-')->description(fn (Supplier $r) => $r->phone),
                 TextColumn::make('payment_term_days')->label('Tempo')->formatStateUsing(fn (int $state) => $state === 0 ? 'Tunai' : "{$state} hari"),
+                TextColumn::make('is_pkp')->label('PKP')->badge()
+                    ->formatStateUsing(fn (bool $state) => $state ? 'PKP' : '-')
+                    ->color(fn (bool $state) => $state ? 'info' : 'gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('is_active')->label('Status')->badge()
                     ->formatStateUsing(fn (bool $state) => $state ? 'Aktif' : 'Nonaktif')
                     ->color(fn (bool $state) => $state ? 'success' : 'gray'),

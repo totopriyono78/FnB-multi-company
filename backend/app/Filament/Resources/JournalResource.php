@@ -175,12 +175,19 @@ class JournalResource extends Resource
                         Journal::DRAFT => 'warning',
                         default => 'gray',
                     }),
-                TextColumn::make('source')->label('Sumber')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('source')->label('Sumber')->badge()->color('gray')
+                    // Sumber jurnal ditampilkan sebagai nama, bukan kode: "Pembayaran (advis bayar)"
+                    // menjawab pertanyaan pemeriksa; "payment" hanya menjawabnya bagi yang sudah tahu.
+                    ->formatStateUsing(fn (string $state) => Journal::SOURCE_LABEL[$state] ?? $state)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('creator.name')->label('Dibuat oleh')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('journal_date', 'desc')
             ->filters([
                 SelectFilter::make('status')->label('Status')->options(Journal::STATUS_LABEL),
+                // FIN-06: menyaring per sumber adalah pertanyaan pertama pemeriksa — "tunjukkan
+                // semua jurnal yang lahir dari pembayaran" tidak bisa dijawab dari daftar campur.
+                SelectFilter::make('source')->label('Sumber')->options(Journal::SOURCE_LABEL),
                 Filter::make('periode')
                     ->form([
                         DatePicker::make('from')->label('Dari tanggal'),
@@ -271,7 +278,8 @@ class JournalResource extends Resource
                 TextEntry::make('journal_date')->label('Tanggal')->date('d M Y'),
                 TextEntry::make('status')->label('Status')->badge()
                     ->formatStateUsing(fn (string $state) => Journal::STATUS_LABEL[$state] ?? $state),
-                TextEntry::make('source')->label('Sumber'),
+                TextEntry::make('source')->label('Sumber')
+                    ->formatStateUsing(fn (string $state) => Journal::SOURCE_LABEL[$state] ?? $state),
                 TextEntry::make('description')->label('Keterangan')->columnSpanFull(),
                 TextEntry::make('creator.name')->label('Dibuat oleh')->placeholder('-'),
                 TextEntry::make('submitter.name')->label('Diajukan oleh')->placeholder('-'),

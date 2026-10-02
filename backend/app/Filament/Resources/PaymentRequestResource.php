@@ -19,6 +19,8 @@ use App\Modules\Shared\Application\AttachmentStore;
 use App\Modules\Shared\Application\DocumentAttachments;
 use App\Modules\Shared\Domain\Models\DocumentAttachment;
 use App\Modules\Tenancy\Domain\Models\Outlet;
+use App\Modules\Treasury\Application\PurchaseInvoiceService;
+use App\Modules\Treasury\Domain\Models\PurchaseInvoice;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
@@ -29,6 +31,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\ViewEntry;
@@ -123,11 +126,44 @@ class PaymentRequestResource extends Resource
                 // kolom nama yang bisa berbeda isinya hanya mengundang pertanyaan mana yang benar.
                 ->visible(fn (Get $get) => ($get('supplier_id') ?? '') === '')
                 ->required(fn (Get $get) => ($get('supplier_id') ?? '') === ''),
+            /*
+             * Pelunasan faktur pembelian (AP-03). Memilih faktur di sini mengisi sendiri nilainya dan
+             * memindahkan akunnya ke Utang Usaha — karena bebannya sudah diakui saat faktur
+             * diterbitkan, dan membebankannya lagi saat dibayar berarti mencatat satu pengeluaran
+             * dua kali. Itu kesalahan yang paling mudah terjadi dan paling sulit ditemukan, jadi
+             * layar ini yang mengurusnya, bukan ingatan orang.
+             */
+            /*
+             * TIDAK dipasangi ->dehydrated(false): kolom ini memang bukan milik model, tetapi
+             * halaman Create/Edit-lah yang menyimpannya ke tabel alokasi, dan ia hanya bisa
+             * melakukannya kalau isiannya ikut sampai ke sana. Layanan SPPK mengabaikan kunci yang
+             * tidak dikenalnya, jadi ikut terbawa tidak merusak apa pun.
+             */
+            Select::make('invoice_ids')->label('Melunasi faktur')->multiple()->searchable()->live()
+                ->visible(fn (Get $get) => ($get('supplier_id') ?? '') !== '')
+                ->helperText('Hanya faktur supplier ini yang belum lunas. Kosongkan untuk pembayaran tanpa faktur.')
+                ->options(fn (Get $get) => self::openInvoices((string) ($get('supplier_id') ?? '')))
+                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                    $ids = array_values(array_filter((array) $state));
+                    if ($ids === []) {
+                        return;
+                    }
+                    $total = BigDecimal::zero();
+                    foreach (PurchaseInvoice::query()->whereKey($ids)->get() as $invoice) {
+                        $total = $total->plus($invoice->outstanding());
+                    }
+                    $set('amount', (string) $total->toScale(2));
+                    $hutang = Account::query()->where('code', PurchaseInvoiceService::PAYABLE_CODE)->value('id');
+                    if (is_string($hutang)) {
+                        $set('expense_account_id', $hutang);
+                    }
+                })->columnSpan(2),
             TextInput::make('amount')->label('Nilai (Rp)')->numeric()->required()->minValue(1)->live(onBlur: true),
             Select::make('expense_account_id')->label('Dibebankan ke akun')->required()->searchable()
                 ->options(fn () => Account::query()->where('is_postable', true)->where('is_active', true)
                     ->orderBy('code')->get()->mapWithKeys(fn (Account $a) => [$a->id => $a->label()])->all())
-                ->helperText('Akun yang akan didebit saat pembayarannya dijurnal.'),
+                ->helperText('Akun yang akan didebit saat pembayarannya dijurnal. '
+                    .'Untuk pelunasan faktur, akun ini Utang Usaha — bukan akun beban.'),
             Textarea::make('description')->label('Keperluan')->required()->minLength(3)->maxLength(300)
                 ->rows(2)->columnSpanFull(),
             /*
@@ -157,6 +193,28 @@ class PaymentRequestResource extends Resource
         $daftar = array_map(fn (array $a) => "tingkat {$a['level']}: ".($peran[$a['role']] ?? $a['role']), $perlu);
 
         return count($perlu).' tanda tangan — '.implode(', ', $daftar).'.';
+    }
+
+    /**
+     * Faktur supplier ini yang masih berhutang, siap ditunjuk untuk dilunasi.
+     *
+     * @return array<string, string>
+     */
+    private static function openInvoices(string $supplierId): array
+    {
+        if ($supplierId === '') {
+            return [];
+        }
+
+        return PurchaseInvoice::query()
+            ->where('supplier_id', $supplierId)
+            ->where('status', PurchaseInvoice::ISSUED)
+            ->orderByRaw('due_date ASC NULLS LAST')
+            ->get()
+            ->mapWithKeys(fn (PurchaseInvoice $i) => [$i->id => $i->number
+                .' · '.($i->due_date?->translatedFormat('d M Y') ?? 'tanpa tempo')
+                .' · sisa '.MenuFields::rupiah((string) $i->outstanding()->toScale(2))])
+            ->all();
     }
 
     public static function table(Table $table): Table

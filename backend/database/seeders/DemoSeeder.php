@@ -172,6 +172,7 @@ class DemoSeeder extends Seeder
             ]);
             $inventory->afterSales($kaliurang, $find('rudi@gtgroup.test'));
             (new DemoDocumentSeeder)->run();
+            (new DemoTreasurySeeder)->run();
         });
     }
 

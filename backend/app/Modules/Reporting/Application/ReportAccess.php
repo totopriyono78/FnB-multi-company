@@ -26,6 +26,15 @@ class ReportAccess
 
     public const INVENTORY = 'inventory';
 
+    /*
+     * Laporan akuntansi (FIN-08). Dijaga `accounting.view`, dan cakupan outletnya adalah seluruh
+     * outlet entitas — laporan keuangan memang laporan ENTITAS, bukan laporan outlet yang kebetulan
+     * bisa disaring. Memberinya cakupan per-user akan menghasilkan neraca yang tidak seimbang bagi
+     * orang yang hanya memegang sebagian outlet, dan neraca timpang jauh lebih buruk daripada
+     * laporan yang tidak boleh dibuka.
+     */
+    public const ACCOUNTING = 'accounting';
+
     public function __construct(
         private readonly SalesAccess $sales,
         private readonly InventoryAccess $inventory,
@@ -34,7 +43,11 @@ class ReportAccess
 
     public function can(User $user, string $kind): bool
     {
-        return $kind === self::INVENTORY ? $this->inventory->canView($user) : $this->sales->canView($user);
+        return match ($kind) {
+            self::INVENTORY => $this->inventory->canView($user),
+            self::ACCOUNTING => $user->can('accounting.view'),
+            default => $this->sales->canView($user),
+        };
     }
 
     /** @return list<string> */
@@ -42,6 +55,12 @@ class ReportAccess
     {
         if (! $this->can($user, $kind)) {
             return [];
+        }
+        if ($kind === self::ACCOUNTING) {
+            /** @var list<string> $semua */
+            $semua = Outlet::withTrashed()->pluck('id')->all();
+
+            return $semua;
         }
 
         return $this->scope->outletIds($user);

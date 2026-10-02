@@ -60,6 +60,23 @@ class Journal extends Model
 
     public const SOURCE_MANUAL = 'manual';
 
+    /**
+     * Dari mana sebuah jurnal berasal. Didaftarkan di satu tempat karena pertanyaan "jurnal ini
+     * datang dari mana" adalah pertanyaan pertama yang diajukan pemeriksa, dan jawabannya harus
+     * berupa daftar tertutup yang bisa disaring — bukan teks bebas yang hanya diketahui penulisnya.
+     */
+    public const SOURCE_LABEL = [
+        self::SOURCE_MANUAL => 'Jurnal manual',
+        'sales' => 'Penjualan',
+        'settlement' => 'Pencairan settlement',
+        'payment' => 'Pembayaran (advis bayar)',
+        'cash' => 'Kas & bank',
+        'purchase' => 'Faktur pembelian',
+        'receivable' => 'Tagihan keluar',
+        'recurring' => 'Jurnal berulang',
+        'opening' => 'Saldo awal',
+    ];
+
     protected $guarded = ['*'];
 
     protected function casts(): array

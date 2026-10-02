@@ -1513,3 +1513,36 @@ a.fi-wi-stats-overview-stat:hover {
 .dark .fnb-queue__item--late {
     border-inline-start-color: rgb(var(--danger-400));
 }
+
+/*
+ * Rekonsiliasi bank (CSH-04).
+ *
+ * Baris yang BELUM dicocokkan ditandai, bukan yang sudah. Pada rekonsiliasi yang sehat hampir
+ * semua baris cocok, jadi menandai yang cocok berarti mewarnai seluruh tabel dan menyembunyikan
+ * justru yang dicari. Penandanya garis tepi, bukan warna tulisan: ia tetap terlihat oleh mata yang
+ * sulit membedakan warna, dan tidak mengurangi keterbacaan angkanya.
+ */
+.fnb-recon__row--open > th[scope='row'] {
+    border-inline-start: 3px solid rgb(var(--warning-500));
+    padding-inline-start: var(--fnb-space-2);
+}
+
+.dark .fnb-recon__row--open > th[scope='row'] {
+    border-inline-start-color: rgb(var(--warning-400));
+}
+
+.fnb-recon__pick {
+    max-width: 22rem;
+}
+
+.fnb-recon__balance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--fnb-space-2);
+    margin-top: var(--fnb-space-3);
+}
+
+.fnb-recon__balance input {
+    max-width: 12rem;
+}

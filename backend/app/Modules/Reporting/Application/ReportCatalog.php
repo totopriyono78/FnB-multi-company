@@ -2,6 +2,14 @@
 
 namespace App\Modules\Reporting\Application;
 
+use App\Modules\Accounting\Application\CashFlowStatement;
+use App\Modules\Accounting\Application\FinancialStatements;
+use App\Modules\Accounting\Application\GeneralLedger;
+use App\Modules\Treasury\Application\CashAccountService;
+use App\Modules\Treasury\Application\CompletenessBoard;
+use App\Modules\Treasury\Application\PayableService;
+use App\Modules\Treasury\Application\ReceivableService;
+use App\Modules\Treasury\Application\VatRecapReport;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
@@ -13,6 +21,25 @@ use InvalidArgumentException;
 class ReportCatalog
 {
     public function __construct(private readonly Container $app) {}
+
+    /**
+     * Laporan akuntansi & kas yang dapat dijadwalkan (FIN-08).
+     *
+     * Urutannya disengaja: ini pula urutan yang masuk akal dibaca dalam satu paket laporan keuangan —
+     * laba rugi, neraca, arus kas, perubahan ekuitas, lalu lampiran pendukungnya.
+     */
+    public const ACCOUNTING_REPORTS = [
+        'accounting.income_statement' => 'Laba Rugi',
+        'accounting.balance_sheet' => 'Neraca',
+        'accounting.cash_flow' => 'Arus Kas',
+        'accounting.equity_changes' => 'Perubahan Ekuitas',
+        'accounting.trial_balance' => 'Neraca Saldo',
+        'accounting.payable_aging' => 'Umur Hutang Usaha',
+        'accounting.receivable_aging' => 'Umur Piutang Usaha',
+        'accounting.cash_position' => 'Posisi Kas & Bank',
+        'accounting.vat_recap' => 'Rekap PPN Masukan & Keluaran',
+        'accounting.completeness' => 'Papan Kelengkapan Entry',
+    ];
 
     /** @return array<string, array{label: string, group: string, kind: string}> */
     public static function all(): array
@@ -28,6 +55,16 @@ class ReportCatalog
         $out['gross_profit'] = ['label' => 'Laba kotor per outlet', 'group' => 'Keuangan', 'kind' => ReportAccess::SALES];
         foreach (InventoryReport::VIEWS as $view => $label) {
             $out['inventory.'.$view] = ['label' => 'Inventory — '.mb_strtolower($label), 'group' => 'Inventory', 'kind' => ReportAccess::INVENTORY];
+        }
+
+        /*
+         * Laporan akuntansi & kas (FIN-08). Didaftarkan di sini supaya ia mendapat seluruh mesin
+         * Tahap 5 secara cuma-cuma: ekspor Excel/PDF, API, dan yang terpenting — penjadwalan email.
+         * Itulah syarat janji "paket laporan keuangan tiap dua hari" bisa ditepati tanpa ada orang
+         * yang harus ingat mengirimnya.
+         */
+        foreach (self::ACCOUNTING_REPORTS as $key => $label) {
+            $out[$key] = ['label' => $label, 'group' => 'Akuntansi', 'kind' => ReportAccess::ACCOUNTING];
         }
 
         return $out;
@@ -73,7 +110,39 @@ class ReportCatalog
             'tax' => $this->app->make(TaxReport::class)->table($filter),
             'gross_profit' => $this->app->make(GrossProfitReport::class)->table($filter),
             'inventory' => $this->app->make(InventoryReport::class)->table($filter, (string) $variant),
+            'accounting' => $this->accounting((string) $variant, $filter),
             default => throw new InvalidArgumentException("Laporan tidak dikenal: {$key}"),
+        };
+    }
+
+    /**
+     * Susun satu laporan akuntansi/kas dari filter laporan yang sama dengan laporan lain.
+     *
+     * Laporan posisi (neraca, umur hutang/piutang, posisi kas) hanya memakai tanggal AKHIR filter:
+     * ia potret, bukan rentang. Pembanding neraca memakai awal periode, sehingga "1–31 Oktober"
+     * menghasilkan neraca per 31 Oktober dengan kolom pembanding per 30 September — persis yang
+     * dibutuhkan paket laporan bulanan.
+     */
+    private function accounting(string $variant, ReportFilter $filter): ReportTable
+    {
+        $from = $filter->from;
+        $to = $filter->to;
+        $outletId = $filter->outletId;
+
+        return match ($variant) {
+            'income_statement' => $this->app->make(FinancialStatements::class)
+                ->incomeStatement($from, $to, $outletId, $filter->brandId),
+            'balance_sheet' => $this->app->make(FinancialStatements::class)
+                ->balanceSheet($from->subDay(), $to),
+            'cash_flow' => $this->app->make(CashFlowStatement::class)->build($from, $to, $outletId),
+            'equity_changes' => $this->app->make(FinancialStatements::class)->equityChanges($from, $to),
+            'trial_balance' => $this->app->make(GeneralLedger::class)->trialBalance($from, $to),
+            'payable_aging' => $this->app->make(PayableService::class)->aging($to),
+            'receivable_aging' => $this->app->make(ReceivableService::class)->aging($to),
+            'cash_position' => $this->app->make(CashAccountService::class)->positions($to),
+            'vat_recap' => $this->app->make(VatRecapReport::class)->build($from, $to),
+            'completeness' => $this->app->make(CompletenessBoard::class)->build($from, $to),
+            default => throw new InvalidArgumentException("Laporan akuntansi tidak dikenal: {$variant}"),
         };
     }
 
