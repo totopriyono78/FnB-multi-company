@@ -87,6 +87,16 @@ final class PermissionRegistry
             'treasury.reconcile' => 'Rekonsiliasi bank',
             'treasury.view' => 'Lihat kas, bank, hutang & piutang',
         ],
+        /*
+         * Holding & konsolidasi (Kelompok 8). Dua izin ini sengaja TIDAK memberi akses apa pun ke
+         * transaksi anak usaha — dan itu bukan janji di kode, melainkan akibat bentuk datanya: hasil
+         * konsolidasi adalah data milik entitas holding, sehingga RLS PostgreSQL yang menolak
+         * pembacaan buku entitas lain, bukan pemeriksaan izin yang bisa terlupa di satu layar.
+         */
+        'consolidation' => [
+            'consolidation.manage' => 'Kelola grup, tarik saldo & entri eliminasi',
+            'consolidation.view' => 'Lihat kertas kerja & laporan konsolidasi',
+        ],
         'audit' => [
             'audit.view' => 'Lihat audit log',
         ],
@@ -103,6 +113,7 @@ final class PermissionRegistry
         'inventory.approve_count', 'purchasing.manage', 'purchasing.approve', 'accounting.manage', 'accounting.view', 'audit.view',
         'payment.pay', 'payment.view',
         'treasury.manage', 'treasury.reconcile', 'treasury.view',
+        'consolidation.manage', 'consolidation.view',
         'pos.void', 'pos.discount', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
         'report.sales.company', 'report.sales.brand', 'report.sales.outlet',
     ];
@@ -117,6 +128,7 @@ final class PermissionRegistry
         'payment.pay' => ['payment.view'],
         'treasury.manage' => ['treasury.view'],
         'treasury.reconcile' => ['treasury.view'],
+        'consolidation.manage' => ['consolidation.view'],
         'inventory.manage' => ['inventory.view'],
         'purchasing.manage' => ['purchasing.view', 'purchasing.request'],
     ];
@@ -174,7 +186,7 @@ final class PermissionRegistry
                 'permissions' => array_values(array_diff($all, [
                     'pos.transact', 'pos.shift', 'kds.use', 'accounting.manage', 'user.manage_outlet',
                     'report.sales.own_shift', 'purchasing.request', 'payment.request', 'payment.pay',
-                    'treasury.manage', 'treasury.reconcile',
+                    'treasury.manage', 'treasury.reconcile', 'consolidation.manage',
                 ])),
             ],
             'company_admin' => [
@@ -188,6 +200,7 @@ final class PermissionRegistry
                     'inventory.manage', 'inventory.approve_count', 'inventory.view',
                     'purchasing.manage', 'purchasing.approve', 'purchasing.view',
                     'report.sales.company', 'audit.view', 'payment.view', 'treasury.view',
+                    'consolidation.view',
                 ],
             ],
             'brand_manager' => [
@@ -234,7 +247,19 @@ final class PermissionRegistry
                     'report.sales.company', 'accounting.manage', 'accounting.view', 'audit.view',
                     'payment.request', 'payment.pay', 'payment.view',
                     'treasury.manage', 'treasury.reconcile', 'treasury.view',
+                    'consolidation.manage', 'consolidation.view',
                 ],
+            ],
+            /*
+             * Konsolidator (GRP-02): peran paling sempit di seluruh sistem, dan sengaja begitu. Ia
+             * mengerjakan angka grup dan TIDAK PERNAH melihat transaksi satu entitas pun — bukan
+             * karena layarnya disembunyikan, tetapi karena izin yang ia punya tidak menyentuh satu
+             * tabel transaksi pun.
+             */
+            'consolidator' => [
+                'label' => 'Konsolidator',
+                'max_discount' => '0',
+                'permissions' => ['company.view', 'consolidation.manage', 'consolidation.view'],
             ],
         ];
     }

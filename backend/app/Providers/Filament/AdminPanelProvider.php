@@ -104,6 +104,12 @@ class AdminPanelProvider extends PanelProvider
                 // Kas, bank, hutang & piutang berdiri sendiri: yang membukanya tiap hari adalah
                 // finance yang mengurus uang, bukan yang menyusun laporan.
                 NavigationGroup::make('Kas & Hutang'),
+                /*
+                 * Holding & konsolidasi berdiri paling jauh dari yang lain, dan itu disengaja: ia
+                 * hanya muncul bagi entitas holding, dan satu-satunya orang yang membukanya tidak
+                 * punya akses ke satu pun layar transaksi di atasnya.
+                 */
+                NavigationGroup::make('Holding & Konsolidasi'),
                 NavigationGroup::make('Akuntansi (Prototipe)'),
                 NavigationGroup::make('Pengguna & Akses'),
                 NavigationGroup::make('Keamanan'),
@@ -115,7 +121,15 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-computer-desktop')
                     ->group('Penjualan')
                     ->sort(99)
-                    ->visible(fn (): bool => (bool) config('fnb.pos_web', true)),
+                    /*
+                     * Dijaga izin, bukan hanya saklar fitur. Sebelumnya pintasan ini muncul bagi
+                     * SIAPA PUN yang bisa masuk back-office — termasuk finance, gudang, dan
+                     * konsolidator, yang tak satu pun bisa bertransaksi di POS. Aplikasinya memang
+                     * akan menolak mereka, tetapi menu yang menjanjikan sesuatu lalu menolaknya
+                     * adalah cara paling cepat membuat orang berhenti percaya pada menunya.
+                     */
+                    ->visible(fn (): bool => (bool) config('fnb.pos_web', true)
+                        && auth()->user()?->can('pos.transact') === true),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')

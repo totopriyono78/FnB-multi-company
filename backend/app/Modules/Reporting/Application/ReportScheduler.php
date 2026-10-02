@@ -48,7 +48,10 @@ class ReportScheduler
         // ingatan seseorang.
         return $this->access->can($user, ReportAccess::SALES)
             || $this->access->can($user, ReportAccess::INVENTORY)
-            || $this->access->can($user, ReportAccess::ACCOUNTING);
+            || $this->access->can($user, ReportAccess::ACCOUNTING)
+            // Konsolidator hanya memegang izin konsolidasi dan tidak ada lainnya; tanpa baris ini
+            // satu-satunya orang yang menyusun laporan grup justru tidak bisa menjadwalkannya.
+            || $this->access->can($user, ReportAccess::CONSOLIDATION);
     }
 
     public function canViewAll(User $user): bool

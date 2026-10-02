@@ -5,6 +5,8 @@ namespace App\Modules\Reporting\Application;
 use App\Modules\Accounting\Application\CashFlowStatement;
 use App\Modules\Accounting\Application\FinancialStatements;
 use App\Modules\Accounting\Application\GeneralLedger;
+use App\Modules\Consolidation\Application\ConsolidationReports;
+use App\Modules\Consolidation\Application\HoldingDashboard;
 use App\Modules\Treasury\Application\CashAccountService;
 use App\Modules\Treasury\Application\CompletenessBoard;
 use App\Modules\Treasury\Application\PayableService;
@@ -41,6 +43,20 @@ class ReportCatalog
         'accounting.completeness' => 'Papan Kelengkapan Entry',
     ];
 
+    /**
+     * Laporan grup (CON-06, CON-07, CON-09).
+     *
+     * Terdaftar di sini supaya ia mendapat mesin ekspor Excel/PDF dan jadwal email yang sama dengan
+     * laporan lain. Di entitas yang bukan holding, semua laporan ini kosong — bukan karena disaring,
+     * tetapi karena tidak ada satu pun proses konsolidasi yang terlihat dari sana.
+     */
+    public const CONSOLIDATION_REPORTS = [
+        'consolidation.worksheet' => 'Kertas Kerja Konsolidasi',
+        'consolidation.balance_sheet' => 'Neraca Konsolidasi',
+        'consolidation.income_statement' => 'Laba Rugi Konsolidasi',
+        'consolidation.dashboard' => 'Dasbor Holding — Kesiapan Tutup Buku',
+    ];
+
     /** @return array<string, array{label: string, group: string, kind: string}> */
     public static function all(): array
     {
@@ -65,6 +81,9 @@ class ReportCatalog
          */
         foreach (self::ACCOUNTING_REPORTS as $key => $label) {
             $out[$key] = ['label' => $label, 'group' => 'Akuntansi', 'kind' => ReportAccess::ACCOUNTING];
+        }
+        foreach (self::CONSOLIDATION_REPORTS as $key => $label) {
+            $out[$key] = ['label' => $label, 'group' => 'Holding & Konsolidasi', 'kind' => ReportAccess::CONSOLIDATION];
         }
 
         return $out;
@@ -111,6 +130,7 @@ class ReportCatalog
             'gross_profit' => $this->app->make(GrossProfitReport::class)->table($filter),
             'inventory' => $this->app->make(InventoryReport::class)->table($filter, (string) $variant),
             'accounting' => $this->accounting((string) $variant, $filter),
+            'consolidation' => $this->consolidation((string) $variant, $filter),
             default => throw new InvalidArgumentException("Laporan tidak dikenal: {$key}"),
         };
     }
@@ -143,6 +163,32 @@ class ReportCatalog
             'vat_recap' => $this->app->make(VatRecapReport::class)->build($from, $to),
             'completeness' => $this->app->make(CompletenessBoard::class)->build($from, $to),
             default => throw new InvalidArgumentException("Laporan akuntansi tidak dikenal: {$variant}"),
+        };
+    }
+
+    /**
+     * Laporan konsolidasi dari filter rentang tanggal yang sama dengan laporan lain.
+     *
+     * Jembatannya satu: rentang tanggal filter diterjemahkan menjadi satu proses konsolidasi.
+     * Angkanya tetap datang dari snapshot proses itu, bukan dibaca ulang dari buku besar — jadi
+     * laporan terjadwal tidak pernah menampilkan angka yang belum pernah ditarik dan diperiksa.
+     */
+    private function consolidation(string $variant, ReportFilter $filter): ReportTable
+    {
+        $reports = $this->app->make(ConsolidationReports::class);
+        $run = $reports->runForPeriod($filter->from, $filter->to);
+        $label = self::CONSOLIDATION_REPORTS['consolidation.'.$variant] ?? 'Laporan Konsolidasi';
+
+        if ($run === null) {
+            return $reports->missing($label, $filter->from, $filter->to);
+        }
+
+        return match ($variant) {
+            'worksheet' => $reports->worksheet($run),
+            'balance_sheet' => $reports->balanceSheet($run),
+            'income_statement' => $reports->incomeStatement($run),
+            'dashboard' => $this->app->make(HoldingDashboard::class)->build($run),
+            default => throw new InvalidArgumentException("Laporan konsolidasi tidak dikenal: {$variant}"),
         };
     }
 

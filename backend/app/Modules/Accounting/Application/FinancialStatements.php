@@ -55,8 +55,40 @@ class FinancialStatements
      */
     public function incomeStatement(CarbonImmutable $from, CarbonImmutable $to, ?string $outletId = null, ?string $brandId = null): ReportTable
     {
-        $saldo = $this->balances($from, $to, $outletId, $brandId);
+        return $this->incomeStatementFrom(
+            saldo: $this->balances($from, $to, $outletId, $brandId),
+            key: 'laba-rugi',
+            title: 'Laporan Laba Rugi',
+            subtitle: null,
+            filters: array_filter([
+                'Periode' => $from->format('d M Y').' – '.$to->format('d M Y'),
+                'Outlet' => $outletId === null ? null : (string) (Outlet::query()->whereKey($outletId)->value('name') ?? '—'),
+                'Brand' => $brandId === null ? null : (string) (Brand::query()->whereKey($brandId)->value('name') ?? '—'),
+            ]),
+            extraNotes: array_values(array_filter([
+                'Hanya jurnal yang sudah diposting yang dihitung; jurnal draft tidak ikut.',
+                $outletId === null && $brandId === null ? null
+                    : 'Disaring per dimensi: baris jurnal tanpa outlet/brand (mis. beban kantor pusat) tidak ikut di sini.',
+            ])),
+        );
+    }
 
+    /**
+     * Laba Rugi dari saldo yang sudah dihitung di tempat lain.
+     *
+     * Dipakai konsolidasi (CON-07), yang saldonya datang dari penjumlahan beberapa entitas dan bukan
+     * dari buku besar satu company. Memisahkannya seperti ini — alih-alih menulis ulang susunan
+     * laporannya di modul konsolidasi — menjaga agar aturan tanda per kelompok, urutan seksi,
+     * perhitungan laba kotor dan marjin hanya punya SATU tempat. Laporan konsolidasi yang sedikit
+     * berbeda susunannya dari laporan per entitas adalah laporan yang tidak bisa dibandingkan, dan
+     * membandingkan keduanya justru satu-satunya gunanya.
+     *
+     * @param  array<string, array{code: string, name: string, type: string, amount: BigDecimal}>  $saldo
+     * @param  array<string, string>  $filters
+     * @param  list<string>  $extraNotes
+     */
+    public function incomeStatementFrom(array $saldo, string $key, string $title, ?string $subtitle, array $filters, array $extraNotes = []): ReportTable
+    {
         $rows = [];
         $pendapatan = $this->section($rows, $saldo, [Account::REVENUE], 'PENDAPATAN', 'Jumlah Pendapatan');
         $hpp = $this->section($rows, $saldo, [Account::COGS], 'HARGA POKOK PENJUALAN', 'Jumlah Harga Pokok Penjualan');
@@ -74,19 +106,15 @@ class FinancialStatements
             : $bersih->multipliedBy(100)->dividedBy($pendapatan, 2, RoundingMode::HALF_UP);
 
         return new ReportTable(
-            key: 'laba-rugi',
-            title: 'Laporan Laba Rugi',
+            key: $key,
+            title: $title,
             columns: [
                 'name' => ['label' => 'Akun', 'type' => ReportTable::TEXT],
                 'amount' => ['label' => 'Jumlah', 'type' => ReportTable::MONEY],
             ],
             rows: $rows,
             totals: null,
-            filters: array_filter([
-                'Periode' => $from->format('d M Y').' – '.$to->format('d M Y'),
-                'Outlet' => $outletId === null ? null : (string) (Outlet::query()->whereKey($outletId)->value('name') ?? '—'),
-                'Brand' => $brandId === null ? null : (string) (Brand::query()->whereKey($brandId)->value('name') ?? '—'),
-            ]),
+            filters: $filters,
             summary: [
                 ['label' => 'Pendapatan', 'value' => (string) $pendapatan->toScale(2), 'type' => ReportTable::MONEY],
                 ['label' => 'Laba Kotor', 'value' => (string) $kotor->toScale(2), 'type' => ReportTable::MONEY],
@@ -94,13 +122,12 @@ class FinancialStatements
                 ['label' => 'Marjin Bersih', 'value' => (string) $margin, 'type' => ReportTable::PERCENT],
             ],
             notes: array_values(array_filter([
-                'Hanya jurnal yang sudah diposting yang dihitung; jurnal draft tidak ikut.',
+                ...$extraNotes,
                 'Akun lawan seperti Diskon dan Retur Penjualan tampil negatif karena ia mengurangi pendapatan.',
-                $outletId === null && $brandId === null ? null
-                    : 'Disaring per dimensi: baris jurnal tanpa outlet/brand (mis. beban kantor pusat) tidak ikut di sini.',
                 $pendapatan->isZero() && $bersih->isZero()
                     ? 'Belum ada pendapatan maupun beban terposting pada rentang ini.' : null,
             ])),
+            subtitle: $subtitle,
         );
     }
 
@@ -111,9 +138,32 @@ class FinancialStatements
      */
     public function balanceSheet(CarbonImmutable $pembanding, CarbonImmutable $per): ReportTable
     {
-        $kini = $this->balances(null, $per);
-        $dulu = $this->balances(null, $pembanding);
+        return $this->balanceSheetFrom(
+            kini: $this->balances(null, $per),
+            dulu: $this->balances(null, $pembanding),
+            key: 'neraca',
+            title: 'Neraca',
+            labelKini: 'Per '.$per->format('d M Y'),
+            labelDulu: 'Per '.$pembanding->format('d M Y'),
+            filters: ['Per tanggal' => $per->format('d M Y'), 'Pembanding' => $pembanding->format('d M Y')],
+            extraNotes: ['Hanya jurnal yang sudah diposting yang dihitung; jurnal draft tidak ikut.'],
+        );
+    }
 
+    /**
+     * Neraca dari saldo yang sudah dihitung di tempat lain; `$dulu` null berarti tanpa kolom pembanding.
+     *
+     * Dipakai konsolidasi (CON-07) dengan alasan yang sama seperti `incomeStatementFrom()`: susunan
+     * neraca, baris "Laba (Rugi) Berjalan" yang dihitung, dan pemeriksaan keseimbangannya hanya boleh
+     * punya satu tempat.
+     *
+     * @param  array<string, array{code: string, name: string, type: string, amount: BigDecimal}>  $kini
+     * @param  array<string, array{code: string, name: string, type: string, amount: BigDecimal}>|null  $dulu
+     * @param  array<string, string>  $filters
+     * @param  list<string>  $extraNotes
+     */
+    public function balanceSheetFrom(array $kini, ?array $dulu, string $key, string $title, string $labelKini, ?string $labelDulu, array $filters, array $extraNotes = [], ?string $subtitle = null): ReportTable
+    {
         $rows = [];
         $aset = $this->section($rows, $kini, [Account::ASSET], 'ASET', 'JUMLAH ASET', $dulu);
 
@@ -122,37 +172,41 @@ class FinancialStatements
         // Ekuitas ditambah satu baris yang DIHITUNG, bukan disimpan: laba yang belum ditutup.
         $ekuitasAkun = $this->section($rows, $kini, [Account::EQUITY], 'EKUITAS', null, $dulu);
         $laba = $this->profit($kini);
-        $labaDulu = $this->profit($dulu);
+        $labaDulu = $dulu === null ? null : $this->profit($dulu);
         $rows[] = $this->line('', 'Laba (Rugi) Berjalan', $laba, 'item', $labaDulu);
 
         $ekuitas = $ekuitasAkun->plus($laba);
-        $ekuitasDulu = $this->total($dulu, [Account::EQUITY])->plus($labaDulu);
+        $ekuitasDulu = $dulu === null ? null : $this->total($dulu, [Account::EQUITY])->plus($labaDulu);
         $rows[] = $this->line('', 'Jumlah Ekuitas', $ekuitas, 'subtotal', $ekuitasDulu);
 
         $kewajibanEkuitas = $liabilitas->plus($ekuitas);
         $rows[] = $this->line('', 'JUMLAH LIABILITAS & EKUITAS', $kewajibanEkuitas, 'result',
-            $this->total($dulu, [Account::LIABILITY])->plus($ekuitasDulu));
+            $dulu === null ? null : $this->total($dulu, [Account::LIABILITY])->plus($ekuitasDulu));
 
         $selisih = $aset->minus($kewajibanEkuitas);
 
+        $columns = [
+            'name' => ['label' => 'Akun', 'type' => ReportTable::TEXT],
+            'amount' => ['label' => $labelKini, 'type' => ReportTable::MONEY],
+        ];
+        if ($dulu !== null) {
+            $columns['previous'] = ['label' => $labelDulu ?? 'Pembanding', 'type' => ReportTable::MONEY];
+        }
+
         return new ReportTable(
-            key: 'neraca',
-            title: 'Neraca',
-            columns: [
-                'name' => ['label' => 'Akun', 'type' => ReportTable::TEXT],
-                'amount' => ['label' => 'Per '.$per->format('d M Y'), 'type' => ReportTable::MONEY],
-                'previous' => ['label' => 'Per '.$pembanding->format('d M Y'), 'type' => ReportTable::MONEY],
-            ],
+            key: $key,
+            title: $title,
+            columns: $columns,
             rows: $rows,
             totals: null,
-            filters: ['Per tanggal' => $per->format('d M Y'), 'Pembanding' => $pembanding->format('d M Y')],
+            filters: $filters,
             summary: [
                 ['label' => 'Jumlah Aset', 'value' => (string) $aset->toScale(2), 'type' => ReportTable::MONEY],
                 ['label' => 'Liabilitas', 'value' => (string) $liabilitas->toScale(2), 'type' => ReportTable::MONEY],
                 ['label' => 'Ekuitas', 'value' => (string) $ekuitas->toScale(2), 'type' => ReportTable::MONEY],
             ],
             notes: array_values(array_filter([
-                'Hanya jurnal yang sudah diposting yang dihitung; jurnal draft tidak ikut.',
+                ...$extraNotes,
                 '"Laba (Rugi) Berjalan" dihitung dari pendapatan dikurangi HPP dan beban. Karena tutup buku '
                     .'tahunan belum tersedia, ia menumpuk sejak jurnal pertama — bukan hanya tahun berjalan.',
                 'Akun lawan seperti Akumulasi Penyusutan tampil negatif karena ia mengurangi aset.',
@@ -161,6 +215,7 @@ class FinancialStatements
                         .ReportTable::rupiah((string) $selisih->toScale(2)).'). Laporkan temuan ini — '
                         .'neraca yang dibentuk dari jurnal seimbang seharusnya tidak mungkin timpang.',
             ])),
+            subtitle: $subtitle,
         );
     }
 
@@ -330,11 +385,15 @@ class FinancialStatements
     }
 
     /**
-     * Saldo tiap akun, bertanda menurut kelompoknya.
+     * Saldo tiap akun, bertanda menurut kelompoknya. Kuncinya id akun.
+     *
+     * Publik karena snapshot konsolidasi (CON-01) memanggilnya di dalam konteks tiap entitas anggota:
+     * aturan tanda per kelompok yang dipakai laporan keuangan harus sama persis dengan yang disimpan
+     * di snapshot, dan satu-satunya cara memastikannya adalah memakai fungsi yang sama.
      *
      * @return array<string, array{code: string, name: string, type: string, amount: BigDecimal}>
      */
-    private function balances(?CarbonImmutable $from, CarbonImmutable $to, ?string $outletId = null, ?string $brandId = null): array
+    public function balances(?CarbonImmutable $from, CarbonImmutable $to, ?string $outletId = null, ?string $brandId = null): array
     {
         $rows = DB::table('journal_lines as jl')
             ->join('journals as j', 'j.id', '=', 'jl.journal_id')

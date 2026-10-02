@@ -63,6 +63,24 @@ abstract class AccountingReportPage extends Page implements HasForms
 
     abstract protected function build(CarbonImmutable $from, CarbonImmutable $to): ?ReportTable;
 
+    /**
+     * Kalimat yang muncul ketika belum ada apa pun untuk ditampilkan.
+     *
+     * Dibuat dapat ditimpa karena "tidak ada data" punya SEBAB yang berbeda tiap laporan, dan
+     * kalimat yang menyebut sebab yang salah ("pilih akun" pada laporan yang tidak punya pilihan
+     * akun) membuat orang mencari pilihan yang tidak ada.
+     */
+    public function emptyHint(): string
+    {
+        return 'Pilih akun untuk menampilkan buku besarnya.';
+    }
+
+    /** Kalimat ketika laporannya terbentuk tetapi barisnya kosong. */
+    public function emptyRowsHint(): string
+    {
+        return 'Belum ada jurnal terposting pada rentang tanggal ini.';
+    }
+
     public function table(): ?ReportTable
     {
         if ($this->cache !== null) {

@@ -8,7 +8,7 @@
 
     @if ($table === null)
         <x-filament::section>
-            <p class="fnb-muted">Pilih akun untuk menampilkan buku besarnya.</p>
+            <p class="fnb-muted">{{ $this->emptyHint() }}</p>
         </x-filament::section>
     @else
         @if ($table->summary !== [])
@@ -30,7 +30,7 @@
             @endif
 
             @if ($table->rows === [])
-                <p class="fnb-muted">Belum ada jurnal terposting pada rentang tanggal ini.</p>
+                <p class="fnb-muted">{{ $this->emptyRowsHint() }}</p>
             @else
                 <div class="fnb-table-scroll" tabindex="0" role="region" aria-label="{{ $table->title }} (dapat digulir)">
                     <table class="fnb-receipt fnb-report-table" aria-label="{{ $table->title }}">

@@ -24,3 +24,12 @@ Schedule::command('reports:send-scheduled')->everyFiveMinutes()->withoutOverlapp
  */
 Schedule::command('akuntansi:jurnal-penjualan')->dailyAt('02:10')->withoutOverlapping();
 Schedule::command('akuntansi:jurnal-berulang')->dailyAt('02:20')->withoutOverlapping();
+
+/*
+ * Konsolidasi holding (Kelompok 8).
+ *
+ * Harian, bukan bulanan: kertas kerja yang hanya diperbarui saat seseorang ingat membukanya akan
+ * selalu tertinggal dari buku entitasnya, dan janji "LK tiap 2 hari" berdiri di atas angka yang
+ * sudah ada saat ditanya — bukan angka yang bisa dihitung kalau diminta.
+ */
+Schedule::command('konsolidasi:jalankan')->dailyAt('02:40')->withoutOverlapping();

@@ -28,6 +28,13 @@ final class DemoAccounts
             ['email' => 'yusuf@gtgroup.test', 'name' => 'Yusuf Maulana', 'role' => 'Kasir Hamzah Resto Ikan Bakar', 'company' => 'Gamatechno Group', 'pin' => '4719'],
             ['email' => 'rizky@gtgroup.test', 'name' => 'Rizky Ramadhan', 'role' => 'Manajer Hamzah Resto Jl. Magelang', 'company' => 'Gamatechno Group', 'pin' => '5836'],
             ['email' => 'hendra@gtgroup.test', 'name' => 'Hendra Gunawan', 'role' => 'Kasir Hamzah Resto Jl. Magelang', 'company' => 'Gamatechno Group', 'pin' => '5172'],
+            // Holding & konsolidasi (Kelompok 8). Nadia adalah peran paling sempit di sistem ini:
+            // ia menyusun angka grup dan tidak bisa membuka satu pun layar transaksi.
+            ['email' => 'hamzah@gtgroup.test', 'name' => 'Hamzah Gamatechno', 'role' => 'Pemilik', 'company' => 'Gamatechno Holding', 'pin' => null],
+            ['email' => 'nadia@gtgroup.test', 'name' => 'Nadia Pramesti', 'role' => 'Konsolidator', 'company' => 'Gamatechno Holding', 'pin' => null],
+            ['email' => 'gilang@gtgroup.test', 'name' => 'Gilang Saputra', 'role' => 'Finance', 'company' => 'Gamatechno Holding', 'pin' => null],
+            ['email' => 'ratna@gtgroup.test', 'name' => 'Ratna Puspita', 'role' => 'Pemilik', 'company' => 'Villa Merapi', 'pin' => null],
+            ['email' => 'oka@gtgroup.test', 'name' => 'Oka Mahendra', 'role' => 'Finance', 'company' => 'Villa Merapi', 'pin' => null],
         ];
     }
 

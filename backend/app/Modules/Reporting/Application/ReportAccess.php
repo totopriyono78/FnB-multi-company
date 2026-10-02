@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
  *
  * - `sales`: report.sales.company|brand|outlet (penjualan, pajak, anti-fraud, menu, laba kotor, dashboard).
  * - `inventory`: inventory.view (laporan inventory).
+ * - `accounting`: accounting.view (laporan keuangan & kas).
+ * - `consolidation`: consolidation.view (laporan grup; hanya berisi di entitas holding).
  */
 class ReportAccess
 {
@@ -35,6 +37,14 @@ class ReportAccess
      */
     public const ACCOUNTING = 'accounting';
 
+    /*
+     * Laporan konsolidasi (CON-06, CON-07). Dijaga `consolidation.view`, dan cakupan outletnya sama
+     * dengan laporan akuntansi — meski tidak dipakai sama sekali: angka konsolidasi dibaca dari
+     * snapshot per akun, yang memang tidak punya dimensi outlet. Kindnya tetap didaftarkan di sini
+     * agar ia mendapat seluruh mesin ekspor dan jadwal email tanpa kode sendiri.
+     */
+    public const CONSOLIDATION = 'consolidation';
+
     public function __construct(
         private readonly SalesAccess $sales,
         private readonly InventoryAccess $inventory,
@@ -46,6 +56,7 @@ class ReportAccess
         return match ($kind) {
             self::INVENTORY => $this->inventory->canView($user),
             self::ACCOUNTING => $user->can('accounting.view'),
+            self::CONSOLIDATION => $user->can('consolidation.view'),
             default => $this->sales->canView($user),
         };
     }
@@ -56,7 +67,7 @@ class ReportAccess
         if (! $this->can($user, $kind)) {
             return [];
         }
-        if ($kind === self::ACCOUNTING) {
+        if ($kind === self::ACCOUNTING || $kind === self::CONSOLIDATION) {
             /** @var list<string> $semua */
             $semua = Outlet::withTrashed()->pluck('id')->all();
 

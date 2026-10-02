@@ -48,6 +48,13 @@ class DemoSeeder extends Seeder
 
         $this->seedGamatechno($context);
 
+        /*
+         * Holding & konsolidasi dijalankan DI LUAR konteks tenant Gamatechno Group, karena ia
+         * mendaftarkan tiga entitas baru. Mendaftarkan company dari dalam konteks company lain
+         * adalah hal yang memang tidak boleh bisa dilakukan.
+         */
+        (new DemoHoldingSeeder)->run();
+
         // Staf demo memakai password yang sama agar mudah dicoba (hanya non-produksi).
         $context->runAsSystem(function (): void {
             User::query()->where('email', 'like', '%@gtgroup.test')->where('is_platform_admin', false)->get()
