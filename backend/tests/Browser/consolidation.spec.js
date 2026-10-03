@@ -15,6 +15,8 @@ import { test, expect } from '@playwright/test';
  */
 
 const KONSOLIDATOR = { email: 'nadia@gtgroup.test', password: 'Rahasia123' };
+// Pemilik entitas holding: ia menyusun grupnya, tetapi tidak menarik saldo maupun mengeliminasi.
+const PEMILIK = { email: 'hamzah@gtgroup.test', password: 'Rahasia123' };
 const SHOTS = process.env.E2E_SCREENSHOTS ?? 'test-results/screens';
 
 async function masuk(page, akun = KONSOLIDATOR) {
@@ -159,3 +161,33 @@ async function pilihAkunDialog(page, label, kode) {
     }
     await page.locator('.choices.is-open .choices__item--choice', { hasText: new RegExp('^' + kode) }).first().click();
 }
+
+/*
+ * Regresi atas cacat nyata (3 Okt 2026): layar Grup Holding dulu dijaga `consolidation.manage`,
+ * yang sengaja tidak diberikan ke pemilik. Akibatnya pemilik login untuk menyusun grup dan tidak
+ * menemukan satu pun pintu — dan seluruh uji tetap hijau karena semuanya memakai konsolidator.
+ *
+ * Diuji di sini, bukan hanya di PHP: yang gagal waktu itu adalah MENUNYA, dan menu hanya ada di
+ * layar sungguhan.
+ */
+test('pemilik melihat menu grup holding dan laporan konsolidasi', async ({ page }) => {
+    const base = await masuk(page, PEMILIK);
+    await page.goto(`${base}/konsolidasi/grup`);
+
+    const sidebar = page.locator('.fi-sidebar-nav');
+    await expect(sidebar.getByText('Holding & Konsolidasi').first()).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Grup Holding' })).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: 'Grup Gamatechno' })).toBeVisible();
+
+    // Laporannya pun terbuka: pemilik memang memegang consolidation.view.
+    for (const path of ['/konsolidasi/dasbor', '/konsolidasi/kertas-kerja', '/konsolidasi/neraca', '/konsolidasi/laba-rugi']) {
+        expect((await page.goto(`${base}${path}`)).status()).toBe(200);
+    }
+
+    // Tetapi angkanya bukan pekerjaannya: tombol tarik saldo & kunci final tidak ada untuknya.
+    await page.goto(`${base}/konsolidasi/proses`);
+    const baris = page.getByRole('row').filter({ hasText: /KON-\d{4}-\d{4}/ }).first();
+    await expect(baris).toBeVisible({ timeout: 15_000 });
+    await expect(baris.getByRole('button', { name: 'Tarik saldo entitas' })).toHaveCount(0);
+    await expect(baris.getByRole('button', { name: 'Kunci final' })).toHaveCount(0);
+});

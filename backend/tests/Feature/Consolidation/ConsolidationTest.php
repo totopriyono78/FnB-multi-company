@@ -131,6 +131,34 @@ describe('grup & keanggotaan (GRP-01)', function () {
         buatGrup($this);
         diHolding($this, fn () => app(GroupService::class)->create(['code' => 'LAIN', 'name' => 'Grup Lain']));
     })->throws(ConsolidationException::class, 'sudah memegang satu grup');
+
+    /*
+     * Lubang yang terbuka 3 Okt 2026 saat `group.manage` diberikan lebih luas.
+     *
+     * Tanpa penjagaan ini, anak usaha yang sudah menjadi anggota grup bisa membuat grupnya sendiri,
+     * dan `group_id`-nya tertimpa: ia diam-diam keluar dari grup induknya. Tidak ada galat, tidak
+     * ada peringatan — yang kelihatan hanya angka grup induk yang mengecil bulan berikutnya.
+     */
+    it('menolak anak usaha membuat grup sendiri selagi masih menjadi anggota', function () {
+        buatGrup($this);
+
+        Factory::tenant($this->anakA, fn () => app(GroupService::class)
+            ->create(['code' => 'BELOT', 'name' => 'Grup Membelot']));
+    })->throws(ConsolidationException::class, 'sudah menjadi anggota grup lain');
+
+    it('tidak mengeluarkan anak usaha dari grupnya ketika percobaan itu ditolak', function () {
+        $group = buatGrup($this);
+
+        try {
+            Factory::tenant($this->anakA, fn () => app(GroupService::class)
+                ->create(['code' => 'BELOT', 'name' => 'Grup Membelot']));
+        } catch (ConsolidationException) {
+            // Yang diuji justru akibatnya, bukan galatnya.
+        }
+
+        $masih = Factory::system(fn () => Company::query()->whereKey($this->anakA->id)->value('group_id'));
+        expect($masih)->toBe($group->id);
+    });
 });
 
 describe('snapshot saldo (CON-01)', function () {
@@ -554,7 +582,7 @@ describe('peran konsolidator (GRP-02)', function () {
     it('tidak memberi konsolidator satu pun izin ke data transaksi', function () {
         $izin = PermissionRegistry::defaultRoles()['consolidator']['permissions'];
 
-        expect($izin)->toContain('consolidation.view', 'consolidation.manage')
+        expect($izin)->toContain('consolidation.view', 'consolidation.manage', 'group.manage')
             ->and($izin)->not->toContain('accounting.view')
             ->and($izin)->not->toContain('treasury.view')
             ->and($izin)->not->toContain('report.sales.company')
@@ -565,6 +593,14 @@ describe('peran konsolidator (GRP-02)', function () {
         $izin = PermissionRegistry::defaultRoles()['owner']['permissions'];
 
         expect($izin)->toContain('consolidation.view')->and($izin)->not->toContain('consolidation.manage');
+    });
+
+    it('memberi pemilik kewenangan menyusun grupnya', function () {
+        // Struktur entitas adalah keputusan pemilik; angkanya pekerjaan finance. Tanpa izin ini
+        // pemilik tidak punya satu pun pintu untuk membuat grup — cacat 3 Okt 2026.
+        $izin = PermissionRegistry::defaultRoles()['owner']['permissions'];
+
+        expect($izin)->toContain('group.manage');
     });
 });
 

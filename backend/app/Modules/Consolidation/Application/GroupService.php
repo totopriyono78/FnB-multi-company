@@ -48,6 +48,19 @@ class GroupService
                 throw new ConsolidationException('GROUP_EXISTS',
                     'Entitas ini sudah memegang satu grup. Ubah grup yang ada alih-alih membuat yang kedua.');
             }
+            /*
+             * Entitas yang SUDAH menjadi anggota grup lain tidak boleh membuat grupnya sendiri.
+             *
+             * Tanpa penjagaan ini, baris di bawah akan menimpa `group_id`-nya dan entitas itu
+             * diam-diam keluar dari grup induknya untuk mengepalai grup barunya — tanpa satu pun
+             * galat, dan yang kelihatan hanya angka grup induk yang mengecil pada periode berikutnya.
+             * Jenis kerusakan yang paling sulit ditelusuri: tidak ada yang gagal, hanya salah.
+             */
+            if ($this->memberOfOtherGroup($companyId)) {
+                throw new ConsolidationException('ALREADY_IN_GROUP',
+                    'Entitas ini sudah menjadi anggota grup lain, jadi ia tidak bisa mengepalai grup '
+                    .'sendiri. Keluarkan dari grup itu lebih dulu.');
+            }
             $taken = app(TenantContext::class)->runAsSystem(
                 fn (): bool => Group::query()->withoutGlobalScopes()->where('code', $code)->exists()
             );
@@ -217,6 +230,26 @@ class GroupService
     public function currentGroup(): ?Group
     {
         return Group::query()->orderBy('code')->first();
+    }
+
+    /**
+     * Apakah entitas yang sedang aktif sudah menjadi anggota grup entitas LAIN.
+     *
+     * Dibaca dari barisnya sendiri di `companies` — satu-satunya baris company yang terlihat dari
+     * konteks tenant ini — jadi tidak perlu `runAsSystem` dan tidak ada apa pun tentang grup lain
+     * yang ikut terbaca selain fakta bahwa ia anggota.
+     */
+    public function memberOfOtherGroup(?string $companyId = null): bool
+    {
+        $companyId ??= app(TenantContext::class)->requireCompanyId();
+        $groupId = Company::query()->whereKey($companyId)->value('group_id');
+
+        if (! is_string($groupId)) {
+            return false;
+        }
+
+        // Grup sendiri tidak dihitung: itu keadaan entitas holding yang normal.
+        return ! Group::query()->whereKey($groupId)->exists();
     }
 
     private function assertOwns(Group $group): void

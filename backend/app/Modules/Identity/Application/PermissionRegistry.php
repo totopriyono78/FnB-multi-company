@@ -22,6 +22,17 @@ final class PermissionRegistry
             'outlet.view' => 'Lihat outlet',
             'device.manage' => 'Kelola perangkat',
             'device.view' => 'Lihat perangkat',
+            /*
+             * Grup holding adalah STRUKTUR ENTITAS, bukan pembukuan — karena itu izinnya duduk di
+             * sini bersama brand dan outlet, bukan di kelompok `consolidation`.
+             *
+             * Pemisahan itu bukan soal rapi-rapian. Menyatakan "entitas-entitas ini satu grup"
+             * adalah keputusan pemilik; menarik saldo lintas entitas dan mengentri ayat eliminasi
+             * adalah pekerjaan finance. Versi pertama menyatukan keduanya di `consolidation.manage`
+             * yang sengaja TIDAK diberikan ke pemilik, dan akibatnya pemilik — satu-satunya orang
+             * yang berhak memutuskan susunan grupnya — tidak punya satu pun pintu untuk membuatnya.
+             */
+            'group.manage' => 'Kelola grup holding',
         ],
         'users' => [
             'user.manage' => 'Kelola user seluruh company',
@@ -109,7 +120,7 @@ final class PermissionRegistry
      */
     public const PRIVILEGED = [
         'company.manage', 'subscription.manage', 'brand.manage', 'outlet.manage', 'device.manage',
-        'user.manage', 'user.manage_outlet', 'role.manage', 'menu.manage', 'inventory.manage',
+        'group.manage', 'user.manage', 'user.manage_outlet', 'role.manage', 'menu.manage', 'inventory.manage',
         'inventory.approve_count', 'purchasing.manage', 'purchasing.approve', 'accounting.manage', 'accounting.view', 'audit.view',
         'payment.pay', 'payment.view',
         'treasury.manage', 'treasury.reconcile', 'treasury.view',
@@ -195,6 +206,7 @@ final class PermissionRegistry
                 'permissions' => [
                     'company.manage', 'company.view', 'subscription.manage', 'subscription.view',
                     'brand.manage', 'brand.view', 'outlet.manage', 'outlet.view', 'device.manage', 'device.view',
+                    'group.manage',
                     'user.manage', 'role.manage', 'menu.manage', 'menu.view', 'menu.sold_out',
                     'pos.discount', 'pos.void', 'pos.open_drawer', 'pos.price_override', 'pos.end_of_day',
                     'inventory.manage', 'inventory.approve_count', 'inventory.view',
@@ -247,7 +259,7 @@ final class PermissionRegistry
                     'report.sales.company', 'accounting.manage', 'accounting.view', 'audit.view',
                     'payment.request', 'payment.pay', 'payment.view',
                     'treasury.manage', 'treasury.reconcile', 'treasury.view',
-                    'consolidation.manage', 'consolidation.view',
+                    'group.manage', 'consolidation.manage', 'consolidation.view',
                 ],
             ],
             /*
@@ -259,7 +271,7 @@ final class PermissionRegistry
             'consolidator' => [
                 'label' => 'Konsolidator',
                 'max_discount' => '0',
-                'permissions' => ['company.view', 'consolidation.manage', 'consolidation.view'],
+                'permissions' => ['company.view', 'group.manage', 'consolidation.manage', 'consolidation.view'],
             ],
         ];
     }

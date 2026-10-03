@@ -48,17 +48,26 @@ class GroupResource extends Resource
 
     public static function canAccess(): bool
     {
-        return ConsolidationAccess::canCreateGroup() || ConsolidationAccess::canView();
+        // Entitas holding selalu boleh (lihat/ubah grupnya). Entitas tanpa grup boleh, supaya
+        // grupnya bisa dibuat. Entitas yang sudah menjadi ANGGOTA grup lain tidak: di sana layar
+        // ini hanya akan memperlihatkan daftar kosong dan jalan buntu.
+        if (ConsolidationAccess::canView()) {
+            return true;
+        }
+
+        return ConsolidationAccess::canManageGroup() && ! ConsolidationAccess::isMemberOfOtherGroup();
     }
 
     public static function canCreate(): bool
     {
-        return ConsolidationAccess::canCreateGroup() && ! ConsolidationAccess::isHolding();
+        return ConsolidationAccess::canManageGroup()
+            && ! ConsolidationAccess::isHolding()
+            && ! ConsolidationAccess::isMemberOfOtherGroup();
     }
 
     public static function canEdit(mixed $record): bool
     {
-        return ConsolidationAccess::canManage();
+        return ConsolidationAccess::canManageGroup();
     }
 
     public static function canDelete(mixed $record): bool

@@ -135,6 +135,51 @@ describe('siapa boleh membuka', function () {
 
         $this->get("/admin/{$this->biasa->code}/konsolidasi/grup")->assertOk();
     });
+
+    /*
+     * Regresi atas cacat nyata (3 Okt 2026), dan jenis cacat yang paling mudah lolos uji.
+     *
+     * Versi pertama menjaga layar Grup Holding dengan `consolidation.manage`, yang sengaja TIDAK
+     * diberikan ke pemilik — alasannya benar untuk menarik saldo dan mengentri eliminasi, tetapi
+     * SALAH untuk membuat grupnya. Akibatnya pemilik login untuk menyusun grup dan tidak menemukan
+     * satu pun pintu, sementara seluruh uji tetap hijau karena semuanya memakai finance.
+     *
+     * Yang menemukannya pengguna, bukan uji. Dua uji berikut ada supaya tidak terulang.
+     */
+    it('membuka layar grup untuk pemilik meski grupnya belum ada', function () {
+        masukKonsolidasi($this, $this->biasaOwner, $this->biasa);
+
+        $this->get("/admin/{$this->biasa->code}/konsolidasi/grup")->assertOk();
+        $this->get("/admin/{$this->biasa->code}/konsolidasi/grup/baru")->assertOk();
+    });
+
+    it('membiarkan pemilik membuat grup lewat form', function () {
+        masukKonsolidasi($this, $this->biasaOwner, $this->biasa);
+
+        Livewire::test(CreateGroup::class)
+            ->fillForm(['code' => 'PEMILIK', 'name' => 'Grup Pemilik'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $group = Factory::tenant($this->biasa, fn () => Group::query()->where('code', 'PEMILIK')->first());
+        expect($group)->not->toBeNull();
+
+        // Dan sesudah grupnya ada, seluruh layar konsolidasi terbuka untuk pemilik — ia memang
+        // memegang consolidation.view, yang sebelumnya tidak berarti apa pun karena grupnya mustahil dibuat.
+        foreach (['/konsolidasi/dasbor', '/konsolidasi/kertas-kerja', '/konsolidasi/neraca', '/konsolidasi/laba-rugi'] as $path) {
+            $this->get("/admin/{$this->biasa->code}{$path}")->assertOk();
+        }
+    });
+
+    it('tidak memberi pemilik kewenangan menarik saldo maupun mengentri eliminasi', function () {
+        // Pemisahannya tetap: pemilik menyusun grupnya, finance yang mengerjakan angkanya.
+        $run = grupSiap($this);
+        masukKonsolidasi($this, $this->holdingOwner);
+
+        Livewire::test(ListConsolidationRuns::class)
+            ->assertTableActionHidden('generate', $run->id)
+            ->assertTableActionHidden('finalize', $run->id);
+    });
 });
 
 describe('layar grup', function () {
