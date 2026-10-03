@@ -29,9 +29,6 @@ return [
     // Tampilkan daftar akun demo di halaman login (tidak pernah aktif di produksi).
     'demo_login' => (bool) env('FNB_DEMO_LOGIN', false),
 
-    // Layar prototipe modul Akuntansi (tampilan saja, data contoh).
-    'prototype_accounting' => (bool) env('FNB_PROTOTYPE_ACCOUNTING', true),
-
     // Aplikasi kasir versi web di /pos (memakai API POS resmi).
     'pos_web' => (bool) env('FNB_POS_WEB', true),
 

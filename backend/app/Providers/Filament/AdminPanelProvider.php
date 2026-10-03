@@ -110,7 +110,6 @@ class AdminPanelProvider extends PanelProvider
                  * punya akses ke satu pun layar transaksi di atasnya.
                  */
                 NavigationGroup::make('Holding & Konsolidasi'),
-                NavigationGroup::make('Akuntansi (Prototipe)'),
                 NavigationGroup::make('Pengguna & Akses'),
                 NavigationGroup::make('Keamanan'),
             ])

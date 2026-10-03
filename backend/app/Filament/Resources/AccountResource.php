@@ -25,11 +25,10 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Bagan akun per entitas (ACC-01).
  *
- * Alamatnya diawali `pembukuan/`, bukan `akuntansi/`: halaman PROTOTIPE lama masih memakai
- * `akuntansi/bagan-akun` dan `akuntansi/jurnal`, dan dua rute dengan alamat sama membuat menu
- * seluruh panel meledak (RouteNotFoundException). Prototipe sengaja dibiarkan utuh sampai user
- * memutuskan untuk mempensiunkannya; sampai saat itu keduanya hidup berdampingan — yang sungguhan
- * di grup "Akuntansi", yang lama di grup "Akuntansi (Prototipe)".
+ * Alamatnya diawali `pembukuan/`, bukan `akuntansi/`. Asalnya untuk menghindari tabrakan dengan
+ * halaman prototipe lama, yang sudah dipensiunkan 3 Okt 2026. Awalannya tetap `pembukuan/` dan
+ * tidak diubah: alamat yang sudah dipakai orang dan sudah ada di penanda buku tidak diganti hanya
+ * supaya lebih rapi, dan mengubahnya berarti seluruh rute di modul ini ikut berganti.
  */
 class AccountResource extends Resource
 {
